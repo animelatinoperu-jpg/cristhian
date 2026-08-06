@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block title %}{{ fill.tunnel.code }} · Llenada {{ fill.fill_number }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-copy">
+    <a class="page-header-back" href="{% url 'productions:detail' production.pk %}">← Volver al PP {{ production.number }}</a>
+    <span class="page-header-kicker">CAPTURA POR TÚNEL</span>
+    <h1>{{ fill.tunnel.code }} · Llenada {{ fill.fill_number }}</h1>
+    <span class="page-header-sub">Escriba producto y bandejas en cada rack. Puede guardar todos juntos.</span>
+  </div>
+  <div class="page-header-actions">
+    <span class="status status-open">{{ fill.get_status_display }}</span>
+    <span class="small text-secondary" style="width:100%;text-align:right">Capacidad configurable: 49 excepcional, 50 o 70 por rack</span>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-outline-primary" href="{% url 'productions:tunnel_report_xlsx_by_tunnel' production.pk fill.tunnel.pk %}">Descargar Excel de {{ fill.tunnel.code }}</a>
+      <a class="btn btn-outline-danger" href="{% url 'productions:tunnel_report_pdf_by_tunnel' production.pk fill.tunnel.pk %}">Descargar PDF de {{ fill.tunnel.code }}</a>
+      <form method="post" action="{% url 'productions:tunnel_fill_transition' production.pk fill.pk %}" data-prevent-double-submit data-confirm-message="¿Cerrar el túnel {{ fill.tunnel.code }} · llenada {{ fill.fill_number }}? Ya no se podrán registrar ni corregir racks hasta reabrirlo.">
+        {% csrf_token %}
+        <input type="hidden" name="target_status" value="CLOSED">
+        <input type="hidden" name="expected_version" value="{{ fill.version }}">
+        <button class="btn btn-outline-danger" type="submit">Cerrar túnel</button>
+      </form>
+    </div>
+    {% if is_manager and transfer_tunnels %}
+    <details class="mt-2 tunnel-transfer-box">
+      <summary class="btn btn-sm btn-outline-secondary">Transferir a otro túnel</summary>
+      <form
+        class="card card-body border-warning mt-2"
+        method="post"
+        action="{% url 'productions:tunnel_fill_transfer' production.pk fill.pk %}"
+        data-prevent-double-submit
+        data-confirm-message="¿Transferir TODA la llenada de {{ fill.tunnel.code }} al túnel seleccionado? Se moverán juntos racks, productos, cuadrillas, horas y reportes."
+      >
+        {% csrf_token %}
+        <label class="form-label fw-semibold" for="target-tunnel">Túnel destino</label>
+        <select class="form-select mb-2" id="target-tunnel" name="target_tunnel" required>
+          <option value="">Seleccione</option>
+          {% for tunnel in transfer_tunnels %}
+          <option value="{{ tunnel.pk }}">{{ tunnel.code }}</option>
+          {% endfor %}
+        </select>
+        <label class="form-label fw-semibold" for="transfer-reason">Motivo obligatorio</label>
+        <input class="form-control mb-2" id="transfer-reason" name="reason" maxlength="300" placeholder="Ejemplo: cambio operativo de túnel" required>
+        <button class="btn btn-warning w-100" type="submit">Transferir llenada completa</button>
+        <small class="text-secondary mt-2">No se permite mezclar con una llenada existente ni mover racks incompatibles.</small>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+</div>
+
+<form method="post" data-prevent-double-submit data-offline-queue="tunnel-batch" data-offline-label="{{ fill.tunnel.code }} · Llenada {{ fill.fill_number }}" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="open_rack_id" value="{{ open_rack_id }}" data-open-rack-input>
+  <input type="hidden" name="save_rack_id" value="" data-save-rack-input>
+  {{ formset.management_form }}
+  <section class="card border-0 shadow-sm mb-3 tunnel-crew-intro">
+    <div class="card-body p-3 p-md-4">
+      <p class="eyebrow mb-1">RESUMEN DE CUADRILLAS DEL TÚNEL</p>
+      <div class="tunnel-crew-summary-grid">
+        <div><small>Bandejas físicas</small><strong>{{ tunnel_crew_summary.physical_total }}</strong></div>
+        <div><small>Asignadas</small><strong>{{ tunnel_crew_summary.assigned_total }}</strong></div>
+        <div><small>Pendientes</small><strong>{{ tunnel_crew_summary.pending_total }}</strong></div>
+      </div>
+      <p class="small text-secondary mt-3 mb-0">Puede repartir cada rack entre varias cuadrillas; la suma nunca podrá superar lo realmente llenado en ese rack.</p>
+      {% if tunnel_crew_summary.pending_racks %}
+      <div class="alert alert-warning py-2 mt-3 mb-0">
+        <strong class="d-block small mb-2">Racks pendientes de asignar:</strong>
+        <div class="d-flex flex-wrap gap-2">
+          {% for pending_rack in tunnel_crew_summary.pending_racks %}
+          <a class="btn btn-sm btn-ghost" href="?open_rack={{ pending_rack.id }}#rack-{{ pending_rack.id }}">
+            {{ pending_rack.code }} · {{ pending_rack.pending_total }} pendiente{{ pending_rack.pending_total|pluralize:"s" }}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      {% if tunnel_crew_summary.unmatched_total %}
+      <div class="alert alert-warning py-2 small mt-3 mb-0">Hay {{ tunnel_crew_summary.unmatched_total }} bandeja{{ tunnel_crew_summary.unmatched_total|pluralize:"s" }} asignada{{ tunnel_crew_summary.unmatched_total|pluralize:"s" }} a cuadrilla sin bandejas físicas activas. Revise el rack abierto abajo y elimine esa asignación o vuelva a guardar sus bandejas físicas.</div>
+      {% endif %}
+      <details class="tunnel-crew-create-box mt-3">
+        <summary>+ Crear una cuadrilla que todavía no aparece</summary>
+        <div class="row g-2 align-items-end mt-1">
+          <div class="col-12 col-md">
+            <label class="form-label fw-semibold" for="new-tunnel-crew-name">Nombre de la cuadrilla</label>
+            <input class="form-control" id="new-tunnel-crew-name" form="tunnel-crew-quick-create" name="name" maxlength="100" placeholder="Ejemplo: CUADRILLA RAMÍREZ" required>
+          </div>
+          <div class="col-12 col-md-auto"><button class="btn btn-outline-primary w-100" type="submit" form="tunnel-crew-quick-create">Crear y usar</button></div>
+        </div>
+      </details>
+      <datalist id="tunnel-crew-options">{% for crew_id, crew_name in crew_suggestions %}<option value="{{ crew_name }}">{% endfor %}</datalist>
+    </div>
+  </section>
+  {% if formset.non_form_errors %}<div class="alert alert-danger">{{ formset.non_form_errors }}</div>{% endif %}
+  <div class="tunnel-rack-grid mb-4">
+    {% for rack_form in formset %}
+    <section id="rack-{{ rack_form.rack.pk }}" class="rack-card {% if rack_form.rack.is_complete %}rack-card-complete{% endif %}{% if rack_form.rack.is_closed %} rack-card-closed{% endif %}{% if rack_form.errors %} rack-card-error{% endif %}" data-rack-card>
+      {{ rack_form.rack_id }}
+      {{ rack_form.entry_id }}
+      <details class="tunnel-rack-fold" data-tunnel-rack-fold data-rack-id="{{ rack_form.rack.pk }}"{% if open_rack_id == rack_form.rack.pk|stringformat:"s" or rack_form.errors or rack_form.non_field_errors or rack_form.rack.active_crew_entries and not rack_form.rack.active_entries %} open{% endif %}>
+        <summary class="tunnel-rack-summary">
+          <span><small>RACK</small><strong>{{ rack_form.rack.code|default:"Rack" }}</strong>{% if rack_form.rack.is_closed %}<em>CERRADO</em>{% elif rack_form.rack.is_full %}<em>LLENO</em>{% endif %}</span>
+          <span class="rack-total" data-rack-total data-current-total="{{ rack_form.rack.current_total|default:0 }}">{{ rack_form.rack.current_total|default:0 }} / {{ rack_form.max_trays.value }}</span>
+          <i class="tunnel-rack-chevron" aria-hidden="true"></i>
+        </summary>
+        <div class="tunnel-rack-detail">
+        {% if rack_form.rack.is_closed %}
+          {{ rack_form.max_trays.as_hidden }}
+          <div class="rack-closed-panel">
+            <strong>Rack cerrado</strong>
+            <span>{{ rack_form.rack.current_total }} / {{ rack_form.rack.max_trays }} bandejas</span>
+            {% if rack_form.rack.close_reason %}<small>Motivo: {{ rack_form.rack.close_reason }}</small>{% endif %}
+            {% if is_manager %}
+            <input class="form-control form-control-sm mb-2" form="rack-reopen-{{ rack_form.rack.pk }}" name="reason" placeholder="Motivo de reapertura">
+            <button class="btn btn-sm btn-outline-primary" type="submit" form="rack-reopen-{{ rack_form.rack.pk }}" data-confirm-message="¿Reabrir el rack {{ rack_form.rack.code }}?">Reabrir rack</button>
+            {% endif %}
+          </div>
+        {% else %}
+      {% if rack_form.rack.active_entries %}
+      <div class="current-entries mb-3">
+        <p class="small fw-semibold mb-1">Ya guardado</p>
+        {% for entry in rack_form.rack.active_entries %}
+        <div class="saved-entry">
+          <div class="saved-entry-summary"><span>{{ entry.product.description }}{% if entry.product.lamina_color %}<small class="lamina-chip" data-lamina-color="{{ entry.product.lamina_color }}">Lámina {{ entry.product.lamina_color }}</small>{% endif %}</span><strong>{{ entry.tray_count }}</strong></div>
+          <div class="saved-entry-actions">
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-primary"
+              data-edit-entry
+              data-entry-id="{{ entry.pk }}"
+              data-product-id="{{ entry.product_id }}"
+              data-tray-count="{{ entry.tray_count }}"
+              data-entry-label="{{ entry.product.description }}"
+            >Corregir</button>
+            <button
+              type="submit"
+              class="btn btn-sm btn-outline-danger"
+              formaction="{% url 'productions:tunnel_entry_delete' production.pk fill.pk entry.pk %}"
+              formmethod="post"
+              formnovalidate
+              data-confirm-message="¿Eliminar {{ entry.product.description }} del rack {{ rack_form.rack.code }}?"
+            >Eliminar</button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if rack_form.non_field_errors %}<div class="alert alert-danger py-2 small">{{ rack_form.non_field_errors }}</div>{% endif %}
+      <div class="alert alert-warning py-2 small d-none" data-editing-notice>
+        Corrigiendo <strong data-editing-label></strong>. Cambie el producto o las bandejas y pulse <strong>Guardar bandejas</strong>.
+        <button type="button" class="btn btn-sm btn-link p-0 ms-1" data-cancel-entry-edit>Cancelar</button>
+      </div>
+      <div class="mb-3"><label class="form-label fw-semibold" for="{{ rack_form.max_trays.id_for_label }}">Capacidad del rack</label>{{ rack_form.max_trays }}<div class="form-text">Se confirma al pulsar Guardar bandejas.</div>{% for error in rack_form.max_trays.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}</div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold" for="{{ rack_form.product.id_for_label }}">Producto</label>
+        <div class="tunnel-product-picker" data-tunnel-product-picker>
+          <input
+            class="form-control mb-2 d-md-none tunnel-product-search"
+            type="search"
+            placeholder="Escriba c?digo o nombre, ej. TEN"
+            autocomplete="off"
+            inputmode="search"
+            data-tunnel-product-search
+            data-product-select="{{ rack_form.product.id_for_label }}"
+          >
+          <div class="tunnel-product-suggestions d-md-none" data-tunnel-product-suggestions></div>
+          {{ rack_form.product }}
+          <div class="tunnel-product-lamina" data-tunnel-product-lamina hidden></div>
+          <div class="form-text d-md-none" data-tunnel-product-picked>Escriba para ver sugerencias con c?digo.</div>
+        </div>
+        {% for error in rack_form.product.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+      </div>
+      <div><label class="form-label fw-semibold" for="{{ rack_form.tray_count.id_for_label }}">Bandejas</label>{{ rack_form.tray_count }}{% for error in rack_form.tray_count.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}</div>
+      <div class="mt-3">
+        <button class="btn btn-primary w-100" type="button" data-save-rack data-rack-id="{{ rack_form.rack.pk }}">Guardar producto en este rack</button>
+      </div>
+      <div class="rack-close-form mt-3">
+        <input class="form-control form-control-sm mb-2" form="rack-close-{{ rack_form.rack.pk }}" name="reason" placeholder="Motivo opcional del cierre"><button class="btn btn-ghost w-100" type="submit" form="rack-close-{{ rack_form.rack.pk }}" data-save-and-close-rack data-product-input="{{ rack_form.product.id_for_label }}" data-tray-input="{{ rack_form.tray_count.id_for_label }}" data-capacity-input="{{ rack_form.max_trays.id_for_label }}" data-confirm-message="¿Guardar y cerrar el rack {{ rack_form.rack.code }}? Quedará negro aunque esté incompleto.">Guardar y cerrar rack</button>
+      </div>
+        {% endif %}
+        {% if rack_form.rack.active_entries or rack_form.rack.active_crew_entries %}
+        <div class="current-entries mt-3">
+          <p class="small fw-semibold mb-1">Cuadrillas del rack</p>
+          <div class="alert alert-warning py-2 small d-none" data-crew-editing-notice>
+            Corrigiendo la cuadrilla <strong data-crew-editing-label></strong>.
+            <button type="button" class="btn btn-sm btn-link p-0 ms-1" data-cancel-crew-edit>Cancelar</button>
+          </div>
+          {% for assignment in rack_form.rack.active_crew_entries %}
+          <div class="saved-entry">
+            <div class="saved-entry-summary"><span>{{ assignment.crew.name }}{% if assignment.product_id %} · {{ assignment.product.description }}{% endif %}</span><strong>{{ assignment.tray_count }}</strong></div>
+            <div class="saved-entry-actions">
+              <button class="btn btn-sm btn-outline-primary" type="button" data-edit-crew-entry data-crew-entry-id="{{ assignment.pk }}" data-crew-id="{{ assignment.crew_id }}" data-crew-name="{{ assignment.crew.name }}" data-product-id="{{ assignment.product_id|default:'' }}" data-tray-count="{{ assignment.tray_count }}" data-entry-label="{{ assignment.crew.name }}{% if assignment.product_id %} · {{ assignment.product.description }}{% endif %}">Corregir</button>
+              <button class="btn btn-sm btn-outline-danger" type="submit" form="tunnel-crew-delete-{{ assignment.pk }}" data-confirm-message="¿Eliminar {{ assignment.crew.name }} del rack {{ rack_form.rack.code }}?">Eliminar</button>
+            </div>
+          </div>
+          {% empty %}
+          <p class="small text-secondary mb-2">Todavía no hay cuadrillas asignadas.</p>
+          {% endfor %}
+          {% if not rack_form.rack.active_entries and rack_form.rack.active_crew_entries %}
+          <div class="alert alert-warning py-2 small mb-0">Estas bandejas por cuadrilla quedaron registradas, pero el rack ya no tiene bandejas físicas activas. Elimínelas o vuelva a guardar el producto del rack para cuadrarlas.</div>
+          {% endif %}
+          {% if rack_form.rack.active_entries %}
+          <div class="row g-2 align-items-end mt-1">
+            <div class="col-12">
+              <label class="form-label fw-semibold small" for="crew-product-{{ rack_form.rack.pk }}">Producto trabajado</label>
+              <select class="form-select form-select-sm" id="crew-product-{{ rack_form.rack.pk }}" name="crew_product_{{ rack_form.rack.pk }}">
+                <option value="">{% if rack_form.rack.has_crew_balance %}Seleccione el producto pendiente{% else %}Todas las bandejas ya están asignadas{% endif %}</option>
+                {% for entry in rack_form.rack.active_entries %}<option value="{{ entry.product_id }}" {% if not entry.remaining_for_crew %}hidden{% endif %}>{{ entry.product.description }} - {{ entry.remaining_for_crew }} bandejas pendientes</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-5">
+              <div class="tunnel-crew-picker" data-tunnel-crew-picker>
+                <label class="form-label fw-semibold small" for="crew-search-{{ rack_form.rack.pk }}">Cuadrilla</label>
+                <input class="form-control form-control-sm tunnel-crew-search" id="crew-search-{{ rack_form.rack.pk }}" name="crew_name_{{ rack_form.rack.pk }}" type="search" placeholder="Escriba para buscar la cuadrilla" list="tunnel-crew-options" autocomplete="off" data-tunnel-crew-search>
+                <select class="form-select form-select-sm tunnel-crew-select" id="crew-{{ rack_form.rack.pk }}" name="crew_{{ rack_form.rack.pk }}" data-tunnel-crew-select>
+                <option value="">Seleccione</option>
+                {% for crew in crew_options %}<option value="{{ crew.pk }}">{{ crew.name }}</option>{% endfor %}
+                </select>
+                <div class="form-text">Escriba parte del nombre. Si no existe, créela arriba en esta misma pantalla.</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label fw-semibold small" for="crew-trays-{{ rack_form.rack.pk }}">Bandejas</label>
+              <input class="form-control form-control-sm" id="crew-trays-{{ rack_form.rack.pk }}" name="crew_trays_{{ rack_form.rack.pk }}" type="number" min="1" inputmode="numeric" placeholder="0">
+              <input type="hidden" name="crew_entry_id_{{ rack_form.rack.pk }}" value="">
+              <input type="hidden" name="crew_assign_all_{{ rack_form.rack.pk }}" value="0" data-crew-assign-all-flag>
+            </div>
+            <div class="col-6 col-md-4 d-grid gap-2">
+              <button class="btn btn-sm btn-outline-success" type="submit" name="crew_rack_id" value="{{ rack_form.rack.pk }}">Asignar cuadrilla</button>
+              <button class="btn btn-sm btn-outline-primary" type="submit" name="crew_rack_id" value="{{ rack_form.rack.pk }}" data-crew-assign-all data-crew-assign-all-flag="crew_assign_all_{{ rack_form.rack.pk }}" formaction="?crew_assign_mode=all">Asignar todas las bandejas</button>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+        </div>
+      </details>
+    </section>
+    {% endfor %}
+  </div>
+  <div class="tunnel-reference-badge" aria-label="Túnel actual {{ fill.tunnel.code }}">{{ fill.tunnel.code }}</div>
+</form>
+<form id="tunnel-crew-quick-create" method="post" action="{% url 'productions:tunnel_crew_quick_create' production.pk %}" data-prevent-double-submit>
+  {% csrf_token %}
+  <input type="hidden" name="fill" value="{{ fill.pk }}">
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+</form>
+{% for rack_form in formset %}
+  {% if rack_form.rack %}
+  <form id="rack-close-{{ rack_form.rack.pk }}" method="post" action="{% url 'productions:tunnel_rack_transition' production.pk fill.pk rack_form.rack.pk %}">{% csrf_token %}<input type="hidden" name="target_status" value="CLOSED"></form>
+  <form id="rack-reopen-{{ rack_form.rack.pk }}" method="post" action="{% url 'productions:tunnel_rack_transition' production.pk fill.pk rack_form.rack.pk %}">{% csrf_token %}<input type="hidden" name="target_status" value="OPEN"></form>
+  {% for assignment in rack_form.rack.active_crew_entries %}
+  <form id="tunnel-crew-delete-{{ assignment.pk }}" method="post" action="{% url 'productions:operational_entry_delete' production.pk 'tunnel-crews' assignment.pk %}" data-prevent-double-submit data-confirm-message="¿Eliminar {{ assignment.crew.name }} del rack {{ rack_form.rack.code }}?">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}#rack-{{ rack_form.rack.pk }}">
+  </form>
+  {% endfor %}
+  {% endif %}
+{% endfor %}
+{% endblock %}

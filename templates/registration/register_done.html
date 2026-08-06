@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Solicitud enviada · Partes de Producción{% endblock %}
+{% block content %}
+<div class="row justify-content-center py-md-5">
+  <div class="col-12 col-md-7 col-lg-5">
+    <section class="card border-0 shadow-sm professional-confirm-card">
+      <div class="card-body p-4 p-md-5">
+        <div class="professional-confirm-icon" aria-hidden="true">✓</div>
+        <p class="eyebrow">SOLICITUD RECIBIDA</p>
+        <h1 class="h3">Su cuenta está pendiente</h1>
+        <p class="text-secondary">Avise al administrador para que confirme su rol y accesos. Después podrá ingresar con el usuario y contraseña que acaba de registrar.</p>
+        <a class="btn btn-primary w-100" href="{% url 'login' %}">Volver al ingreso</a>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

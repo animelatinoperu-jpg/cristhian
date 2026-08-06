@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{% if current_view == 'void' %}Partes eliminados{% else %}Partes de Producción{% endif %} · PP Planta{% endblock %}
+{% block body_class %}production-list-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/production-list.css' %}">{% endblock %}
+{% block content %}
+<section class="production-catalog" aria-labelledby="production-list-title">
+  <header class="catalog-header">
+    <div class="catalog-heading">
+      <p class="catalog-kicker">CONTROL DE PRODUCCIÓN PESQUERA</p>
+      <h1 id="production-list-title">{% if current_view == 'void' %}Partes eliminados{% else %}Partes de Producción{% endif %}</h1>
+      <p class="catalog-intro">Consulta y gestiona cada parte de producción desde un solo lugar.</p>
+    </div>
+    {% if is_manager %}
+      <a class="catalog-new-button" href="{% url 'productions:create' %}">
+        <span aria-hidden="true">+</span> Nuevo PP
+      </a>
+    {% endif %}
+  </header>
+
+  <div class="catalog-controls">
+    {% if can_review_void %}
+      <nav class="catalog-tabs" aria-label="Estado de los partes">
+        <a class="catalog-tab {% if current_view == 'active' %}is-active{% endif %}" href="{% url 'productions:list' %}">
+          Partes activos
+        </a>
+        <a class="catalog-tab catalog-tab-danger {% if current_view == 'void' %}is-active{% endif %}" href="{% url 'productions:list' %}?view=void">
+          Eliminados <span>{{ void_count }}</span>
+        </a>
+      </nav>
+    {% endif %}
+
+    <form method="get" class="catalog-filter">
+      {% if current_view == 'void' %}<input type="hidden" name="view" value="void">{% endif %}
+      <div class="catalog-search-field">
+        <label for="q">PP, lote o cliente</label>
+        <div class="catalog-input-wrap">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m16 16 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <input id="q" name="q" value="{{ request.GET.q }}" placeholder="Buscar un parte...">
+        </div>
+      </div>
+      <div class="catalog-date-field">
+        <label for="date_from">Desde</label>
+        <input id="date_from" type="date" name="date_from" value="{{ request.GET.date_from }}">
+      </div>
+      <div class="catalog-date-field">
+        <label for="date_to">Hasta</label>
+        <input id="date_to" type="date" name="date_to" value="{{ request.GET.date_to }}">
+      </div>
+      <button class="catalog-filter-button" type="submit">
+        <span>Filtrar</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M8 12h8m-5 5h2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </form>
+  </div>
+
+  {% if current_view == 'void' %}
+    <div class="catalog-warning" role="status">
+      Estos partes están anulados y ocultos de la operación normal. Ábralos únicamente para revisar su historial o restaurarlos.
+    </div>
+  {% endif %}
+
+  <div class="catalog-section-heading">
+    <div>
+      <span>{% if current_view == 'void' %}ARCHIVO{% else %}OPERACIÓN ACTUAL{% endif %}</span>
+      <h2>{% if current_view == 'void' %}Partes fuera de operación{% else %}Producciones registradas{% endif %}</h2>
+    </div>
+    <span class="catalog-result-count">
+      {% if is_paginated %}{{ page_obj.paginator.count }} registro{{ page_obj.paginator.count|pluralize }}{% else %}{{ productions|length }} registro{{ productions|length|pluralize }}{% endif %}
+    </span>
+  </div>
+
+  <div class="production-gallery">
+    {% for production in productions %}
+      <article class="catalog-card{% if current_view == 'void' %} is-void{% endif %}">
+        <a class="catalog-card-cover" href="{% url 'productions:detail' production.pk %}">
+          <img src="{% static 'img/login-puerto-pesquero.png' %}" alt="" loading="lazy">
+          <span class="catalog-card-shade" aria-hidden="true"></span>
+          <div class="catalog-card-cover-top">
+            <span class="catalog-card-type">PARTE DE PRODUCCIÓN</span>
+            <span class="catalog-status catalog-status-{{ production.status|lower }}">{{ production.get_status_display }}</span>
+          </div>
+          <div class="catalog-card-cover-copy">
+            {% if production.series == 'DEMO' %}<span class="catalog-demo">DEMOSTRACIÓN</span>{% endif %}
+            <span class="catalog-pp">PP {{ production.number }}</span>
+            <span class="catalog-lot">Lote {{ production.plant_lot }}</span>
+          </div>
+          <svg class="catalog-wave" viewBox="0 0 180 40" aria-hidden="true"><path d="M0 23c22-14 42-14 64 0s42 14 64 0 38-14 52-4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M0 32c22-14 42-14 64 0s42 14 64 0 38-14 52-4" fill="none" stroke="currentColor" stroke-width="1" opacity=".48"/></svg>
+        </a>
+
+        <div class="catalog-card-body">
+          <div class="catalog-card-client">
+            <span>CLIENTE</span>
+            <strong>{{ production.customer }}</strong>
+          </div>
+          <p class="catalog-card-product">{{ production.main_product.description }}</p>
+          <div class="catalog-card-meta">
+            <span>
+              <small>FECHA</small>
+              {{ production.production_date|date:"d/m/Y" }}
+            </span>
+            <span>
+              <small>TURNO</small>
+              {{ production.get_shift_display }}
+            </span>
+            <span>
+              <small>PLANTILLA</small>
+              {{ production.template_version.code }}
+            </span>
+          </div>
+          <div class="catalog-card-actions">
+            <a class="catalog-open-button" href="{% url 'productions:detail' production.pk %}">
+              Abrir PP
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            {% if is_manager and production.status in editable_production_statuses %}
+              <a class="catalog-edit-button" href="{% url 'productions:update' production.pk %}">Editar datos</a>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+    {% empty %}
+      <div class="catalog-empty">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M7 36c8-8 16-8 24 0s16 8 26 0M10 46c7-6 14-6 21 0s14 6 23 0M23 22c7-8 16-8 24 0-8 9-17 10-24 0Zm24 0 8-7v14l-8-7Z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <strong>{% if current_view == 'void' %}No hay partes eliminados{% else %}No hay producciones activas{% endif %}</strong>
+        <span>No se encontraron registros que coincidan con el filtro.</span>
+      </div>
+    {% endfor %}
+  </div>
+
+  {% if is_paginated %}
+    <nav class="catalog-pagination" aria-label="Páginas de producciones">
+      {% if page_obj.has_previous %}<a href="?view={{ current_view }}&q={{ request.GET.q|urlencode }}&date_from={{ request.GET.date_from }}&date_to={{ request.GET.date_to }}&page={{ page_obj.previous_page_number }}">Anterior</a>{% endif %}
+      <span>Página {{ page_obj.number }}</span>
+      {% if page_obj.has_next %}<a href="?view={{ current_view }}&q={{ request.GET.q|urlencode }}&date_from={{ request.GET.date_from }}&date_to={{ request.GET.date_to }}&page={{ page_obj.next_page_number }}">Siguiente</a>{% endif %}
+    </nav>
+  {% endif %}
+</section>
+{% endblock %}

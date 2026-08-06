@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Reporte PP {{ production.number }}{% endblock %}
+{% block content %}
+<div class="page-header no-print">
+  <div class="page-header-copy">
+    <a class="page-header-back" href="{% url 'productions:detail' production.pk %}">← Volver al panel</a>
+    <span class="page-header-kicker">REPORTE CONSOLIDADO</span>
+    <h1>PP {{ production.number }} · {{ production.plant_lot }}</h1>
+  </div>
+  <div class="page-header-actions"><button class="btn btn-ghost" onclick="window.print()">Imprimir A4</button><a class="btn btn-primary" href="{% url 'productions:production_pdf' production.pk %}">Descargar PDF</a></div>
+</div>
+<div class="print-only"><h1>PP {{ production.number }} · {{ production.plant_lot }}</h1><p>{{ production.customer }} · {{ production.production_date|date:"d/m/Y" }}</p></div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3"><div class="metric-card"><span>Recepción (kg)</span><strong class="fs-3">{{ reception_total|floatformat:"2u" }}</strong></div></div>
+  <div class="col-6 col-lg-3"><div class="metric-card"><span>Nuqueras (kg)</span><strong class="fs-3">{{ nuquera_total|floatformat:"2u" }}</strong></div></div>
+  <div class="col-6 col-lg-3"><div class="metric-card"><span>Troquelado (kg)</span><strong class="fs-3">{{ troquelado_total|floatformat:"2u" }}</strong></div></div>
+  <div class="col-6 col-lg-3"><div class="metric-card {% if tunnel_reconciliation.difference %}metric-alert{% endif %}"><span>Dif. túneles</span><strong>{{ tunnel_reconciliation.difference }}</strong></div></div>
+  <div class="col-6 col-lg-3"><div class="metric-card {% if plate_reconciliation.difference %}metric-alert{% endif %}"><span>Dif. placas</span><strong>{{ plate_reconciliation.difference }}</strong></div></div>
+</div>
+
+<section class="report-section"><h2>Recepción de materia prima</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Fecha</th><th>Vehículo</th><th>Producto</th><th>Cuadrilla</th><th class="text-end">Peso kg</th></tr></thead><tbody>{% for entry in receptions %}<tr><td>{{ entry.date|date:"d/m/Y" }}</td><td>{{ entry.vehicle.plate }}</td><td>{{ entry.product }}</td><td>{{ entry.crew|default:"—" }}</td><td class="text-end">{{ entry.weight_kg|floatformat:"2u" }}</td></tr>{% empty %}<tr><td colspan="5">Sin registros.</td></tr>{% endfor %}</tbody></table></div></section>
+
+<section class="report-section">
+  <h2>Peso de limpieza de cono de pota por cuadrilla</h2>
+  <p class="text-secondary small mb-3">Se toma automáticamente de los registros de recepción con producto <strong>CONOS DE POTA</strong>. Si el nombre de la cuadrilla cambia, el resumen se adapta sin tocar la plantilla.</p>
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+      <div class="metric-card">
+        <span>Registros</span>
+        <strong class="fs-3">{{ reception_cone_pota_summary.entry_count }}</strong>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="metric-card">
+        <span>Peso total</span>
+        <strong class="fs-3">{{ reception_cone_pota_summary.total_weight|floatformat:"2u" }} kg</strong>
+      </div>
+    </div>
+  </div>
+  {% if reception_cone_pota_summary.rows %}
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>Cuadrilla</th>
+            <th class="text-end">Dinos</th>
+            <th class="text-end">Peso kg</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in reception_cone_pota_summary.rows %}
+            <tr>
+              <td>{{ row.crew_name }}</td>
+              <td class="text-end">{{ row.dino_count }}</td>
+              <td class="text-end">{{ row.total_weight|floatformat:"2u" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="alert alert-light border mb-0">No hay registros de CONOS DE POTA en recepción.</div>
+  {% endif %}
+</section>
+
+<section class="report-section"><h2>Nuqueras y perfilado</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Fecha</th><th>Trabajador</th><th>Cuadrilla</th><th>Proceso</th><th class="text-end">Peso kg</th></tr></thead><tbody>{% for entry in nuqueras %}<tr><td>{{ entry.date|date:"d/m/Y" }}</td><td>{{ entry.worker }}</td><td>{{ entry.crew }}</td><td>{{ entry.process }}</td><td class="text-end">{{ entry.weight_kg|floatformat:"2u" }}</td></tr>{% empty %}<tr><td colspan="5">Sin registros.</td></tr>{% endfor %}</tbody></table></div></section>
+
+<section class="report-section"><h2>Troquelado</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Fecha</th><th>Turno</th><th>Cuadrilla</th><th>Trabajador</th><th>Categoría</th><th class="text-end">Cajas</th><th class="text-end">Peso por caja kg</th><th class="text-end">Total kg</th><th>Inicio</th><th>Fin</th></tr></thead><tbody>{% for entry in troquelados %}<tr><td>{{ entry.date|date:"d/m/Y" }}</td><td>{{ entry.get_shift_display }}</td><td>{% if entry.crew %}{{ entry.crew.name }}{% else %}—{% endif %}</td><td>{{ entry.worker }}</td><td>{% if entry.product_type %}{{ entry.get_product_type_display }}{% else %}—{% endif %}</td><td class="text-end">{{ entry.cajas }}</td><td class="text-end">{{ entry.kg_por_caja|floatformat:"2u" }}</td><td class="text-end">{{ entry.weight_kg|floatformat:"2u" }}</td><td>{{ entry.start_time|date:"H:i" }}</td><td>{{ entry.end_time|date:"H:i" }}</td></tr>{% empty %}<tr><td colspan="10">Sin registros.</td></tr>{% endfor %}</tbody></table></div></section>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-6"><section class="report-section h-100"><h2>Empaque de túneles</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Pallet</th><th>Producto</th><th>Bultos</th><th>Kg</th></tr></thead><tbody>{% for entry in tunnel_packaging %}<tr><td>P{{ entry.pallet_number }}</td><td>{{ entry.product }}</td><td>{{ entry.package_count }}</td><td>{{ entry.kilos|floatformat:"2u" }}</td></tr>{% empty %}<tr><td colspan="4">Sin registros.</td></tr>{% endfor %}</tbody></table></div></section></div>
+  <div class="col-12 col-lg-6"><section class="report-section h-100"><h2>Empaque de placas</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Pallet</th><th>Origen</th><th>Producto</th><th>Bultos</th><th>Kg</th></tr></thead><tbody>{% for entry in plate_packaging %}<tr><td>P{{ entry.pallet_number }}</td><td>{% if entry.source_entry %}{{ entry.source_entry.position.operational_label }}{% else %}Registro anterior{% endif %}</td><td>{{ entry.product }}</td><td>{{ entry.package_count }}</td><td>{{ entry.kilos|floatformat:"2u" }}</td></tr>{% empty %}<tr><td colspan="5">Sin registros.</td></tr>{% endfor %}</tbody></table></div></section></div>
+</div>
+
+<div class="row g-4 mt-0">
+  <div class="col-12 col-lg-6"><section class="report-section h-100"><h2>Materiales</h2><table class="table table-sm"><thead><tr><th>Insumo</th><th class="text-end">Cantidad</th><th>Unidad</th></tr></thead><tbody>{% for entry in materials %}<tr><td>{{ entry.material.name }}</td><td class="text-end">{% if entry.material.unit|lower == "kg" %}{{ entry.quantity|floatformat:"2u" }}{% else %}{{ entry.quantity|floatformat:3 }}{% endif %}</td><td>{{ entry.material.unit }}</td></tr>{% empty %}<tr><td colspan="3">Sin registros.</td></tr>{% endfor %}</tbody></table></section></div>
+  <div class="col-12 col-lg-6"><section class="report-section h-100"><h2>Costos</h2><table class="table table-sm"><thead><tr><th>Concepto</th><th>Cantidad</th><th>Unitario</th><th>Total</th></tr></thead><tbody>{% for entry in costs %}<tr><td>{{ entry.concept }}</td><td>{{ entry.quantity }}</td><td>{{ entry.unit_cost }}</td><td>{{ entry.total }}</td></tr>{% empty %}<tr><td colspan="4">Sin registros.</td></tr>{% endfor %}</tbody></table></section></div>
+</div>
+
+<section class="report-section mt-4 no-print"><h2>Auditoría reciente</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Fecha</th><th>Usuario</th><th>Módulo</th><th>Acción</th><th>Registro</th></tr></thead><tbody>{% for log in audit_logs %}<tr><td>{{ log.timestamp|date:"d/m/Y H:i" }}</td><td>{{ log.user|default:"Sistema" }}</td><td>{{ log.module }}</td><td>{{ log.get_action_display }}</td><td>{{ log.record_pk|default:"—" }}</td></tr>{% empty %}<tr><td colspan="5">Sin eventos.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

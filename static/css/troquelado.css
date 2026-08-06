@@ -1,0 +1,500 @@
+/* ==========================================================================
+   TROQUELADO v3 - pantalla de registro de troquelado
+   Solo visual. Acento menta puro sobre verde bosque, coherente con v4.
+   v2: chips de categoría + resumen por cuadrilla en el tablero.
+   v3: captura rápida "cuadrilla de un toque" para móvil.
+   ========================================================================== */
+
+:root{
+  --tq-forest:#064c3f;
+  --tq-deep:#043229;
+  --tq-emerald:#0d8a6c;
+  --tq-mint:#7edfc4;
+  --tq-mint-soft:#eaf7f1;
+  --tq-ink:#0b211b;
+  --tq-muted:#5c6d66;
+  --tq-line:#d4e2dd;
+}
+
+/* --- Calculadora de peso --- */
+.troquelado-calculator{
+  position:relative;
+  overflow:hidden;
+  margin-bottom:.5rem;
+  border:1px solid rgba(4,50,41,.12);
+  border-radius:1.25rem;
+  background:
+    radial-gradient(480px 160px at 90% -20%,rgba(126,223,196,.5),transparent 62%),
+    linear-gradient(160deg,#f4fcf8,#e3f4ec 60%,#d5ecdf);
+  box-shadow:0 18px 44px rgba(6,76,63,.14);
+}
+
+.troquelado-calc-readout{
+  display:flex;
+  align-items:center;
+  gap:1rem;
+  padding:1.25rem 1.5rem 1rem;
+}
+.troquelado-calc-icon{
+  flex:0 0 auto;
+  display:grid;
+  place-items:center;
+  width:56px;
+  height:56px;
+  border-radius:1rem;
+  background:linear-gradient(135deg,var(--tq-emerald),var(--tq-deep));
+  color:var(--tq-mint);
+  box-shadow:0 12px 24px rgba(6,76,63,.28);
+}
+.troquelado-calc-icon svg{width:30px;height:30px}
+.troquelado-calc-eyebrow{
+  display:block;
+  font-size:.68rem;
+  font-weight:800;
+  letter-spacing:.22em;
+  color:var(--tq-emerald);
+}
+.troquelado-calc-total{
+  display:block;
+  font-family:"Oswald",system-ui,sans-serif;
+  font-size:clamp(2.6rem,7vw,4rem);
+  line-height:1;
+  font-weight:700;
+  color:var(--tq-deep);
+  font-variant-numeric:tabular-nums;
+  transition:transform .18s ease,color .18s ease;
+}
+.troquelado-calc-total .unit{
+  font-size:.4em;
+  color:var(--tq-muted);
+  margin-left:.35em;
+  letter-spacing:.02em;
+}
+.troquelado-calc-total.is-ready{color:var(--tq-emerald)}
+.troquelado-calc-total.is-bad{color:#b23a2f}
+.troquelado-calc-ok{
+  margin-left:auto;
+  font-size:1.4rem;
+  color:var(--tq-emerald);
+  opacity:0;
+  transform:scale(.5);
+  transition:opacity .2s,transform .2s;
+}
+.troquelado-calc-ok.is-show{opacity:1;transform:scale(1)}
+
+.troquelado-calc-grid{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  gap:.75rem;
+  align-items:end;
+  padding:0 1.5rem 1rem;
+}
+.troquelado-calc-field{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  gap:.3rem;
+}
+.troquelado-calc-field>span{
+  font-size:.8rem;
+  font-weight:750;
+  color:var(--tq-ink);
+}
+.troquelado-calc-field input{
+  width:100%;
+  min-height:64px;
+  padding:.6rem 1rem;
+  border:2px solid var(--tq-line);
+  border-radius:.9rem;
+  background:#fff;
+  font-family:"Oswald",system-ui,sans-serif;
+  font-size:1.9rem;
+  font-weight:600;
+  font-variant-numeric:tabular-nums;
+  color:var(--tq-ink);
+  text-align:center;
+  box-shadow:inset 0 1px 2px rgba(6,76,63,.06);
+  transition:border-color .15s,box-shadow .15s;
+}
+.troquelado-calc-field input:focus{
+  outline:none;
+  border-color:var(--tq-emerald);
+  box-shadow:0 0 0 4px rgba(13,138,108,.16);
+}
+.troquelado-calc-times{
+  align-self:center;
+  font-family:"Oswald",sans-serif;
+  font-size:1.7rem;
+  color:var(--tq-emerald);
+  padding-bottom:1rem;
+}
+.troquelado-calc-hint{
+  margin:0;
+  padding:0 1.5rem 1.1rem;
+  font-size:.78rem;
+  color:var(--tq-muted);
+}
+
+/* Chip +1 caja */
+.troquelado-quick{
+  position:absolute;
+  top:.35rem;
+  right:.5rem;
+  z-index:1;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:22px;
+  height:22px;
+  padding:0 .4rem;
+  border-radius:999px;
+  background:var(--tq-mint-soft);
+  color:var(--tq-emerald);
+  font-size:.72rem;
+  font-weight:800;
+  cursor:pointer;
+  border:1px solid #bfe7d7;
+  transition:background .15s;
+}
+.troquelado-quick:hover{background:#d3f1e3}
+
+/* --- Tablero en vivo --- */
+.troquelado-dashboard{
+  margin-bottom:1.25rem;
+  border:1px solid rgba(4,50,41,.1);
+  border-radius:1.1rem;
+  background:#fff;
+  box-shadow:0 14px 38px rgba(5,43,36,.12);
+  overflow:hidden;
+}
+.troquelado-dash-head{
+  padding:1rem 1.25rem;
+  border-bottom:1px solid var(--tq-line);
+  background:linear-gradient(135deg,#f2fbf6,#e8f6ef);
+}
+.troquelado-dash-metrics{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  border-bottom:1px solid var(--tq-line);
+}
+.troquelado-dash-metrics>div{
+  padding:1rem 1rem 1.1rem;
+  text-align:center;
+}
+.troquelado-dash-metrics>div+div{border-left:1px solid var(--tq-line)}
+.troquelado-dash-metrics small{
+  display:block;
+  font-size:.66rem;
+  font-weight:750;
+  letter-spacing:.14em;
+  color:var(--tq-muted);
+  text-transform:uppercase;
+  margin-bottom:.25rem;
+}
+.troquelado-dash-metrics strong{
+  font-family:"Oswald",sans-serif;
+  font-size:1.55rem;
+  font-weight:700;
+  color:var(--tq-deep);
+  font-variant-numeric:tabular-nums;
+}
+.troquelado-dash-metrics .is-total{
+  background:linear-gradient(180deg,var(--tq-mint-soft),#fff);
+}
+.troquelado-dash-metrics .is-total strong{color:var(--tq-emerald)}
+
+.troquelado-dash-workers{
+  padding:1rem 1.25rem 1.25rem;
+}
+.troquelado-dash-workers h3{
+  font-size:.8rem;
+  font-weight:800;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--tq-ink);
+  margin-bottom:.85rem;
+}
+.troquelado-worker-row{
+  display:flex;
+  align-items:center;
+  gap:.75rem;
+  padding:.55rem 0;
+}
+.troquelado-worker-row+.troquelado-worker-row{border-top:1px dashed var(--tq-line)}
+.troquelado-worker-avatar{
+  flex:0 0 auto;
+  display:grid;
+  place-items:center;
+  width:38px;
+  height:38px;
+  border-radius:12px;
+  background:linear-gradient(135deg,var(--tq-emerald),var(--tq-forest));
+  color:#fff;
+  font-weight:800;
+  font-family:"Oswald",sans-serif;
+}
+.troquelado-worker-main{
+  flex:1 1 auto;
+  min-width:0;
+}
+.troquelado-worker-main strong{
+  display:block;
+  font-size:.88rem;
+  color:var(--tq-ink);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.troquelado-worker-bar{
+  height:6px;
+  margin-top:.3rem;
+  border-radius:999px;
+  background:#e8f1ec;
+  overflow:hidden;
+}
+.troquelado-worker-bar span{
+  display:block;
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(90deg,var(--tq-mint),var(--tq-emerald));
+  transition:width .4s ease;
+}
+.troquelado-worker-amounts{
+  flex:0 0 auto;
+  text-align:right;
+}
+.troquelado-worker-amounts strong{
+  display:block;
+  font-family:"Oswald",sans-serif;
+  font-size:1.05rem;
+  color:var(--tq-emerald);
+  font-variant-numeric:tabular-nums;
+}
+.troquelado-worker-amounts small{
+  font-size:.68rem;
+  color:var(--tq-muted);
+}
+.troquelado-empty{
+  margin:0;
+  padding:1rem;
+  border:1px dashed var(--tq-line);
+  border-radius:.85rem;
+  background:#fafcfb;
+  color:var(--tq-muted);
+  font-size:.85rem;
+  text-align:center;
+}
+
+/* --- Chips de categoría --- */
+.troquelado-type-chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.5rem;
+}
+.troquelado-type-chip{
+  padding:.55rem .95rem;
+  border:1.5px solid var(--tq-line);
+  border-radius:999px;
+  background:#fff;
+  color:var(--tq-ink);
+  font-size:.82rem;
+  font-weight:750;
+  letter-spacing:.02em;
+  cursor:pointer;
+  transition:border-color .15s,background .15s,color .15s,box-shadow .15s;
+}
+.troquelado-type-chip:hover{
+  border-color:var(--tq-emerald);
+  background:var(--tq-mint-soft);
+}
+.troquelado-type-chip.is-selected{
+  border-color:var(--tq-emerald);
+  background:linear-gradient(135deg,var(--tq-emerald),var(--tq-forest));
+  color:#fff;
+  box-shadow:0 8px 18px rgba(6,76,63,.22);
+}
+
+/* --- Grupos por cuadrilla en el tablero --- */
+.troquelado-dash-crews{
+  padding:.9rem 1.25rem 1.25rem;
+}
+.troquelado-crew-group{
+  border:1px solid var(--tq-line);
+  border-radius:.9rem;
+  margin-bottom:.65rem;
+  overflow:hidden;
+}
+.troquelado-crew-group:last-child{margin-bottom:0}
+.troquelado-crew-summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.5rem;
+  padding:.7rem .9rem;
+  background:linear-gradient(135deg,#f2fbf6,#e8f6ef);
+  cursor:pointer;
+  list-style:none;
+}
+.troquelado-crew-summary::-webkit-details-marker{display:none}
+.troquelado-crew-name{
+  font-size:.85rem;
+  font-weight:800;
+  color:var(--tq-ink);
+}
+.troquelado-crew-total{
+  font-family:"Oswald",sans-serif;
+  font-size:1rem;
+  font-weight:700;
+  color:var(--tq-emerald);
+  font-variant-numeric:tabular-nums;
+}
+.troquelado-crew-group .troquelado-dash-workers{
+  padding:.6rem .9rem .8rem;
+}
+
+@media (max-width:575.98px){
+  .troquelado-calc-grid{
+    grid-template-columns:1fr;
+    gap:.65rem;
+  }
+  .troquelado-calc-times{display:none}
+  .troquelado-dash-metrics{
+    grid-template-columns:1fr 1fr;
+  }
+  .troquelado-dash-metrics .is-total{grid-column:1/-1}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .troquelado-calc-total,
+  .troquelado-calc-ok,
+  .troquelado-worker-bar span{
+    transition:none;
+  }
+}
+
+/* ==========================================================================
+   v3 - Captura rápida "cuadrilla de un toque"
+   ========================================================================== */
+
+.troquelado-quick-panel{
+  overflow:hidden;
+  border:1px solid rgba(4,50,41,.12);
+}
+.troquelado-quick-head .eyebrow{
+  font-size:.68rem;
+  font-weight:800;
+  letter-spacing:.22em;
+  color:var(--tq-emerald);
+  text-transform:uppercase;
+}
+.troquelado-quick-head h2{font-weight:800;color:var(--tq-ink)}
+.troquelado-quick-head .status{
+  font-size:.8rem;
+  font-weight:700;
+  padding:.3rem .7rem;
+  border-radius:999px;
+  background:var(--tq-mint-soft);
+  color:var(--tq-emerald);
+}
+.troquelado-quick-head .status.status-review{
+  background:#fdeeea;
+  color:#b23a2f;
+}
+
+/* Filas grandes de trabajador (lista de la cuadrilla) */
+.troquelado-quick-workers{
+  display:flex;
+  flex-direction:column;
+  gap:.65rem;
+}
+.troquelado-quick-worker{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:.85rem;
+  width:100%;
+  min-height:64px;
+  padding:.75rem .95rem;
+  border:1.5px solid var(--tq-line);
+  border-radius:1.05rem;
+  background:#fff;
+  text-align:left;
+  cursor:pointer;
+  transition:border-color .15s,background .15s,box-shadow .15s,transform .15s;
+  font:inherit;
+}
+.troquelado-quick-worker:active{transform:scale(.985)}
+.troquelado-quick-worker:hover{border-color:#a9dcc8}
+.troquelado-quick-worker.is-selected{
+  border-color:var(--tq-emerald);
+  background:linear-gradient(135deg,#f2fbf6,#e8f6ef);
+  box-shadow:0 10px 22px rgba(6,76,63,.16);
+}
+.troquelado-quick-worker .troquelado-worker-avatar{
+  width:44px;
+  height:44px;
+  font-size:1.1rem;
+}
+.troquelado-quick-worker-name{
+  flex:1 1 auto;
+  min-width:0;
+}
+.troquelado-quick-worker-name strong{
+  display:block;
+  font-size:.95rem;
+  color:var(--tq-ink);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.troquelado-quick-worker-name span{
+  display:block;
+  font-size:.76rem;
+  color:var(--tq-muted);
+}
+.troquelado-quick-worker-kg{
+  flex:0 0 auto;
+  font-size:.78rem;
+  font-weight:700;
+  color:var(--tq-muted);
+  font-variant-numeric:tabular-nums;
+  padding:.25rem .55rem;
+  border-radius:999px;
+  background:#f2f6f4;
+}
+.troquelado-quick-worker.has-records .troquelado-quick-worker-kg{color:var(--tq-emerald);background:var(--tq-mint-soft)}
+.troquelado-quick-worker-check{
+  flex:0 0 auto;
+  display:grid;
+  place-items:center;
+  width:28px;
+  height:28px;
+  border-radius:50%;
+  border:2px solid var(--tq-line);
+  color:transparent;
+  font-size:.85rem;
+  transition:background .15s,border-color .15s,color .15s;
+}
+.troquelado-quick-worker.is-selected .troquelado-quick-worker-check{
+  background:linear-gradient(135deg,var(--tq-emerald),var(--tq-forest));
+  border-color:var(--tq-emerald);
+  color:#fff;
+}
+
+/* Barra de acciones fija abajo (móvil) */
+.troquelado-quick-actions{
+  position:sticky;
+  bottom:0;
+  z-index:20;
+  background:rgba(255,255,255,.94);
+  backdrop-filter:blur(8px);
+  border-top:1px solid var(--tq-line);
+}
+
+@media (min-width:768px){
+  .troquelado-quick-workers{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+  }
+}
+

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Elegir llenada · Partes de Producción{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-copy">
+    <a class="page-header-back" href="{% url 'productions:detail' production.pk %}">← Volver</a>
+    <span class="page-header-kicker">TÚNELES</span>
+    <h1>Elija la llenada que va a completar</h1>
+  </div>
+</div>
+<div class="row g-3">
+  {% for fill in fills %}
+  <div class="col-12 col-md-6 col-xl-4">
+    <a class="production-card h-100" href="{% url 'productions:tunnel_batch' production.pk fill.pk %}">
+      <span class="pp-number">{{ fill.tunnel.code }}</span>
+      <h2 class="h5 mt-2">Llenada {{ fill.fill_number }}</h2>
+      <p class="text-secondary mb-0">{{ fill.get_status_display }}</p>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

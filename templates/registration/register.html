@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Crear cuenta · Partes de Producción{% endblock %}
+{% block content %}
+<div class="row justify-content-center py-md-4">
+  <div class="col-12 col-lg-8">
+    <div class="page-header">
+      <div class="page-header-copy">
+        <a class="page-header-back" href="{% url 'login' %}">← Volver</a>
+        <span class="page-header-kicker">NUEVO USUARIO</span>
+        <h1>Crear una cuenta</h1>
+      </div>
+    </div>
+    <div class="alert alert-info">La cuenta quedará pendiente. El administrador debe confirmar el rol, los partes y los túneles antes de que pueda ingresar.</div>
+    <form method="post" class="card border-0 shadow-sm" data-prevent-double-submit novalidate>
+      {% csrf_token %}
+      <div class="card-body p-3 p-md-4">
+        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+        {{ form.website }}
+        <div class="row g-3">
+          {% for field in form %}
+            {% if field.name != 'website' %}
+            <div class="col-12 {% if field.name == 'password1' or field.name == 'password2' %}col-md-6{% elif field.name == 'first_name' or field.name == 'last_name' %}col-md-6{% else %}col-md-12{% endif %}">
+              <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.help_text %}<div class="form-text">{{ field.help_text|safe }}</div>{% endif %}
+              {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+            </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      <div class="card-footer bg-white border-0 p-3 p-md-4 pt-0"><button class="btn btn-primary btn-lg w-100">Enviar solicitud</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

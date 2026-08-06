@@ -1,0 +1,43 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#083b34">
+  <link rel="icon" type="image/svg+xml" href="{% static 'icons/icon.svg' %}">
+  <link rel="manifest" href="{% url 'productions:manifest' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260805-sin-linea-verde">
+  {% block extra_css %}{% endblock %}
+  <title>{% block title %}Partes de Producción{% endblock %}</title>
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <nav class="navbar navbar-expand-lg navbar-dark app-nav sticky-top">
+    <div class="container-fluid container-lg app-nav__layout">
+      <a class="navbar-brand header-branding" href="{% url 'productions:list' %}"><span class="header-branding__dot" aria-hidden="true"></span><span class="header-branding__text">SOLUCIONES & PROCESOS MARINOS S.A.C.</span></a>
+      {% if user.is_authenticated %}
+      <div class="d-flex align-items-center gap-2 gap-md-3 text-white header-actions">
+        {% if can_manage_catalogs %}<a class="btn btn-sm btn-outline-light" href="{% url 'productions:catalogs' %}">Catálogos</a>{% endif %}
+        {% if can_manage_users %}<a class="btn btn-sm btn-outline-light" href="{% url 'productions:user_list' %}">Usuarios{% if pending_user_count %} <span class="badge text-bg-warning">{{ pending_user_count }}</span>{% endif %}</a>{% endif %}
+        <span class="d-none d-sm-inline">{{ user.get_full_name|default:user.username }}</span>
+        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-light">Salir</button></form>
+      </div>
+      {% endif %}
+    </div>
+  </nav>
+  <main class="container-fluid container-lg py-3 py-md-4">
+    <div id="connection-status" class="connection-status" role="status" aria-live="polite"></div>
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    {% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.8"></script>
+  <script src="{% static 'js/app.js' %}?v=20260805-sin-linea-verde"></script>
+</body>
+</html>

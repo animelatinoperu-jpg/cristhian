@@ -1,0 +1,12 @@
+.git
+.venv
+__pycache__
+*.pyc
+.env
+db.sqlite3
+production.log*
+staticfiles
+storage/private/generated
+storage/private/templates
+input/*.xlsm
+backups

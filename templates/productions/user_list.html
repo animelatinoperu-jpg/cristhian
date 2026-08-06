@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Usuarios · Partes de Producción{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-copy">
+    <span class="page-header-kicker">ADMINISTRACIÓN</span>
+    <h1>Usuarios</h1>
+    <span class="page-header-sub">Apruebe cuentas y limite su acceso por rol, parte y túnel.</span>
+  </div>
+  <div class="page-header-actions">
+    <a class="btn btn-ghost" href="{% url 'productions:list' %}">Volver al panel</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="metric-card"><span>Pendientes</span><strong>{{ pending_count }}</strong></div></div>
+  <div class="col-6 col-md-3"><div class="metric-card"><span>Activos</span><strong>{{ active_count }}</strong></div></div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead><tr><th>Persona</th><th>Solicitud</th><th>Roles autorizados</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+      {% for account in managed_users %}
+        <tr>
+          <td><strong>{{ account.get_full_name|default:account.username }}</strong><div class="small text-secondary">@{{ account.username }} · {{ account.email }}</div></td>
+          <td>{{ account.get_requested_role_display|default:"No indicado" }}</td>
+          <td>{% for role in account.roles.all %}<span class="badge text-bg-light border me-1">{{ role.name }}</span>{% empty %}<span class="text-secondary">Sin asignar</span>{% endfor %}</td>
+          <td>{% if account.registration_status == 'PENDING' %}<span class="badge text-bg-warning">Pendiente</span>{% elif account.registration_status == 'ACTIVE' %}<span class="badge text-bg-success">Activa</span>{% else %}<span class="badge text-bg-danger">Rechazada</span>{% endif %}</td>
+          <td class="text-end"><a class="btn btn-sm btn-primary" href="{% url 'productions:user_access' account.pk %}">{% if account.registration_status == 'PENDING' %}Revisar solicitud{% else %}Editar accesos{% endif %}</a></td>
+        </tr>
+      {% empty %}<tr><td colspan="5" class="text-center text-secondary py-5">Todavía no hay usuarios registrados.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

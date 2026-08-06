@@ -1,0 +1,258 @@
+.login-stage {
+  isolation: isolate;
+  grid-template-columns: minmax(0, 1.3fr) minmax(430px, 0.82fr);
+  background: #061b23;
+}
+
+.login-stage::before {
+  position: absolute;
+  inset: -1%;
+  z-index: 0;
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(2, 20, 29, 0.7) 0%,
+      rgba(2, 20, 29, 0.47) 38%,
+      rgba(2, 20, 29, 0.12) 70%,
+      rgba(2, 20, 29, 0.28) 100%
+    ),
+    url("../img/login-puerto-pesquero.png");
+  background-position: 57% center;
+  background-size: cover;
+  content: "";
+  pointer-events: none;
+  transform: translate3d(-0.18%, 0, 0) scale(1.018);
+  transform-origin: 68% 58%;
+  animation: login-boat-sail 12s ease-in-out infinite;
+  will-change: transform;
+}
+
+.login-stage::after {
+  background:
+    linear-gradient(180deg, rgba(1, 17, 25, 0.05) 0%, rgba(1, 17, 25, 0.08) 54%, rgba(1, 17, 25, 0.58) 100%),
+    linear-gradient(90deg, rgba(1, 17, 25, 0.18) 0%, transparent 64%);
+}
+
+.login-visual {
+  padding: clamp(2.25rem, 4vw, 4.5rem) clamp(2.25rem, 4.6vw, 5.25rem);
+}
+
+.login-brand {
+  gap: 1rem;
+}
+
+.login-brand-mark {
+  overflow: hidden;
+  width: 66px;
+  height: 66px;
+  border-color: rgba(199, 239, 230, 0.58);
+  border-radius: 1.25rem;
+  background: rgba(4, 35, 43, 0.46);
+  box-shadow: 0 12px 34px rgba(0, 12, 19, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.login-brand-dolphins {
+  width: 82px;
+  height: 82px;
+  max-width: none;
+  object-fit: contain;
+  filter: brightness(1.14) contrast(1.13);
+}
+
+.login-brand strong {
+  font-size: clamp(0.95rem, 1.3vw, 1.22rem);
+  letter-spacing: 0.075em;
+}
+
+.login-brand small {
+  color: #bceadd;
+}
+
+.login-hero-copy {
+  max-width: 850px;
+  margin: auto 0;
+  padding: clamp(2rem, 5vh, 4.25rem) 0;
+  text-shadow: none;
+}
+
+.login-kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  color: #8be0c8;
+  font-size: 0.74rem;
+  letter-spacing: 0.19em;
+}
+
+.login-kicker span {
+  display: inline-block;
+  width: 42px;
+  height: 2px;
+  border-radius: 999px;
+  background: #67d7b9;
+  box-shadow: 0 0 18px rgba(103, 215, 185, 0.48);
+}
+
+.login-hero-copy h1 {
+  max-width: 850px;
+  margin: 0;
+  color: #f7fffd;
+  font-size: clamp(3rem, 4.25vw, 5rem);
+  font-weight: 760;
+  letter-spacing: -0.052em;
+  line-height: 0.98;
+  -webkit-font-smoothing: antialiased;
+  text-shadow: 0 10px 34px rgba(0, 14, 21, 0.46);
+}
+
+.login-hero-copy h1 span {
+  display: block;
+}
+
+.login-hero-copy > p:not(.login-kicker) {
+  max-width: 650px;
+  margin-top: 1.4rem;
+  color: rgba(238, 249, 246, 0.88);
+  font-size: clamp(1rem, 1.2vw, 1.15rem);
+  line-height: 1.65;
+  text-shadow: 0 3px 20px rgba(0, 12, 18, 0.48);
+}
+
+.login-feature-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(145px, 185px));
+  gap: 0.75rem;
+  margin-top: 1.8rem;
+}
+
+.login-feature-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 66px;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid rgba(199, 239, 230, 0.25);
+  border-radius: 0.9rem;
+  background: linear-gradient(135deg, rgba(9, 53, 61, 0.56), rgba(5, 34, 42, 0.3));
+  box-shadow: 0 14px 34px rgba(0, 12, 19, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(10px);
+}
+
+.login-feature-list .login-feature-item > span {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: normal;
+  backdrop-filter: none;
+}
+
+.login-feature-number {
+  color: #75ddc1;
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.login-feature-item strong,
+.login-feature-item small {
+  display: block;
+}
+
+.login-feature-item strong {
+  color: #f6fffd;
+  font-size: 0.83rem;
+  font-weight: 780;
+}
+
+.login-feature-item small {
+  margin-top: 0.14rem;
+  color: rgba(211, 233, 228, 0.7);
+  font-size: 0.67rem;
+}
+
+.login-visual-footer {
+  padding-top: 1rem;
+  border-top: 1px solid rgba(218, 242, 237, 0.16);
+  color: rgba(235, 248, 245, 0.68);
+}
+
+.login-visual,
+.login-panel {
+  z-index: 3;
+}
+
+.login-brand,
+.login-hero-copy,
+.login-visual-footer,
+.login-card {
+  position: relative;
+  z-index: 5;
+}
+
+@keyframes login-boat-sail {
+  0%,
+  100% {
+    transform: translate3d(-0.18%, 0, 0) scale(1.018);
+  }
+  50% {
+    transform: translate3d(0.18%, -0.2%, 0) scale(1.024);
+  }
+}
+
+@media (max-width: 1199.98px) {
+  .login-stage {
+    grid-template-columns: minmax(0, 1.14fr) minmax(410px, 0.86fr);
+  }
+
+  .login-feature-list {
+    grid-template-columns: repeat(3, minmax(130px, 1fr));
+  }
+
+  .login-hero-copy h1 {
+    font-size: clamp(2.3rem, 4vw, 3.45rem);
+  }
+
+  .login-feature-item {
+    padding-inline: 0.75rem;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .login-stage::before {
+    background-position: 62% center;
+    animation-duration: 8.5s;
+  }
+
+  .login-brand-dolphins {
+    width: 68px;
+    height: 68px;
+  }
+
+  .login-hero-copy h1 {
+    font-size: clamp(2.2rem, 9.4vw, 3.25rem);
+    line-height: 1.02;
+  }
+
+  .login-hero-copy h1 span {
+    display: inline;
+  }
+
+  .login-kicker span {
+    width: 26px;
+  }
+
+  .login-feature-list {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-stage::before {
+    animation: none;
+  }
+}

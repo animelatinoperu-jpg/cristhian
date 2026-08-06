@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Saldos de placas · PP {{ production.number }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-copy">
+    <a class="page-header-back" href="{% url 'productions:detail' production.pk %}">← Volver al PP {{ production.number }}</a>
+    <span class="page-header-kicker">TRAZABILIDAD ENTRE PRODUCCIONES</span>
+    <h1>Saldos de productos y pallets</h1>
+    <span class="page-header-sub">Los saldos se conservan por código, cliente, PP, bachada y plaquero. Solo se mezclan automáticamente cuando el producto es exactamente el mismo.</span>
+  </div>
+  <div class="page-header-actions">
+    <a class="btn btn-primary" href="{% url 'productions:plate_pack_create' production.pk %}#auto-pack-form">Ir al empaque automático</a>
+  </div>
+</div>
+
+<section class="plate-balance-metrics mb-4">
+  <article><span>Saldos compatibles anteriores</span><strong>{{ compatible_trays }} bandejas</strong><small>{% widthratio compatible_trays 1 10 %} kg disponibles para este PP</small></article>
+  <article><span>Saldos usados en este PP</span><strong>{{ received_trays }} bandejas</strong><small>{% widthratio received_trays 1 10 %} kg incorporados</small></article>
+  <article><span>Saldos generados por este PP</span><strong>{{ generated_trays }} bandejas</strong><small>Se habilitan al cerrar el PP</small></article>
+  <article><span>Inventario global disponible</span><strong>{{ available_trays }} bandejas</strong><small>{% widthratio available_trays 1 10 %} kg trazados</small></article>
+</section>
+
+<div class="row g-4 align-items-start">
+  <div class="col-12 col-xl-7">
+    <section class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-3 p-md-4">
+        <p class="eyebrow mb-1">CÁLCULO DEL PP ACTUAL</p>
+        <h2 class="h4 mb-3">Productos disponibles para formar bultos</h2>
+        <div class="plate-balance-product-list">
+          {% for item in product_availability %}
+          <article>
+            <div><span class="plate-pack-code">{{ item.product.code }}</span><strong>{{ item.product.description }}</strong></div>
+            <dl>
+              <div><dt>Actual</dt><dd>{{ item.current_trays }} bandejas</dd></div>
+              <div><dt>Anterior</dt><dd>{{ item.carryover_trays }} bandejas</dd></div>
+              <div><dt>Total</dt><dd>{{ item.available_trays }} bandejas</dd></div>
+              <div><dt>Resultado</dt><dd>{{ item.possible_packages }} bultos + {{ item.residual_trays }} saldo</dd></div>
+            </dl>
+            {% if item.origins %}<details><summary>Ver procedencia</summary>{% for origin in item.origins %}<p>{{ origin.label }} · {{ origin.trays }} bandeja{{ origin.trays|pluralize:"s" }}</p>{% endfor %}</details>{% endif %}
+          </article>
+          {% empty %}<div class="empty-state text-center"><p class="mb-0 text-secondary">No hay bandejas disponibles para empacar.</p></div>{% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="card border-0 shadow-sm">
+      <div class="card-body p-3 p-md-4">
+        <p class="eyebrow mb-1">INVENTARIO DE ARRASTRE</p>
+        <h2 class="h4 mb-3">Todos los saldos pendientes</h2>
+        <div class="plate-balance-ledger">
+          {% for balance in all_available %}
+          <article class="{% if balance.compatible_with_current %}is-compatible{% else %}is-incompatible{% endif %}">
+            <div>
+              <span class="plate-pack-code">{{ balance.product.code }}</span>
+              <strong>{{ balance.product.description }}</strong>
+              <small>PP {{ balance.origin_production.number }} · {{ balance.origin_production.customer.name }} · {% if balance.source_entry_id %}{{ balance.source_entry.position.operational_label }}{% else %}Saldo inicial manual{% endif %}</small>
+            </div>
+            <div class="text-end">
+              <strong>{{ balance.available_trays }} bandeja{{ balance.available_trays|pluralize:"s" }} · {{ balance.available_kg|floatformat:"2u" }} kg</strong>
+              {% if balance.compatible_with_current %}<span class="status status-approved">Compatible</span>{% else %}<span class="status status-review">Reservado para otro cliente o PP</span>{% endif %}
+            </div>
+          </article>
+          {% empty %}<div class="empty-state text-center"><p class="mb-0 text-secondary">Todavía no existen saldos pendientes de producciones cerradas.</p></div>{% endfor %}
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="col-12 col-xl-5">
+    <section class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-3 p-md-4">
+        <p class="eyebrow mb-1">RECIBIDOS</p>
+        <h2 class="h4 mb-3">Saldos anteriores usados aquí</h2>
+        <div class="plate-balance-ledger compact">
+          {% for consumption in received_consumptions %}
+          <article>
+            <div><span class="plate-pack-code">{{ consumption.line.product.code }}</span><strong>PP {{ consumption.carryover_balance.origin_production.number }} → P{{ consumption.line.pallet.pallet_number }}</strong><small>{% if consumption.carryover_balance.source_entry_id %}{{ consumption.carryover_balance.source_entry.position.operational_label }}{% else %}Saldo inicial manual{% endif %}</small></div>
+            <strong>{{ consumption.tray_count }} bandeja{{ consumption.tray_count|pluralize:"s" }}</strong>
+          </article>
+          {% empty %}<div class="empty-state text-center"><p class="mb-0 text-secondary">Este PP todavía no utilizó saldos anteriores.</p></div>{% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="card border-0 shadow-sm">
+      <div class="card-body p-3 p-md-4">
+        <p class="eyebrow mb-1">ORIGINADOS AQUÍ</p>
+        <h2 class="h4 mb-3">Saldos del PP {{ production.number }}</h2>
+        <div class="plate-balance-ledger compact">
+          {% for balance in generated %}
+          <article>
+            <div><span class="plate-pack-code">{{ balance.product.code }}</span><strong>{% if balance.source_entry_id %}{{ balance.source_entry.position.operational_label }}{% else %}Saldo inicial manual{% endif %}</strong><small>{{ balance.get_status_display }}</small></div>
+            <strong>{{ balance.available_trays }} / {{ balance.initial_trays }} bandejas</strong>
+          </article>
+          {% empty %}<div class="empty-state text-center"><p class="mb-0 text-secondary">Se generarán automáticamente cuando cierre este PP.</p></div>{% endfor %}
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

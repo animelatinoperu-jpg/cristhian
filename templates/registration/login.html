@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Ingresar · Soluciones & Procesos Marinos{% endblock %}
+{% block body_class %}login-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/login.css' %}">{% endblock %}
+{% block content %}
+<section class="login-stage" aria-labelledby="login-title">
+  <div class="login-visual">
+    <div class="login-brand" aria-label="Soluciones y Procesos Marinos S.A.C.">
+      <span class="login-brand-mark" aria-hidden="true">
+        <img class="login-brand-dolphins" src="{% static 'img/logo-delfines.png' %}" alt="">
+      </span>
+      <span>
+        <strong>SOLUCIONES &amp; PROCESOS MARINOS</strong>
+        <small>S.A.C.</small>
+      </span>
+    </div>
+
+    <div class="login-hero-copy">
+      <p class="login-kicker"><span aria-hidden="true"></span> CONTROL DE PRODUCCIÓN PESQUERA</p>
+      <h1>
+        <span>Control y trazabilidad</span>
+        <span>de la producción pesquera</span>
+      </h1>
+      <p>Controle cada etapa desde la recepción de materia prima hasta el empaque final, con información clara y confiable.</p>
+      <div class="login-feature-list" aria-label="Áreas principales">
+        <div class="login-feature-item">
+          <span class="login-feature-number">01</span>
+          <span><strong>Recepción</strong><small>Materia prima</small></span>
+        </div>
+        <div class="login-feature-item">
+          <span class="login-feature-number">02</span>
+          <span><strong>Proceso</strong><small>Control por túnel</small></span>
+        </div>
+        <div class="login-feature-item">
+          <span class="login-feature-number">03</span>
+          <span><strong>Empaque</strong><small>Producto terminado</small></span>
+        </div>
+      </div>
+    </div>
+
+    <p class="login-visual-footer">Tecnología aplicada a procesos marinos eficientes y confiables.</p>
+  </div>
+
+  <div class="login-panel">
+    <div class="login-card">
+      <p class="login-form-eyebrow">PLATAFORMA OPERATIVA</p>
+      <h2 id="login-title">Bienvenido</h2>
+      <p class="login-form-intro">Ingrese a Partes de Producción con su cuenta asignada.</p>
+
+      {% if form.non_field_errors %}
+        <div class="login-alert" role="alert">
+          {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+        </div>
+      {% elif form.errors %}
+        <div class="login-alert" role="alert">Revise los datos ingresados.</div>
+      {% endif %}
+
+      <form method="post" class="login-form" novalidate>
+        {% csrf_token %}
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+        <div class="login-field">
+          <label for="id_username">Usuario</label>
+          <div class="login-input-wrap">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <input type="text" name="username" id="id_username" value="{{ form.username.value|default_if_none:'' }}" autocomplete="username" placeholder="Escriba su usuario" required autofocus>
+          </div>
+        </div>
+
+        <div class="login-field">
+          <label for="id_password">Contraseña</label>
+          <div class="login-input-wrap">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V8a5 5 0 0 1 10 0v2m-11 0h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <input type="password" name="password" id="id_password" autocomplete="current-password" placeholder="Escriba su contraseña" required>
+            <button type="button" class="login-password-toggle" id="password-toggle" aria-label="Mostrar contraseña" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.8 12s3.3-5 9.2-5 9.2 5 9.2 5-3.3 5-9.2 5-9.2-5-9.2-5Z" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <button class="login-submit" type="submit">
+          <span>Ingresar al sistema</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </form>
+
+      <div class="login-divider"><span>¿Es un usuario nuevo?</span></div>
+      <a class="login-register" href="{% url 'productions:register' %}">Crear mi cuenta</a>
+
+      <p class="login-security">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.8 8 7 10 4.2-2 7-5.4 7-10V6l-7-3Z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m9 12 2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Acceso seguro para personal autorizado
+      </p>
+    </div>
+  </div>
+</section>
+
+<script>
+  (() => {
+    const button = document.getElementById("password-toggle");
+    const password = document.getElementById("id_password");
+    if (!button || !password) return;
+    button.addEventListener("click", () => {
+      const visible = password.type === "text";
+      password.type = visible ? "password" : "text";
+      button.setAttribute("aria-pressed", String(!visible));
+      button.setAttribute("aria-label", visible ? "Mostrar contraseña" : "Ocultar contraseña");
+      password.focus();
+    });
+  })();
+</script>
+{% endblock %}

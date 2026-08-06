@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Acceso de usuario · Partes de Producción{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-copy">
+    <a class="page-header-back" href="{% url 'productions:user_list' %}">← Usuarios</a>
+    <span class="page-header-kicker">ACCESOS</span>
+    <h1>{{ managed_user.get_full_name|default:managed_user.username }}</h1>
+    <span class="page-header-sub">@{{ managed_user.username }} · Solicitó: {{ managed_user.get_requested_role_display|default:"No indicado" }}</span>
+  </div>
+</div>
+
+<form method="post" class="card border-0 shadow-sm" data-prevent-double-submit novalidate>
+  {% csrf_token %}
+  <div class="card-body p-3 p-md-4">
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+    <h2 class="h5 mb-3">Datos y estado</h2>
+    <div class="row g-3 mb-4">
+      {% for field in form %}
+        {% if field.name == 'first_name' or field.name == 'last_name' or field.name == 'email' or field.name == 'registration_status' %}
+        <div class="col-12 col-md-6"><label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}</div>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    <div class="row g-4">
+      <div class="col-12 col-xl-8">
+        <section class="access-panel">
+          <h2 class="h5">1. Registros operativos permitidos</h2>
+          <p class="small text-secondary">Seleccione cada registro que esta persona podrá abrir y llenar.</p>
+          <div class="access-option-grid">
+            {% for option in form.operational_role_options %}
+            <label class="access-option" for="role-{{ option.role.pk }}">
+              <input type="checkbox" name="{{ form.roles.html_name }}" value="{{ option.role.pk }}" id="role-{{ option.role.pk }}"{% if option.selected %} checked{% endif %}>
+              <span><strong>{{ option.label }}</strong><small>Permitir este registro operativo</small></span>
+            </label>
+            {% empty %}
+            <p class="text-secondary mb-0">No hay registros operativos configurados.</p>
+            {% endfor %}
+          </div>
+          {% for error in form.roles.errors %}<div class="text-danger small mt-2">{{ error }}</div>{% endfor %}
+        </section>
+      </div>
+      <div class="col-12 col-xl-4">
+        <section class="access-panel">
+          <h2 class="h5">2. Accesos generales</h2>
+          <p class="small text-secondary">Opciones administrativas o de consulta.</p>
+          <div class="access-general-list">
+            {% for option in form.general_role_options %}
+            <label class="access-option" for="role-{{ option.role.pk }}">
+              <input type="checkbox" name="{{ form.roles.html_name }}" value="{{ option.role.pk }}" id="role-{{ option.role.pk }}"{% if option.selected %} checked{% endif %}>
+              <span><strong>{{ option.label }}</strong></span>
+            </label>
+            {% empty %}
+            <p class="text-secondary mb-0">Sin accesos generales disponibles.</p>
+            {% endfor %}
+          </div>
+        </section>
+      </div>
+      <div class="col-12 col-lg-6">
+        <section class="access-panel"><h2 class="h5">3. Partes de producción permitidos</h2><p class="small text-secondary">Seleccione los PP que podrá abrir.</p>{{ form.productions }}{% for error in form.productions.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}</section>
+      </div>
+      <div class="col-12 col-lg-6">
+        <section class="access-panel"><h2 class="h5">4. Túneles permitidos</h2><p class="small text-secondary">Necesario para el registro de llenado y supervisión de túneles.</p>{{ form.tunnels }}{% for error in form.tunnels.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}</section>
+      </div>
+    </div>
+    <div class="alert alert-warning mt-4 mb-0"><strong>Importante:</strong> la persona solo podrá ingresar cuando el estado sea <strong>Activa</strong>.</div>
+  </div>
+  <div class="card-footer bg-white border-0 p-3 p-md-4 pt-0 d-flex flex-wrap gap-2"><button class="btn btn-primary btn-lg">Guardar accesos</button><a class="btn btn-ghost btn-lg" href="{% url 'productions:user_list' %}">Cancelar</a></div>
+</form>
+{% endblock %}

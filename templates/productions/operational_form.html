@@ -1,0 +1,1739 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ module_title }} · Partes de Producción{% endblock %}
+{% block extra_css %}{% if module_key == 'troquelado' %}<link rel="stylesheet" href="{% static 'css/troquelado.css' %}?v=20260805-sin-linea-verde">{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-copy">
+    {% if module_key == 'plate-crews' %}
+    <a class="page-header-back" href="{% url 'productions:plate_create' production.pk %}">← Volver a Envasado en plaqueros</a>
+    {% else %}
+    <a class="page-header-back" href="{% url 'productions:detail' production.pk %}">← Volver al PP {{ production.number }}</a>
+    {% endif %}
+    <span class="page-header-kicker">{% if module_key == 'troquelado' %}ETAPA OPERATIVA · TROQUELADO{% else %}REGISTRO DE PLANTA{% endif %}</span>
+    <h1>{% if editing %}{{ form_title }}{% elif module_key == 'tunnel-crews' and selected_fill %}{{ selected_fill.tunnel.code }} · Llenada {{ selected_fill.fill_number }} · Bandejas por cuadrilla{% elif module_key == 'plate-crews' %}Bandejas por cuadrilla en plaqueros{% elif module_key == 'plate-pack' and selected_plate_pack_position %}{{ selected_plate_pack_position.operational_label }} · Códigos y empaque{% else %}{{ module_title }}{% endif %}</h1>
+  </div>
+  <div class="page-header-actions">
+    {% if module_key == 'reception' %}<a class="btn btn-primary" href="{% url 'productions:reception_tareo_xlsx' production.pk %}">Descargar tareo Excel</a><a class="btn btn-outline-danger" href="{% url 'productions:reception_tareo_pdf' production.pk %}">Descargar tareo PDF</a>{% endif %}
+    {% if module_key == 'nuqueras' %}<a class="btn btn-primary" href="{% url 'productions:nuquera_tareo_xlsx' production.pk %}">Descargar tareo de nucas Excel</a><a class="btn btn-outline-danger" href="{% url 'productions:nuquera_tareo_pdf' production.pk %}">Descargar tareo de nucas PDF</a>{% endif %}
+    {% if module_key == 'troquelado' %}<a class="btn btn-primary" href="{% url 'productions:troquelado_report_xlsx' production.pk %}">Descargar control de troquelado Excel</a><a class="btn btn-outline-danger" href="{% url 'productions:troquelado_report_pdf' production.pk %}">Descargar control de troquelado PDF</a>{% endif %}
+    {% if module_key == 'tunnel-crews' and selected_fill %}<a class="btn btn-outline-primary" href="{% url 'productions:tunnel_report_xlsx_by_tunnel' production.pk selected_fill.tunnel.pk %}">Descargar Excel de {{ selected_fill.tunnel.code }}</a><a class="btn btn-outline-danger" href="{% url 'productions:tunnel_report_pdf_by_tunnel' production.pk selected_fill.tunnel.pk %}">Descargar PDF de {{ selected_fill.tunnel.code }}</a>{% endif %}
+    {% if module_key == 'tunnel-pack' %}<a class="btn btn-outline-primary" href="{% url 'productions:tunnel_pack_report_xlsx' production.pk %}">Descargar reporte Excel</a><a class="btn btn-outline-danger" href="{% url 'productions:tunnel_pack_report_pdf' production.pk %}">Descargar reporte PDF</a>{% endif %}
+    {% if module_key == 'plates' or module_key == 'plate-crews' %}<a class="btn btn-outline-primary" href="{% url 'productions:plate_report_xlsx' production.pk %}">Descargar reporte Excel</a><a class="btn btn-outline-danger" href="{% url 'productions:plate_report_pdf' production.pk %}">Descargar reporte PDF A4</a>{% endif %}
+    {% if operational_read_only %}<span class="status status-review">Solo consulta</span>{% elif editing %}<a class="btn btn-ghost" href="{{ module_create_url }}">Cancelar corrección</a>{% endif %}
+  </div>
+</div>
+
+<div class="row g-4 align-items-start">
+  <div class="col-12 col-xl-7">
+    {% if operational_read_only %}
+    <section class="card border-0 shadow-sm">
+      <div class="card-body p-3 p-md-4">
+        <div class="alert alert-warning mb-3"><strong>Modo consulta.</strong> Este PP está {{ production.get_status_display|lower }}. Puede revisar los registros guardados, pero no modificarlos mientras permanezca en este estado.</div>
+        <p class="mb-3">Para agregar, corregir o eliminar información, vuelva al PP y use <strong>Estado y aprobación</strong> para reabrirlo.</p>
+        <a class="btn btn-primary" href="{% url 'productions:detail' production.pk %}">Volver al PP {{ production.number }}</a>
+      </div>
+    </section>
+    {% else %}
+    {% if module_key == 'tunnel-crews' and selected_fill and not editing %}
+    <section class="card border-0 shadow-sm mb-3 tunnel-crew-intro">
+      <div class="card-body p-3 p-md-4">
+        <p class="eyebrow mb-1">RESUMEN DE LA LLENADA</p>
+        <div class="tunnel-crew-summary-grid">
+          <div><small>Llenadas en racks</small><strong>{{ tunnel_crew_data.physical_total }}</strong></div>
+          <div><small>Asignadas</small><strong>{{ tunnel_crew_data.assigned_total }}</strong></div>
+          <div><small>Pendientes</small><strong>{{ tunnel_crew_data.pending_total }}</strong></div>
+        </div>
+        <details class="tunnel-crew-create-box mt-3">
+          <summary>+ Crear una cuadrilla que todavía no aparece</summary>
+          <form method="post" action="{% url 'productions:tunnel_crew_quick_create' production.pk %}" class="row g-2 align-items-end mt-1" data-prevent-double-submit>
+            {% csrf_token %}<input type="hidden" name="fill" value="{{ selected_fill.pk }}">
+            <div class="col-12 col-md"><label class="form-label fw-semibold" for="new-tunnel-crew-name">Nombre de la cuadrilla</label><input class="form-control" id="new-tunnel-crew-name" name="name" maxlength="100" placeholder="Ejemplo: CUADRILLA RAMÍREZ" required></div>
+            <div class="col-12 col-md-auto"><button class="btn btn-outline-primary w-100">Crear y usar</button></div>
+          </form>
+        </details>
+      </div>
+    </section>
+    {% elif module_key == 'plate-crews' and not editing %}
+    <section class="card border-0 shadow-sm mb-3 tunnel-crew-intro">
+      <div class="card-body p-3 p-md-4">
+        <p class="eyebrow mb-1">RESUMEN DEL ENVASADO EN PLAQUEROS</p>
+        <div class="tunnel-crew-summary-grid">
+          <div><small>Bandejas físicas</small><strong>{{ plate_crew_data.physical_total }}</strong></div>
+          <div><small>Asignadas</small><strong>{{ plate_crew_data.assigned_total }}</strong></div>
+          <div><small>Pendientes</small><strong>{{ plate_crew_data.pending_total }}</strong></div>
+        </div>
+        <p class="small text-secondary mt-3 mb-0">Cada posición de plaquero admite hasta <strong>189 bandejas</strong>. Puede repartirlas entre varias cuadrillas; la suma nunca podrá superar lo realmente envasado.</p>
+        <details class="tunnel-crew-create-box mt-3">
+          <summary>+ Crear una cuadrilla que todavía no aparece</summary>
+          <form method="post" action="{% url 'productions:plate_crew_quick_create' production.pk %}" class="row g-2 align-items-end mt-1" data-prevent-double-submit>
+            {% csrf_token %}{% if selected_plate_position %}<input type="hidden" name="position" value="{{ selected_plate_position.pk }}">{% endif %}
+            <div class="col-12 col-md"><label class="form-label fw-semibold" for="new-plate-crew-name">Nombre de la cuadrilla</label><input class="form-control" id="new-plate-crew-name" name="name" maxlength="100" placeholder="Ejemplo: CUADRILLA RAMÍREZ" required></div>
+            <div class="col-12 col-md-auto"><button class="btn btn-outline-primary w-100">Crear y usar</button></div>
+          </form>
+        </details>
+      </div>
+    </section>
+    {% elif module_key == 'plate-pack' and not editing %}
+    <section class="card border-0 shadow-sm mb-3 plate-pack-intro">
+      <div class="card-body p-3 p-md-4">
+        <div class="plate-pack-flow mb-3">
+          <span>ENV. PLACAS</span>
+          <strong aria-hidden="true">→</strong>
+          <span>EM-PLA · EMPAQUE PLACAS</span>
+          <small>Las bandejas descargadas llegan automáticamente. Aquí no se vuelven a escribir los sacos.</small>
+        </div>
+        <p class="eyebrow mb-1">TRAZABILIDAD DEL EMPAQUE</p>
+        <div class="tunnel-crew-summary-grid">
+          <div><small>Bandejas descargadas</small><strong>{{ plate_packaging_data.physical_total }}</strong></div>
+          <div><small>Empacadas</small><strong>{{ plate_packaging_data.packed_total }}</strong></div>
+          <div><small>Pendientes</small><strong>{{ plate_packaging_data.pending_total }}</strong></div>
+        </div>
+        {% if selected_plate_pack_group %}
+        <div class="plate-pack-selection mt-3">
+          <div>
+            <p class="eyebrow mb-1">BACHADA {{ selected_plate_pack_group.position.batch_number }}</p>
+            <strong class="d-block">Plaquero {{ selected_plate_pack_group.position.plaquero_number }}</strong>
+            <small>{{ selected_plate_pack_group.physical_total }} bandejas físicas · {{ selected_plate_pack_group.pending_total }} pendientes</small>
+          </div>
+          {% if selected_plate_pack_group.is_unloaded %}
+          <span class="status status-approved">Descargado</span>
+          {% else %}
+          <span class="status status-review">Pendiente de descarga</span>
+          {% endif %}
+        </div>
+        {% if not selected_plate_pack_group.is_unloaded %}
+        <div class="alert alert-warning mt-3 mb-0">Primero registre la descarga del plaquero. Después se habilitarán sus códigos para el empaque.</div>
+        {% endif %}
+        {% else %}
+        <p class="small text-secondary mt-3 mb-0">Seleccione un plaquero descargado desde el panel derecho. La aplicación conservará automáticamente la bachada, el plaquero y el código de origen.</p>
+        {% endif %}
+        <div class="plate-pack-manual-note mt-3">
+          <strong>Saldo manual</strong>
+          <span>Si el saldo viene de antes de usar la aplicación, cárguelo aquí abajo como <em>saldo inicial/manual</em>. Si el saldo sale de un plaquero ya registrado, use el botón del código en el panel derecho.</span>
+        </div>
+        <details class="plate-pack-initial-balance mt-3" id="initial-balance-form" open>
+          <summary>+ Cargar saldo inicial/manual sin plaquero de origen</summary>
+          <form method="post" action="{% url 'productions:plate_pack_initial_balance' production.pk %}" class="row g-2 align-items-end mt-2" data-prevent-double-submit>
+            {% csrf_token %}
+            <div class="col-12 col-md-5">
+              <label class="form-label fw-semibold" for="initial-balance-product">Producto</label>
+              <select class="form-select" id="initial-balance-product" name="product" required>
+                <option value="">Seleccione el producto</option>
+                {% for product in plate_balance_product_options %}<option value="{{ product.pk }}">{{ product.code }} — {{ product.description }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label fw-semibold" for="initial-balance-trays">Bandejas</label>
+              <input class="form-control" id="initial-balance-trays" name="tray_count" type="number" min="1" inputmode="numeric" placeholder="0" required>
+            </div>
+            <div class="col-12 col-md">
+              <label class="form-label fw-semibold" for="initial-balance-observation">Observación</label>
+              <input class="form-control" id="initial-balance-observation" name="observation" placeholder="Ejemplo: saldo anterior antes de usar la app">
+            </div>
+            <div class="col-6 col-md-auto">
+              <button class="btn btn-outline-warning w-100" data-confirm-message="¿Guardar este saldo inicial manual? Se usará en el cálculo automático de empaque.">Guardar saldo</button>
+            </div>
+          </form>
+        </details>
+      </div>
+    </section>
+    {% elif module_key == 'troquelado' and not editing %}
+    <section class="card border-0 shadow-sm mb-3 tunnel-crew-intro">
+      <div class="card-body p-3 p-md-4">
+        <p class="eyebrow mb-1">NUEVO TRABAJADOR DE TROQUELADO</p>
+        <p class="small text-secondary mb-3">Si el trabajador o su cuadrilla todavía no aparecen en el listado, créelos aquí. Quedarán disponibles para los siguientes registros.</p>
+        <details class="tunnel-crew-create-box mt-1">
+          <summary>+ Agregar un trabajador y su cuadrilla</summary>
+          <form method="post" action="{% url 'productions:troquelado_worker_quick_create' production.pk %}" class="row g-2 align-items-end mt-1" data-prevent-double-submit>
+            {% csrf_token %}
+            <div class="col-12 col-md">
+              <label class="form-label fw-semibold" for="new-troquelado-worker-name">Nombre del trabajador</label>
+              <input class="form-control" id="new-troquelado-worker-name" name="name" maxlength="180" list="troquelado-worker-options" autocomplete="off" placeholder="Escriba o seleccione el nombre" required>
+            </div>
+            <div class="col-12 col-md">
+              <label class="form-label fw-semibold" for="new-troquelado-crew-name">Cuadrilla</label>
+              <input class="form-control" id="new-troquelado-crew-name" name="crew" maxlength="100" list="troquelado-crew-options" autocomplete="off" placeholder="Escriba o seleccione la cuadrilla" required>
+            </div>
+            <div class="col-12 col-md-auto"><button class="btn btn-outline-primary w-100">Crear y usar</button></div>
+          </form>
+        </details>
+        <datalist id="troquelado-worker-options">{% for worker_id, worker_name in troquelado_worker_suggestions %}<option value="{{ worker_name }}">{% endfor %}</datalist>
+        <datalist id="troquelado-crew-options">{% for crew_id, crew_name in troquelado_crew_suggestions %}<option value="{{ crew_name }}">{% endfor %}</datalist>
+      </div>
+    </section>
+    {% if not operational_read_only %}
+    <section class="card border-0 shadow-sm mb-3 tunnel-crew-intro">
+      <div class="card-body p-3 p-md-4">
+        <p class="eyebrow mb-1">CUADRILLA DE TRABAJO</p>
+        {% if troquelado_crew_mode %}
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+          <div>
+            <p class="mb-1"><strong>{{ troquelado_crew_name }}</strong> <span class="text-secondary">· {{ troquelado_crew_workers|length }} trabajador{{ troquelado_crew_workers|length|pluralize:"es" }}</span></p>
+            <p class="small text-secondary mb-0">Toque una persona y registre sus cajas, peso y categoría.</p>
+          </div>
+          <a class="btn btn-sm btn-ghost" href="{{ troquelado_clear_url }}">Elegir otra cuadrilla</a>
+        </div>
+        {% if troquelado_crew_workers %}
+        <div class="troquelado-quick-workers" role="listbox" aria-label="Trabajadores de la cuadrilla">
+          {% for worker_id, worker_name in troquelado_crew_workers %}
+          <button type="button" class="troquelado-quick-worker{% if worker_id == troquelado_selected_worker_id %} is-selected{% endif %}" data-quick-worker-id="{{ worker_id }}" role="option" aria-selected="{% if worker_id == troquelado_selected_worker_id %}true{% else %}false{% endif %}">
+            <span class="troquelado-worker-avatar">{{ worker_name|slice:":1"|upper }}</span>
+            <span class="troquelado-quick-worker-name"><strong>{{ worker_name }}</strong></span>
+            <span class="troquelado-quick-worker-kg" data-quick-worker-kg-label>pendiente</span>
+            <span class="troquelado-quick-worker-check" aria-hidden="true">✔</span>
+          </button>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="small text-secondary mb-0">Esta cuadrilla todavía no tiene trabajadores. Créelos en <strong>Nuevo trabajador de troquelado</strong> y vuelva aquí.</p>
+        {% endif %}
+        {% else %}
+        {% if troquelado_crew_suggestions %}
+        <p class="small text-secondary mb-3">Elija la cuadrilla para ver a su gente y registrar los pesos de cada persona tocando su nombre.</p>
+        <form method="get" action="{% url 'productions:troquelado_create' production.pk %}" class="row g-2 align-items-end">
+          <div class="col-12 col-md">
+            <label class="form-label fw-semibold" for="troquelado-crew-select">Cuadrilla</label>
+            <select class="form-select" id="troquelado-crew-select" name="crew" required onchange="this.form.submit()">
+              <option value="">Seleccione la cuadrilla…</option>
+              {% for crew_id, crew_name in troquelado_crew_suggestions %}
+              <option value="{{ crew_id }}">{{ crew_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12 col-md-auto"><button class="btn btn-outline-primary w-100">Ver trabajadores</button></div>
+        </form>
+        {% else %}
+        <p class="small text-secondary mb-0">Este parte todavía no tiene cuadrillas. Créela abajo en <strong>Nuevo trabajador de troquelado</strong> y aparecerá aquí para elegirla.</p>
+        {% endif %}
+        {% endif %}
+      </div>
+    </section>
+    {% endif %}
+    {% elif module_key == 'nuqueras' and not editing %}
+    <section class="card border-0 shadow-sm mb-3 tunnel-crew-intro">
+      <div class="card-body p-3 p-md-4">
+        <p class="eyebrow mb-1">NUEVO TRABAJADOR DE NUQUERAS</p>
+        <p class="small text-secondary mb-3">Si el trabajador o su cuadrilla todavía no aparecen en el listado, créelos aquí. Quedarán disponibles para los siguientes registros.</p>
+        <details class="tunnel-crew-create-box mt-1">
+          <summary>+ Agregar un trabajador y su cuadrilla</summary>
+          <form method="post" action="{% url 'productions:nuquera_worker_quick_create' production.pk %}" class="row g-2 align-items-end mt-1" data-prevent-double-submit>
+            {% csrf_token %}
+            <div class="col-12 col-md">
+              <label class="form-label fw-semibold" for="new-nuquera-worker-name">Nombre del trabajador</label>
+              <input class="form-control" id="new-nuquera-worker-name" name="name" maxlength="180" list="nuquera-worker-options" autocomplete="off" placeholder="Escriba o seleccione el nombre" required>
+            </div>
+            <div class="col-12 col-md">
+              <label class="form-label fw-semibold" for="new-nuquera-crew-name">Cuadrilla</label>
+              <input class="form-control" id="new-nuquera-crew-name" name="crew" maxlength="100" list="nuquera-crew-options" autocomplete="off" placeholder="Escriba o seleccione la cuadrilla" required>
+            </div>
+            <div class="col-12 col-md-auto"><button class="btn btn-outline-primary w-100">Crear y usar</button></div>
+          </form>
+        </details>
+        <datalist id="nuquera-worker-options">{% for worker_id, worker_name in nuquera_worker_suggestions %}<option value="{{ worker_name }}">{% endfor %}</datalist>
+        <datalist id="nuquera-crew-options">{% for crew_id, crew_name in nuquera_crew_suggestions %}<option value="{{ crew_name }}">{% endfor %}</datalist>
+      </div>
+    </section>
+    {% if not operational_read_only %}
+    <section class="card border-0 shadow-sm mb-3 tunnel-crew-intro">
+      <div class="card-body p-3 p-md-4">
+        <p class="eyebrow mb-1">CUADRILLA DE TRABAJO</p>
+        {% if nuquera_crew_mode %}
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+          <div>
+            <p class="mb-1"><strong>{{ nuquera_crew_name }}</strong> <span class="text-secondary">· {{ nuquera_crew_workers|length }} trabajador{{ nuquera_crew_workers|length|pluralize:"es" }}</span></p>
+            <p class="small text-secondary mb-0">Toque una persona para registrar sus pesos.</p>
+          </div>
+          <a class="btn btn-sm btn-ghost" href="{{ nuquera_clear_url }}">Elegir otra cuadrilla</a>
+        </div>
+        {% if nuquera_crew_workers %}
+        <div class="d-flex flex-wrap gap-2">
+          {% for worker_id, worker_name in nuquera_crew_workers %}
+          <a class="btn {% if worker_id == nuquera_selected_worker_id %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'productions:nuquera_create' production.pk %}?crew={{ nuquera_crew_id }}&worker={{ worker_id }}#operational-entry-form">{{ worker_name }}</a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="small text-secondary mb-0">Esta cuadrilla todavía no tiene trabajadores. Créelos en <strong>Nuevo trabajador de nuqueras</strong> y vuelva aquí.</p>
+        {% endif %}
+        {% else %}
+        {% if nuquera_crew_suggestions %}
+        <p class="small text-secondary mb-3">Elija la cuadrilla para ver a su gente y registrar los pesos de cada persona tocando su nombre.</p>
+        <form method="get" action="{% url 'productions:nuquera_create' production.pk %}" class="row g-2 align-items-end">
+          <div class="col-12 col-md">
+            <label class="form-label fw-semibold" for="nuquera-crew-select">Cuadrilla</label>
+            <select class="form-select" id="nuquera-crew-select" name="crew" required onchange="this.form.submit()">
+              <option value="">Seleccione la cuadrilla…</option>
+              {% for crew_id, crew_name in nuquera_crew_suggestions %}
+              <option value="{{ crew_id }}">{{ crew_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12 col-md-auto"><button class="btn btn-outline-primary w-100">Ver trabajadores</button></div>
+        </form>
+        {% else %}
+        <p class="small text-secondary mb-0">Este parte todavía no tiene cuadrillas. Créela abajo en <strong>Nuevo trabajador de nuqueras</strong> y aparecerá aquí para elegirla.</p>
+        {% endif %}
+        {% endif %}
+      </div>
+    </section>
+    {% endif %}
+    {% elif module_key == 'tunnel-pack' and not editing %}
+    <section class="card border-0 shadow-sm mb-3 plate-pack-intro">
+      <div class="card-body p-3 p-md-4">
+        <div class="plate-pack-flow mb-3">
+          <span>ENV. TÚNEL</span>
+          <strong aria-hidden="true">→</strong>
+          <span>EM-TUN · EMPAQUE TÚNELES</span>
+          <small>Las bandejas en racks llegan automáticamente. Aquí se forman bultos por producto y pallet.</small>
+        </div>
+        <p class="eyebrow mb-1">TRAZABILIDAD DEL EMPAQUE</p>
+        <div class="tunnel-crew-summary-grid">
+          <div><small>Bandejas en túnel</small><strong>{{ tunnel_packaging_data.physical_total }}</strong></div>
+          <div><small>Empacadas</small><strong>{{ tunnel_packaging_data.packed_total }}</strong></div>
+          <div><small>Pendientes</small><strong>{{ tunnel_packaging_data.pending_total }}</strong></div>
+        </div>
+      </div>
+    </section>
+    {% elif module_key == 'plates' and not editing %}
+    <div class="alert alert-info mb-3"><strong>Primero inicie el llenado y tome la hora.</strong> La aplicación definirá automáticamente el turno: Día 06:00–13:59, Tarde 14:00–21:59 o Noche 22:00–05:59. Cada plaquero puede acumular uno o varios productos, con un máximo total de <strong>189 bandejas</strong>. Después se habilitará el registro de productos.</div>
+    {% endif %}
+    {% if module_key == 'tunnel-pack' and not editing %}
+    <form id="tunnel-auto-pack-form" method="post" action="{% url 'productions:tunnel_pack_auto' production.pk %}" class="card border-0 shadow-sm auto-pack-form mb-3" data-prevent-double-submit>
+      {% csrf_token %}
+      <div class="card-body p-3 p-md-4">
+        <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+          <div>
+            <p class="eyebrow mb-1">CÁLCULO AUTOMÁTICO</p>
+            <h2 class="h4 mb-1">Formar bultos desde envasado en túneles</h2>
+            <p class="small text-secondary mb-0">Cada bulto consume 2 bandejas y genera 20 kg. Si queda 1 bandeja, queda pendiente para completar después.</p>
+          </div>
+          <span class="status">Capacidad P: {{ tunnel_packaging_data.pallet_capacity }} bultos</span>
+        </div>
+        <div class="row g-2 align-items-end">
+          <div class="col-12 col-lg-7">
+            <label class="form-label fw-semibold" for="tunnel-auto-product">Producto</label>
+            <select class="form-select" id="tunnel-auto-product" name="product" required>
+              {% for item in tunnel_packaging_data.availability %}
+                {% if item.possible_packages > 0 %}
+                <option value="{{ item.product.pk }}"{% if item.product.pk == selected_tunnel_pack_product_id %} selected{% endif %}>{{ item.product.code }} — {{ item.product.description }} · {{ item.possible_packages }} bulto{{ item.possible_packages|pluralize:"s" }}</option>
+                {% endif %}
+              {% empty %}
+                <option value="">No hay productos pendientes</option>
+              {% endfor %}
+            </select>
+          </div>
+            <div class="col-6 col-lg-2">
+              <label class="form-label fw-semibold">Pallet automático</label>
+              <div class="auto-pack-next-pallet" role="status">
+                <span>Próximo</span>
+                <strong>P{{ selected_tunnel_pallet_number }}</strong>
+              </div>
+              <div class="form-text">No se escribe: la app usa el primer pallet con espacio.</div>
+            </div>
+            <div class="col-6 col-lg-3">
+              <button class="btn btn-primary w-100" {% if not selected_tunnel_pack_product_id %}disabled{% endif %}>Calcular y empacar automático</button>
+            </div>
+        </div>
+        <div class="auto-pack-product-grid mt-3">
+          {% for item in tunnel_packaging_data.availability %}
+          <article class="auto-pack-product{% if not item.possible_packages %} auto-pack-product-waiting{% endif %}">
+            <div>
+              <span class="plate-pack-code">{{ item.product.code }}</span>
+              <strong>{{ item.product.description }}</strong>
+            </div>
+            <dl>
+              <div><dt>Envasadas</dt><dd>{{ item.physical_trays }} bandejas</dd></div>
+              <div><dt>Empacadas</dt><dd>{{ item.packed_trays }} bandejas</dd></div>
+              <div><dt>Pendientes</dt><dd>{{ item.pending_trays }} bandejas</dd></div>
+            </dl>
+            {% if item.sources %}
+            <div class="tunnel-pack-source-list">
+              <span>Origen pendiente</span>
+              {% for source in item.sources %}
+              <small>
+                <strong>{{ source.tunnel }} · Llenada {{ source.fill_number }} · {{ source.rack }}</strong>
+                {{ source.pending_trays }} bandeja{{ source.pending_trays|pluralize:"s" }}
+                {% if source.possible_packages %}· {{ source.possible_packages }} bulto{{ source.possible_packages|pluralize:"s" }}{% endif %}
+                {% if source.balance_trays %}· saldo {{ source.balance_trays }}{% endif %}
+              </small>
+              {% endfor %}
+            </div>
+            {% endif %}
+            <p class="small mb-0">{% if item.possible_packages %}Listo: {{ item.possible_packages }} bulto{{ item.possible_packages|pluralize:"s" }} · {{ item.possible_kg|floatformat:"2u" }} kg{% if item.balance_trays %} · queda {{ item.balance_trays }} bandeja{% endif %}{% else %}Sin bultos completos por ahora{% endif %}</p>
+          </details>
+          {% empty %}
+          <div class="empty-state text-center"><p class="mb-0 text-secondary">Primero registre bandejas en túneles.</p></div>
+          {% endfor %}
+        </div>
+        {% if tunnel_packaging_data.pallets %}
+        <section class="plate-pallet-control mt-3">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <div><p class="eyebrow mb-1">PALLETS</p><h3 class="h5 mb-0">Bultos formados en túneles</h3></div>
+          </div>
+          <div class="plate-pallet-grid">
+            {% for pallet in tunnel_packaging_data.pallets %}
+            <article class="plate-pallet-card{% if pallet.is_full %} plate-pallet-card-closed{% endif %}">
+              <header><div><p class="eyebrow mb-1">Pallet</p><h4>P{{ pallet.pallet_number }}</h4></div><strong>{{ pallet.package_count }} / {{ pallet.capacity }}</strong></header>
+              <small>{{ pallet.tray_count }} bandejas · {{ pallet.kg|floatformat:"2u" }} kg</small>
+              {% for entry in pallet.entries %}
+              <section><div><span class="plate-pack-code">{{ entry.product.code }}</span><strong>{{ entry.product.description }}</strong></div><div class="text-end"><strong>{{ entry.package_count }} bultos</strong><small>{{ entry.tray_count }} bandejas · {{ entry.kilos|floatformat:"2u" }} kg</small></div></section>
+              {% endfor %}
+            </article>
+            {% endfor %}
+          </div>
+        </section>
+        {% endif %}
+      </div>
+    </form>
+    {% endif %}
+    {% if module_key == 'plate-pack' and not editing and not plate_pack_legacy_form_visible %}
+    <details id="auto-pack-form" class="card border-0 shadow-sm auto-pack-form auto-pack-fold">
+      <summary class="auto-pack-fold-summary">
+        <div>
+          <p class="eyebrow mb-1">CÁLCULO AUTOMÁTICO</p>
+          <h2 class="h4 mb-1">Formar bultos por producto</h2>
+          <p class="small text-secondary mb-0">Abrir para ver productos disponibles y formar bultos.</p>
+        </div>
+        <strong>{{ plate_product_availability|length }} productos</strong>
+      </summary>
+    <form method="post" action="{% url 'productions:plate_pack_auto' production.pk %}" data-prevent-double-submit>
+      {% csrf_token %}
+      <div class="card-body p-3 p-md-4">
+        <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+          <div>
+            <p class="eyebrow mb-1">CÁLCULO AUTOMÁTICO</p>
+            <h2 class="h4 mb-1">Formar bultos por producto</h2>
+            <p class="small text-secondary mb-0">La aplicación une primero los saldos anteriores compatibles, agrega las bandejas actuales y forma únicamente bultos completos.</p>
+          </div>
+          <a class="btn btn-outline-primary" href="{% url 'productions:plate_balance' production.pk %}">Ver todos los saldos</a>
+        </div>
+        <div class="auto-pack-product-grid mb-4">
+          {% for item in plate_product_availability %}
+          <article class="auto-pack-product{% if not item.possible_packages %} auto-pack-product-waiting{% endif %}">
+            <div>
+              <span class="plate-pack-code">{{ item.product.code }}</span>
+              <strong>{{ item.product.description }}</strong>
+            </div>
+            <dl>
+              <div><dt>PP actual</dt><dd>{{ item.current_trays }} bandejas</dd></div>
+              <div><dt>Saldo anterior</dt><dd>{{ item.carryover_trays }} bandejas</dd></div>
+              <div><dt>Bultos posibles</dt><dd>{{ item.possible_packages }}</dd></div>
+              <div><dt>Saldo después</dt><dd>{{ item.residual_trays }} bandeja{{ item.residual_trays|pluralize:"s" }}</dd></div>
+            </dl>
+          </article>
+          {% empty %}
+          <div class="empty-state text-center"><p class="mb-0 text-secondary">Todavía no hay productos descargados ni saldos compatibles para empacar.</p></div>
+          {% endfor %}
+        </div>
+        <div class="row g-3">
+          <div class="col-12 col-md-8">
+            <label class="form-label fw-semibold" for="auto-pack-product">Producto</label>
+            <select class="form-select" id="auto-pack-product" name="product" required>
+              <option value="">Seleccione el producto</option>
+              {% for item in plate_product_availability %}
+              <option value="{{ item.product.pk }}"{% if selected_plate_pack_product_id == item.product.pk %} selected{% endif %}{% if not item.possible_packages %} disabled{% endif %}>{{ item.product.code }} — {{ item.product.description }} · {{ item.available_trays }} bandejas · {{ item.possible_packages }} bultos</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">No escriba bultos: la aplicación calculará el máximo posible respetando la capacidad disponible del pallet.</div>
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-semibold" for="auto-pack-pallet">Número de pallet</label>
+            <input class="form-control" id="auto-pack-pallet" name="pallet_number" type="number" min="1" max="{{ plate_pallet_max }}" inputmode="numeric" value="{{ selected_plate_pallet_number }}" required>
+            <div class="form-text">Máximo {{ plate_pallet_capacity }} bultos por pallet; puede cerrarlo con cualquier cantidad.</div>
+          </div>
+        </div>
+        {% if selected_plate_pallet %}
+        <div class="alert alert-info mt-3 mb-0" role="status">
+          <strong>P{{ selected_plate_pallet.pallet_number }} ya tiene {{ selected_plate_pallet.package_count }} / {{ selected_plate_pallet.capacity }} bultos.</strong>
+          Quedan {{ selected_plate_pallet.available_packages }} espacios disponibles; si el producto necesita más, el saldo continuará en otro pallet.
+        </div>
+        {% else %}
+        <div class="alert alert-success mt-3 mb-0" role="status">
+          <strong>P{{ selected_plate_pallet_number }} está vacío.</strong> La aplicación formará el máximo de bultos completos permitido.
+        </div>
+        {% endif %}
+      </div>
+      <div class="card-footer bg-white border-0 p-3 p-md-4 pt-0">
+        <button class="btn btn-primary btn-lg px-4">Formar bultos automáticamente</button>
+      </div>
+    </form>
+    </details>
+    {% elif module_key == 'troquelado' and troquelado_crew_mode and not editing %}
+    {{ troquelado_quick_workers|json_script:"troquelado-quick-data" }}
+    <section class="card border-0 shadow-sm troquelado-quick-panel" data-troquelado-quick data-quick-url="{% url 'productions:troquelado_quick_capture' production.pk %}" data-quick-crew="{{ troquelado_crew_name }}" data-quick-readonly="{{ operational_read_only|yesno:'1,0' }}">
+      <div class="card-body p-3 p-md-4">
+        <div class="troquelado-quick-head d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+          <div>
+            <p class="eyebrow mb-1">CAPTURA RÁPIDA</p>
+            <h2 class="h4 mb-0" data-quick-worker-name>Elija un trabajador de la cuadrilla</h2>
+            <span class="small text-secondary">{{ troquelado_crew_name }}{% if troquelado_repeat_shift_label %} · Turno {{ troquelado_repeat_shift_label }}{% endif %}</span>
+          </div>
+          <span class="status" data-quick-status role="status" aria-live="polite"></span>
+        </div>
+
+        <div class="troquelado-quick-calc-box d-none" data-quick-capture>
+          <div class="troquelado-calculator" data-troquelado-calc>
+            <div class="troquelado-calc-readout">
+              <span class="troquelado-calc-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M7 21h10"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/><path d="M3 7 5 8h4l2-1"/><path d="m14 6 2 2h4l2-1"/></svg></span>
+              <div>
+                <span class="troquelado-calc-eyebrow">TOTAL PESADO</span>
+                <strong class="troquelado-calc-total" data-troquelado-total aria-live="polite">0<span class="unit">kg</span></strong>
+              </div>
+              <span class="troquelado-calc-ok" data-troquelado-ok aria-hidden="true">✔</span>
+            </div>
+            <div class="troquelado-calc-grid">
+              <label class="troquelado-calc-field">
+                <span>N° de cajas</span>
+                <input class="form-control" type="number" name="cajas" min="1" step="1" inputmode="numeric" autocomplete="off" placeholder="0" required>
+                <small class="troquelado-quick" data-troquelado-add="1" role="button" tabindex="0">+1</small>
+              </label>
+              <span class="troquelado-calc-times" aria-hidden="true">×</span>
+              <label class="troquelado-calc-field">
+                <span>Peso por caja (kg)</span>
+                <input class="form-control" type="number" name="kg_por_caja" min="0" step="0.01" inputmode="decimal" autocomplete="off" placeholder="0.00">
+              </label>
+            </div>
+            <p class="troquelado-calc-hint" data-troquelado-hint>Escriba las cajas y el peso que marca la balanza; el total se calcula solo.</p>
+          </div>
+
+          <div class="mt-3">
+            <span class="form-label fw-semibold d-block mb-2">Tipo de producto</span>
+            <div class="troquelado-type-chips" data-troquelado-type>
+              {% for value, label in troquelado_product_type_choices %}
+              <button type="button" class="troquelado-type-chip" data-value="{{ value }}" role="button" tabindex="0">{{ label }}</button>
+              {% endfor %}
+            </div>
+            <select name="product_type" class="d-none" data-troquelado-type-select>
+              <option value="">Seleccione una categoría</option>
+              {% for value, label in troquelado_product_type_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+
+          <details class="border rounded-3 p-2 bg-light mt-3">
+            <summary class="fw-semibold">Turno y horas <span class="text-secondary fw-normal">(opcional)</span></summary>
+            <div class="row g-2 pt-2">
+              <div class="col-12 col-md-4">
+                <label class="form-label fw-semibold" for="quick-shift">Turno</label>
+                <select class="form-select" id="quick-shift" name="shift">
+                  {% for value, label in troquelado_shift_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="col-6 col-md-4">
+                <label class="form-label fw-semibold" for="quick-start">Inicio</label>
+                <input class="form-control" type="time" id="quick-start" name="start_time">
+              </div>
+              <div class="col-6 col-md-4">
+                <label class="form-label fw-semibold" for="quick-end">Fin</label>
+                <input class="form-control" type="time" id="quick-end" name="end_time">
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold" for="quick-obs">Observación</label>
+                <textarea class="form-control" id="quick-obs" name="observation" rows="2"></textarea>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <input type="hidden" name="worker" data-quick-worker-input value="{% if troquelado_selected_worker_id %}{{ troquelado_selected_worker_id }}{% endif %}">
+      </div>
+      <div class="card-footer bg-white border-0 p-3 p-md-4 pt-0 d-flex flex-wrap gap-2 troquelado-quick-actions">
+        <button type="button" class="btn btn-primary btn-lg px-4 flex-grow-1" data-quick-save>Guardar</button>
+        <button type="button" class="btn btn-outline-primary btn-lg" data-quick-save-next>Guardar y seguir</button>
+        <a class="btn btn-light btn-lg" href="{% url 'productions:detail' production.pk %}">Terminar</a>
+      </div>
+    </section>
+    {% elif module_key != 'tunnel-pack' or editing %}
+    <form method="post" class="card border-0 shadow-sm{% if module_key == 'nuqueras' and not editing and not operational_read_only and not nuquera_crew_mode %} d-none{% endif %}{% if module_key == 'troquelado' and not editing and not operational_read_only and not troquelado_crew_mode %} d-none{% endif %}" data-prevent-double-submit novalidate{% if module_key == 'reception' %} id="reception-entry-form"{% elif module_key == 'tunnel-crews' or module_key == 'plate-crews' or module_key == 'plates' or module_key == 'plate-pack' or module_key == 'tunnel-pack' or module_key == 'nuqueras' or module_key == 'troquelado' %} id="operational-entry-form"{% endif %}{% if module_key == 'plates' and not editing %} data-plate-capture-form data-open-positions="{{ plate_capture_open_positions }}" data-started-positions="{{ plate_capture_started_positions }}" data-completed-positions="{{ plate_capture_completed_positions }}" data-position-shifts="{{ plate_capture_position_shifts }}" data-position-starts="{{ plate_capture_position_starts }}"{% endif %}>
+      {% csrf_token %}
+      <div class="card-body p-3 p-md-4">
+        {% if module_key == 'reception' and not editing %}
+          {% if selected_reception_crew %}
+          <div class="alert alert-success d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span><strong>Agregando dino para {{ selected_reception_crew.name }}.</strong><br>Carro {{ selected_reception_car.car_number }} · {{ selected_reception_car.vehicle.plate }}. Solo complete el número de dino y los kilos.</span>
+            <a class="btn btn-sm btn-ghost" href="{{ module_create_url }}?car={{ selected_reception_car.vehicle.pk }}#reception-entry-form">Elegir otra cuadrilla</a>
+          </div>
+          {% elif selected_reception_car %}
+          <div class="alert alert-success d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span><strong>Carro {{ selected_reception_car.car_number }} creado.</strong><br>{{ selected_reception_car.vehicle.plate }} y {{ selected_reception_car.product.description }} quedan fijados. Toque una cuadrilla para registrar sus dinos y kilos.</span>
+            <a class="btn btn-sm btn-ghost" href="{{ module_create_url }}#reception-entry-form">Registrar otro carro</a>
+          </div>
+          {% else %}
+          <div class="alert alert-info"><strong>Nuevo carro.</strong> Registre la placa, número y producto. Al guardarlo se tomará la hora automáticamente; después elija una cuadrilla para ingresar sus dinos y kilos.</div>
+          {% endif %}
+        {% endif %}
+        {% if editing %}<div class="alert alert-warning"><strong>Modo corrección.</strong> Revise los datos y guarde los cambios.</div>{% endif %}
+        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+        {% if module_key == 'troquelado' and troquelado_repeat_worker_name %}
+        <div class="alert alert-success d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <span><strong>Registrando peso de {{ troquelado_repeat_worker_name }}.</strong>{% if troquelado_crew_name %}<br>{{ troquelado_crew_name }}{% if troquelado_repeat_shift_label %} · Turno {{ troquelado_repeat_shift_label }}{% endif %}. Toque la categoría y escriba cajas y peso.{% endif %}</span>
+          <span class="d-flex flex-wrap gap-2">
+            <a class="btn btn-sm btn-ghost" href="{% url 'productions:troquelado_create' production.pk %}?crew={{ troquelado_crew_id }}#operational-entry-form">Elegir otra persona</a>
+            <a class="btn btn-sm btn-ghost" href="{% url 'productions:troquelado_create' production.pk %}#operational-entry-form">Elegir otra cuadrilla</a>
+          </span>
+        </div>
+        {% endif %}
+        {% if module_key == 'nuqueras' and nuquera_repeat_worker_name %}
+        <div class="alert alert-success d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <span><strong>Registrando peso de {{ nuquera_repeat_worker_name }}.</strong>{% if nuquera_crew_name %}<br>{{ nuquera_crew_name }}{% if nuquera_repeat_shift_label %} · Turno {{ nuquera_repeat_shift_label }}{% endif %}. Solo escriba los kilos para guardar.{% endif %}</span>
+          <span class="d-flex flex-wrap gap-2">
+            <a class="btn btn-sm btn-ghost" href="{% url 'productions:nuquera_create' production.pk %}?crew={{ nuquera_crew_id }}#operational-entry-form">Elegir otra persona</a>
+            <a class="btn btn-sm btn-ghost" href="{% url 'productions:nuquera_create' production.pk %}#operational-entry-form">Elegir otra cuadrilla</a>
+          </span>
+        </div>
+        {% endif %}
+        {% if module_key == 'reception' and not editing and not selected_reception_car %}
+        <fieldset class="border rounded-3 p-3 mb-3 bg-light">
+          <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-0">Cuadrillas del carro</legend>
+          <p class="small text-secondary mb-2">Seleccione manualmente una o dos cuadrillas. Solo ellas aparecerán después de crear el carro.</p>
+          <div class="d-flex flex-wrap gap-2">
+            {% for crew in reception_car_crew_choices %}
+            <label class="btn btn-outline-primary">
+              <input class="form-check-input me-1" type="checkbox" name="initial_crews" value="{{ crew.pk }}"> {{ crew.name }}
+            </label>
+            {% endfor %}
+          </div>
+        </fieldset>
+        {% endif %}
+        <div class="row g-3">
+          {% for field in form %}
+            {% if field.is_hidden %}{{ field }}{% else %}
+            {% if module_key == 'troquelado' and field.name == 'cajas' %}
+            <div class="col-12">
+              <div class="troquelado-calculator" data-troquelado-calc>
+                <div class="troquelado-calc-readout">
+                  <span class="troquelado-calc-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M7 21h10"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/><path d="M3 7 5 8h4l2-1"/><path d="m14 6 2 2h4l2-1"/></svg></span>
+                  <div>
+                    <span class="troquelado-calc-eyebrow">TOTAL PESADO</span>
+                    <strong class="troquelado-calc-total" data-troquelado-total aria-live="polite">0<span class="unit">kg</span></strong>
+                  </div>
+                  <span class="troquelado-calc-ok" data-troquelado-ok aria-hidden="true">✔</span>
+                </div>
+                <div class="troquelado-calc-grid">
+                  <label class="troquelado-calc-field">
+                    <span>N° de cajas</span>
+                    {{ form.cajas }}
+                    <small class="troquelado-quick" data-troquelado-add="1" role="button" tabindex="0">+1</small>
+                  </label>
+                  <span class="troquelado-calc-times" aria-hidden="true">×</span>
+                  <label class="troquelado-calc-field">
+                    <span>Peso por caja (kg)</span>
+                    {{ form.kg_por_caja }}
+                  </label>
+                </div>
+                <p class="troquelado-calc-hint" data-troquelado-hint>Escriba las cajas y el peso que marca la balanza; el total se calcula solo.</p>
+                {% for error in form.cajas.errors %}<div class="text-danger small mt-1 px-3">{{ error }}</div>{% endfor %}
+                {% for error in form.kg_por_caja.errors %}<div class="text-danger small mt-1 px-3">{{ error }}</div>{% endfor %}
+              </div>
+            </div>
+            {% elif module_key == 'troquelado' and field.name == 'product_type' %}
+            <div class="col-12">
+              <span class="form-label fw-semibold d-block mb-2">{{ field.label }}</span>
+              <div class="troquelado-type-chips" data-troquelado-type>
+                {% for value, label in field.field.choices %}
+                <button type="button" class="troquelado-type-chip{% if field.value == value %} is-selected{% endif %}" data-value="{{ value }}" data-target="{{ field.id_for_label }}" role="button" tabindex="0">{{ label }}</button>
+                {% endfor %}
+              </div>
+              <select name="{{ field.html_name }}" id="{{ field.id_for_label }}" class="d-none" data-troquelado-type-select>
+                <option value="">Seleccione una categoría</option>
+                {% for value, label in field.field.choices %}<option value="{{ value }}"{% if field.value == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+              </select>
+              {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+              {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+            </div>
+            {% elif module_key == 'troquelado' and field.name == 'kg_por_caja' %}
+            {% else %}
+            {% if module_key == 'plates' and not editing and field.name == 'position' %}
+            <div class="col-12 plate-capture-step-heading"><span>PASO 1</span><strong>Seleccione el plaquero</strong></div>
+            {% endif %}
+            {% if module_key == 'plates' and not editing and field.name == 'product' %}
+            <div class="col-12 plate-capture-start-panel" data-plate-start-panel>
+              <div><span>PASO 2</span><strong data-plate-capture-status>Seleccione el plaquero para iniciar el llenado.</strong><small>La aplicación guardará automáticamente la hora actual.</small></div>
+              <button class="btn btn-ghost" type="submit" formaction="{% url 'productions:plate_load_start_selected' production.pk %}" formmethod="post" formnovalidate data-plate-start-button>Iniciar llenado · tomar hora</button>
+            </div>
+            <div class="col-12 plate-capture-step-heading plate-capture-product-heading" data-plate-capture-field><span>PASO 3</span><strong>Registre los productos y las bandejas</strong></div>
+            {% endif %}
+            <div class="col-12 {% if field.name == 'observations' or field.name == 'observation' %}col-md-12{% else %}col-md-6{% endif %}{% if module_key == 'reception' and not editing and field.name in 'time observation' or module_key == 'reception' and not editing and not selected_reception_car and field.name in 'crew container weight_kg' or module_key == 'reception' and not editing and selected_reception_car and not selected_reception_crew and field.name in 'vehicle_text car_number product crew container weight_kg' or module_key == 'reception' and selected_reception_crew and field.name in 'vehicle_text car_number product crew' or module_key == 'nuqueras' and nuquera_focused_worker and field.name != 'weight_kg' %} d-none{% endif %}"{% if module_key == 'plates' and not editing and field.name == 'product' or module_key == 'plates' and not editing and field.name == 'tray_count' or module_key == 'plates' and not editing and field.name == 'observation' %} data-plate-capture-field{% endif %}>
+              {% if field.name == 'observation' %}
+              <details class="border rounded-3 p-2 bg-light"{% if field.value or field.errors %} open{% endif %}>
+                <summary class="fw-semibold">Agregar observación <span class="text-secondary fw-normal">(opcional)</span></summary>
+                <div class="pt-2">
+                  <label class="visually-hidden" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                  {{ field }}
+                  {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                  {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+              </details>
+              {% else %}
+              <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+              {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+              {% endif %}
+            </div>
+            {% endif %}
+            {% endif %}
+          {% endfor %}
+        </div>
+        {% if module_key == 'tunnel-crews' %}<datalist id="tunnel-crew-options">{% for crew_id, crew_name in crew_suggestions %}<option value="{{ crew_name }}">{% endfor %}</datalist>{% elif module_key == 'plate-crews' %}<datalist id="plate-crew-options">{% for crew_id, crew_name in crew_suggestions %}<option value="{{ crew_name }}">{% endfor %}</datalist>{% endif %}
+      </div>
+      <div class="card-footer bg-white border-0 p-3 p-md-4 pt-0 d-flex flex-wrap gap-2">
+        {% if module_key != 'reception' or editing or not selected_reception_car or selected_reception_crew %}
+        <button class="btn btn-primary btn-lg px-4"{% if module_key == 'reception' and not editing and not selected_reception_car %} formaction="{{ reception_car_create_url }}"{% endif %}{% if module_key == 'plates' and not editing %} data-plate-save-button{% endif %}>{% if editing %}Guardar corrección{% elif module_key == 'reception' and not selected_reception_car %}Crear carro e iniciar hora{% elif module_key == 'nuqueras' and nuquera_focused_worker %}Guardar peso{% else %}Guardar registro{% endif %}</button>
+        {% elif module_key == 'reception' %}
+        <span class="text-secondary small align-self-center">Seleccione una cuadrilla en el carro para ingresar sus dinos.</span>
+        {% endif %}
+        {% if editing %}<a class="btn btn-light btn-lg" href="{{ module_create_url }}">Cancelar</a>{% endif %}
+        {% if module_key == 'troquelado' and not editing %}<button class="btn btn-light btn-lg px-4" type="submit" name="volver" value="1" data-troquelado-save-return>Guardar y volver al parte</button>{% endif %}
+      </div>
+    </form>
+    {% endif %}
+    {% endif %}
+  </div>
+
+  <div class="col-12 col-xl-5">
+    <section class="card border-0 shadow-sm operational-records{% if module_key == 'reception' %} reception-records-shell{% endif %}">
+      <div class="card-body p-3 p-md-4">
+        {% if module_key == 'reception' %}<div class="reception-control-panel">{% endif %}
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+          <div><p class="eyebrow mb-1">CONTROL</p><h2 class="h4 mb-0">Registros guardados{% if module_key == 'reception' %} por carro{% endif %}</h2></div>
+          <span class="status" data-troquelado-record-count>{% if module_key == 'reception' %}{{ reception_record_groups|length }} carros{% elif module_key == 'plates' or module_key == 'plate-crews' %}{{ plate_crew_data.groups|length }} plaqueros{% elif module_key == 'plate-pack' %}{{ plate_packaging_data.groups|length }} plaqueros{% else %}{{ record_cards|length }}{% endif %}</span>
+        </div>
+
+        {% if module_key == 'reception' %}
+        <p class="small text-secondary">Cada bloque representa un carro en la hoja <strong>R.M</strong>. {% if operational_read_only %}Los datos están disponibles en modo consulta.{% else %}Puede corregir o eliminar cada dino por separado.{% endif %}</p>
+        {% if reception_record_groups %}
+        <nav class="reception-car-index" aria-label="Acceso rápido por carro">
+          <span>Ver carro:</span>
+          {% for group in reception_record_groups %}
+          <a href="#carro-{{ forloop.counter }}">{{ group.car_number }} <small>{{ group.dino_count }} dino{{ group.dino_count|pluralize:"s" }}</small></a>
+          {% endfor %}
+        </nav>
+        {% endif %}
+        </div>
+        <div class="reception-car-list">
+          {% for group in reception_record_groups %}
+          <article id="carro-{{ forloop.counter }}" class="reception-car-group {% if selected_reception_car and selected_reception_car.vehicle.pk == group.vehicle.pk %}reception-car-selected{% endif %} {% if group.has_mapping_conflict %}reception-car-conflict{% endif %}">
+            <header class="reception-car-header">
+              <div>
+                <p class="eyebrow mb-1">CARRO {{ group.car_number }}</p>
+                <h3 class="h5 mb-0">{{ group.vehicle.plate }}</h3>
+              </div>
+              <div class="text-end">
+                <span class="status">{{ group.dino_count }} dino{{ group.dino_count|pluralize:"s" }}</span>
+                <small class="reception-car-total-label">Inicio {{ group.started_at|date:"H:i" }}</small>
+                <small class="reception-car-total-label">Total del carro</small>
+                <strong class="reception-car-total">{{ group.total_weight|floatformat:"2u" }} kg</strong>
+                {% if group.closed_at %}
+                <small class="reception-car-total-label">Cerrado {{ group.closed_at|date:"H:i" }} · {{ group.duration_text }}</small>
+                <span class="status status-closed mt-2">Carro cerrado</span>
+                {% elif not operational_read_only %}
+                <a class="btn btn-sm btn-primary mt-2" href="{{ module_create_url }}?car={{ group.vehicle.pk }}#reception-entry-form">Agregar dino a este carro</a>
+                <form method="post" action="{% url 'productions:reception_car_close' production.pk group.vehicle.pk %}" class="mt-2" data-prevent-double-submit data-confirm-message="¿Cerrar el carro {{ group.car_number }}? Ya no podrá agregar más dinos.">
+                  {% csrf_token %}<button class="btn btn-sm btn-outline-danger w-100">Cerrar carro</button>
+                </form>
+                {% endif %}
+                {% if not operational_read_only and not group.dino_count %}
+                <form method="post" action="{% url 'productions:reception_car_delete' production.pk group.vehicle.pk %}" class="mt-2" data-prevent-double-submit data-confirm-message="¿Eliminar el carro {{ group.car_number }}? Solo se eliminará este carro vacío.">
+                  {% csrf_token %}<button class="btn btn-sm btn-outline-danger w-100">Eliminar carro</button>
+                </form>
+                {% endif %}
+              </div>
+            </header>
+            {% if group.has_mapping_conflict %}
+            <div class="reception-car-warning">
+              <strong>Requiere corrección:</strong>
+              {% if group.has_car_conflict %}el número de carro está repetido en otro vehículo.{% endif %}
+              {% if group.has_multiple_car_numbers %}este vehículo tiene números de carro distintos.{% endif %}
+              {% if group.has_product_conflict %}este carro tiene productos diferentes.{% endif %}
+              {% if group.has_crew_conflict %}este carro supera dos cuadrillas.{% endif %}
+              {% if group.has_dino_conflict %}hay un dino repetido en la misma cuadrilla.{% endif %}
+            </div>
+            {% endif %}
+            <section class="reception-crew-summary" aria-label="Total acumulado por cuadrilla del carro {{ group.car_number }}">
+              <p class="eyebrow mb-2">TOTAL ACUMULADO POR CUADRILLA</p>
+              <div class="reception-crew-total-grid">
+                {% for crew_total in group.crew_cards %}
+                {% if not operational_read_only and not group.closed_at and crew_total.crew_id %}
+                <a class="reception-crew-total reception-crew-total-select{% if selected_reception_crew and selected_reception_crew.pk == crew_total.crew_id %} is-selected{% endif %}" href="{{ module_create_url }}?car={{ group.vehicle.pk }}&crew={{ crew_total.crew_id }}#reception-entry-form" aria-label="Agregar dino para {{ crew_total.name }}">
+                {% else %}
+                <article class="reception-crew-total">
+                {% endif %}
+                  <div><strong>{{ crew_total.name }}</strong><small>{{ crew_total.dino_count }} dino{{ crew_total.dino_count|pluralize:"s" }}</small></div>
+                  <strong>{{ crew_total.total_weight|floatformat:"2u" }} kg</strong>
+                {% if not operational_read_only and not group.closed_at and crew_total.crew_id %}</a>{% else %}</article>{% endif %}
+                {% endfor %}
+              </div>
+            </section>
+            <div class="reception-dino-list">
+              <div class="reception-dino-heading"><strong>Mapa de dinos y kilos</strong><span>Dino</span><span>Kilos</span></div>
+              {% for entry in group.entries %}
+              {% if not selected_reception_crew or entry.crew_id == selected_reception_crew.pk %}
+              <section class="reception-dino-row {% if editing and entry.pk == object.pk %}operational-record-editing{% endif %}">
+                <div class="reception-dino-data">
+                  <div class="reception-dino-kilo-map">
+                    <span aria-label="Dino {{ entry.container }}"><small>Dino</small><strong>{{ entry.container }}</strong></span>
+                    <span aria-label="{{ entry.weight_kg|floatformat:"2u" }} kilos"><small>Kilos</small><strong>{{ entry.weight_kg|floatformat:"2u" }} kg</strong></span>
+                  </div>
+                  <span>{{ entry.product.description }}</span>
+                  <small>Cuadrilla: {{ entry.crew.name }}</small>
+                  <small class="reception-entry-user">Registrado por: <strong>{{ entry.responsible.get_full_name|default:entry.responsible.username }}</strong></small>
+                </div>
+                {% if not operational_read_only %}<div class="reception-dino-actions">
+                  <a class="btn btn-sm btn-outline-primary" href="{% url 'productions:operational_entry_update' production.pk module_key entry.pk %}">Corregir</a>
+                  <form method="post" action="{% url 'productions:operational_entry_delete' production.pk module_key entry.pk %}" data-prevent-double-submit data-confirm-message="¿Eliminar el Dino {{ entry.container }} del carro {{ group.car_number }}?">
+                    {% csrf_token %}<button class="btn btn-sm btn-outline-danger">Eliminar</button>
+                  </form>
+                </div>{% endif %}
+              </section>
+              {% endif %}
+              {% endfor %}
+            </div>
+          </article>
+          {% empty %}<div class="empty-state text-center"><p class="mb-0 text-secondary">Todavía no hay registros de recepción.</p></div>{% endfor %}
+        </div>
+        {% elif module_key == 'tunnel-crews' and selected_fill %}
+        <p class="small text-secondary">Cada bloque representa un rack. La suma asignada a las cuadrillas no puede superar las bandejas realmente llenadas.</p>
+        {% if tunnel_crew_data.crew_totals %}
+        <section class="tunnel-crew-payroll-summary mb-3">
+          <p class="eyebrow mb-2">TOTAL PARA PAGO POR CUADRILLA</p>
+          {% for item in tunnel_crew_data.crew_totals %}<div><strong>{{ item.crew.name }}</strong><span><strong>{{ item.weight_kg|floatformat:"2u" }} kg</strong><small>{{ item.tray_count }} bandejas × 10 kg</small></span></div>{% endfor %}
+        </section>
+        {% endif %}
+        {% if tunnel_crew_data.legacy_entries %}
+        <section class="tunnel-crew-payroll-summary mb-3">
+          <p class="eyebrow mb-2">REGISTROS ANTERIORES SIN RACK</p>
+          {% for entry in tunnel_crew_data.legacy_entries %}
+          <div class="flex-wrap"><span><strong>{{ entry.crew.name }}</strong> · {{ entry.tray_count }} bandejas · {% widthratio entry.tray_count 1 10 %} kg · {{ entry.page_or_block }}</span>{% if not operational_read_only %}<span class="d-flex gap-2"><a class="btn btn-sm btn-outline-primary" href="{% url 'productions:operational_entry_update' production.pk module_key entry.pk %}">Corregir</a><form method="post" action="{% url 'productions:operational_entry_delete' production.pk module_key entry.pk %}" data-prevent-double-submit data-confirm-message="¿Eliminar este registro anterior?">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Eliminar</button></form></span>{% endif %}</div>
+          {% endfor %}
+        </section>
+        {% endif %}
+        <div class="tunnel-crew-rack-list">
+          {% for group in tunnel_crew_data.groups %}
+          <article class="tunnel-crew-rack {% if group.assigned_total == group.physical_total and group.physical_total > 0 %}tunnel-crew-rack-complete{% endif %}">
+            <header>
+              <div><p class="eyebrow mb-1">RACK</p><h3 class="h5 mb-0">{{ group.rack.code }}</h3></div>
+              <div class="text-end"><strong>{{ group.assigned_total }} / {{ group.physical_total }}</strong><small>{{ group.pending_total }} pendientes</small></div>
+            </header>
+            {% for physical in group.physical_entries %}
+            <section class="tunnel-crew-entry-row">
+              <div><strong>{{ physical.product.description }}</strong><span>{{ physical.tray_count }} bandejas fisicas</span><small>Producto disponible para asignar a cuadrillas</small></div>
+            </section>
+            {% endfor %}
+            {% for entry in group.entries %}
+            <section class="tunnel-crew-entry-row">
+              <div><strong>{{ entry.crew.name }}</strong><span>{% if entry.product_id %}{{ entry.product.description }} · {% endif %}{{ entry.tray_count }} bandejas · {% widthratio entry.tray_count 1 10 %} kg</span><small>Registrado por: {{ entry.responsible.get_full_name|default:entry.responsible.username }}</small></div>
+              {% if not operational_read_only %}<div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'productions:operational_entry_update' production.pk module_key entry.pk %}">Corregir</a>
+                <form method="post" action="{% url 'productions:operational_entry_delete' production.pk module_key entry.pk %}" data-prevent-double-submit data-confirm-message="¿Eliminar {{ entry.crew.name }} del rack {{ group.rack.code }}?">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Eliminar</button></form>
+              </div>{% endif %}
+            </section>
+            {% empty %}<p class="small text-secondary mb-0 p-3">Todavía no se asignaron cuadrillas a este rack.</p>{% endfor %}
+          </details>
+          {% empty %}<div class="empty-state text-center"><p class="mb-0 text-secondary">Esta llenada todavía no tiene racks configurados.</p></div>{% endfor %}
+        </div>
+        {% elif module_key == 'plates' %}
+        <p class="small text-secondary">Cada bloque representa una posición de plaquero. El envasado físico puede contener varios productos, pero su suma tiene un tope de 189 bandejas.</p>
+        <div class="tunnel-crew-rack-list">
+          {% for group in plate_crew_data.groups %}
+          <article id="plate-position-{{ group.position.pk }}" class="tunnel-crew-rack plate-card-collapsible plate-position-plaquero-{{ group.position.plaquero_number }} {% if group.is_physical_full %}plate-position-physical-full{% endif %}{% if group.timing.unloaded_at %} plate-position-unloaded plate-card-state-unloaded{% elif group.timing.launched_at %} plate-position-launched plate-card-state-launched{% elif group.timing.load_completed_at or group.is_physical_full %} plate-card-state-complete{% elif group.timing.load_started_at %} plate-card-state-filling{% else %} plate-card-state-idle{% endif %}">
+            <details class="plate-position-fold" data-plate-fold{% if plate_card_open_position_id == group.position.pk and not group.timing.unloaded_at %} open{% endif %}>
+              <summary class="plate-card-summary">
+                <span class="plate-card-summary-title">
+                  <small>BACHADA {{ group.position.batch_number }}</small>
+                  <strong><span class="plate-position-dot" aria-hidden="true"></span>Plaquero {{ group.position.plaquero_number }}</strong>
+                  <span class="plate-card-mini-statuses">
+                    <em class="{% if group.is_assignment_complete %}is-ok{% elif group.assigned_total > 0 %}is-progress{% else %}is-pending{% endif %}">{% if group.is_assignment_complete %}✓ Cuadrillas: reparto completo {{ group.assigned_total }}/{{ group.physical_total }}{% elif group.assigned_total > 0 %}Cuadrillas: reparto parcial {{ group.assigned_total }}/{{ group.physical_total }}{% else %}Cuadrillas: reparto pendiente{% endif %}</em>
+                    <em class="{% if not group.timing.unloaded_at %}is-pending{% elif group.packaging.registered_balance_total > 0 and group.packaging.registered_balance_total >= group.packaging.pending_total %}is-ok{% elif group.packaging.pending_total == 0 %}is-ok{% elif group.packaging.packed_total > 0 %}is-progress{% else %}is-pending{% endif %}">{% if not group.timing.unloaded_at %}Empaque: espera descarga{% elif group.packaging.registered_balance_total > 0 and group.packaging.registered_balance_total >= group.packaging.pending_total %}✓ Empaque conciliado · saldo {{ group.packaging.registered_balance_total }} bandeja{{ group.packaging.registered_balance_total|pluralize:"s" }}{% elif group.packaging.pending_total == 0 %}✓ Empaque registrado · {{ group.packaging.packed_total }}/{{ group.packaging.physical_total }} bandejas{% elif group.packaging.possible_packages > 0 %}{% if group.packaging.packed_total > 0 %}Empaque: en proceso · {{ group.packaging.packed_total }}/{{ group.packaging.physical_total }} bandejas{% else %}Empaque: pendiente · {{ group.packaging.possible_packages }} bulto{{ group.packaging.possible_packages|pluralize:"s" }} posible{{ group.packaging.possible_packages|pluralize:"s" }}{% endif %}{% else %}Sin bultos completos · saldo por conciliar: {{ group.packaging.balance_trays }} bandeja{{ group.packaging.balance_trays|pluralize:"s" }}{% endif %}</em>
+                  </span>
+                </span>
+                <span class="plate-card-summary-progress">
+                  <strong>{{ group.physical_total }}/{{ group.capacity }} bandejas</strong>
+                  <small>{% if group.automatic_shift_label %}Turno {{ group.automatic_shift_label }} · {% endif %}{% if group.timing.unloaded_at %}Descargado{% elif group.timing.launched_at %}Lanzado{% elif group.timing.load_completed_at or group.is_physical_full %}Carga completa{% elif group.timing.load_started_at %}En llenado{% else %}Sin iniciar{% endif %}</small>
+                </span>
+                <span class="plate-card-chevron" aria-hidden="true"></span>
+              </summary>
+              <div class="plate-card-detail">
+            {% for entry in group.physical_entries %}
+            <section class="tunnel-crew-entry-row">
+              <div><strong>{{ entry.product.description }}</strong><span>{{ entry.tray_count }} bandejas</span><small>Registrado por: {{ entry.responsible.get_full_name|default:entry.responsible.username }}</small></div>
+              {% if not operational_read_only %}<div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'productions:operational_entry_update' production.pk module_key entry.pk %}">Corregir</a>
+                <form method="post" action="{% url 'productions:operational_entry_delete' production.pk module_key entry.pk %}" data-prevent-double-submit data-confirm-message="¿Eliminar {{ entry.tray_count }} bandejas de la Bachada {{ group.position.batch_number }}, Plaquero {{ group.position.plaquero_number }}?">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Eliminar</button></form>
+              </div>{% endif %}
+            </section>
+            {% endfor %}
+            <section class="plate-timing-panel">
+              <div class="plate-timing-status-grid">
+                <div class="plate-timing-state {% if group.timing.load_started_at %}plate-timing-recorded{% endif %}">
+                  <span>INICIO DE LLENADO</span>
+                  <strong>{% if group.timing.load_started_at %}{{ group.timing.load_started_at|date:"H:i:s" }}{% else %}Pendiente{% endif %}</strong>
+                  <small>{% if group.timing.load_started_at %}{{ group.timing.load_started_at|date:"d/m/Y" }}{% if group.timing.load_started_by %} · {{ group.timing.load_started_by.get_full_name|default:group.timing.load_started_by.username }}{% endif %}{% elif group.timing.load_completed_at %}No registrado en este control anterior.{% else %}La aplicación tomará la hora al iniciar.{% endif %}</small>
+                  {% if group.automatic_shift_label %}<em>Turno {{ group.automatic_shift_label }}</em>{% endif %}
+                </div>
+                <div class="plate-timing-state {% if group.timing.load_completed_at %}plate-timing-recorded{% endif %}">
+                  <span>FIN DE CARGA</span>
+                  <strong>{% if group.timing.load_completed_at %}{{ group.timing.load_completed_at|date:"H:i:s" }}{% else %}Pendiente{% endif %}</strong>
+                  <small>{% if group.timing.load_completed_at %}{{ group.timing.load_completed_at|date:"d/m/Y" }}{% if group.timing.load_completed_by %} · {{ group.timing.load_completed_by.get_full_name|default:group.timing.load_completed_by.username }}{% endif %}{% elif group.timing.load_started_at %}Listo para finalizar cuando termine el llenado.{% else %}Se habilita después de iniciar el llenado.{% endif %}</small>
+                </div>
+                <div class="plate-timing-state plate-timing-duration {% if group.filling_duration %}plate-timing-recorded{% endif %}">
+                  <span>TIEMPO DE LLENADO</span>
+                  <strong>{% if group.filling_duration %}{{ group.filling_duration }}{% else %}Pendiente{% endif %}</strong>
+                  <small>Se calcula automáticamente: fin de carga menos inicio de llenado.</small>
+                </div>
+                <div class="plate-timing-state plate-timing-launch {% if group.timing.launched_at %}plate-timing-recorded{% endif %}">
+                  <span>LANZAMIENTO</span>
+                  <strong>{% if group.timing.launched_at %}{{ group.timing.launched_at|date:"H:i:s" }}{% else %}Pendiente{% endif %}</strong>
+                  <small>{% if group.timing.launched_at %}{{ group.timing.launched_at|date:"d/m/Y" }}{% if group.timing.launched_by %} · {{ group.timing.launched_by.get_full_name|default:group.timing.launched_by.username }}{% endif %}{% elif group.timing.load_completed_at %}Listo para registrar el lanzamiento.{% else %}Se habilita después de finalizar la carga.{% endif %}</small>
+                </div>
+                <div class="plate-timing-state plate-timing-unload {% if group.timing.unloaded_at %}plate-timing-recorded{% endif %}">
+                  <span>DESCARGA</span>
+                  <strong>{% if group.timing.unloaded_at %}{{ group.timing.unloaded_at|date:"H:i:s" }}{% else %}Pendiente{% endif %}</strong>
+                  <small>{% if group.timing.unloaded_at %}{{ group.timing.unloaded_at|date:"d/m/Y" }}{% if group.timing.unloaded_by %} · {{ group.timing.unloaded_by.get_full_name|default:group.timing.unloaded_by.username }}{% endif %}{% elif group.timing.launched_at %}Listo para registrar la descarga.{% else %}Se habilita después del lanzamiento.{% endif %}</small>
+                </div>
+                <div class="plate-timing-state plate-timing-duration {% if group.process_duration %}plate-timing-recorded{% endif %}">
+                  <span>TIEMPO DE PROCESO</span>
+                  <strong>{% if group.process_duration %}{{ group.process_duration }}{% else %}Pendiente{% endif %}</strong>
+                  <small>Se calcula automáticamente: descarga menos lanzamiento.</small>
+                </div>
+              </div>
+              {% if not operational_read_only %}
+              {% if is_manager or areas.PLATES in user_areas %}
+              <div class="plate-timing-actions">
+                {% if group.timing.load_started_at %}
+                <button type="button" class="btn btn-outline-secondary" disabled>✓ Llenado iniciado</button>
+                {% elif group.timing.load_completed_at %}
+                <button type="button" class="btn btn-outline-secondary" disabled>Inicio no registrado</button>
+                {% else %}
+                <form method="post" action="{% url 'productions:plate_load_start' production.pk group.position.pk %}" data-prevent-double-submit data-confirm-message="¿Iniciar el llenado de {{ group.position.operational_label }}? La aplicación guardará automáticamente la hora actual.">{% csrf_token %}<button class="btn btn-ghost w-100">Iniciar llenado · tomar hora</button></form>
+                {% endif %}
+                {% if group.timing.load_completed_at %}
+                <button type="button" class="btn btn-outline-secondary" disabled>✓ Carga finalizada</button>
+                {% elif not group.timing.load_started_at %}
+                <button type="button" class="btn btn-ghost" disabled>Finalizar carga · pendiente de inicio</button>
+                {% elif group.physical_total <= 0 %}
+                <button type="button" class="btn btn-ghost" disabled>Finalizar carga · registre bandejas</button>
+                {% else %}
+                <form method="post" action="{% url 'productions:plate_load_complete' production.pk group.position.pk %}" data-prevent-double-submit data-confirm-message="¿Finalizar la carga de {{ group.position.operational_label }}? La aplicación guardará automáticamente la hora actual.">{% csrf_token %}<button class="btn btn-ghost w-100">Finalizar carga · tomar hora</button></form>
+                {% endif %}
+                {% if group.timing.launched_at %}
+                <button type="button" class="btn btn-outline-secondary" disabled>✓ Lanzamiento registrado</button>
+                {% elif group.timing.load_completed_at %}
+                <form method="post" action="{% url 'productions:plate_launch_register' production.pk group.position.pk %}" data-prevent-double-submit data-confirm-message="¿Registrar el lanzamiento de {{ group.position.operational_label }}? La aplicación guardará automáticamente la hora actual.">{% csrf_token %}<button class="btn btn-primary w-100">Registrar lanzamiento · tomar hora</button></form>
+                {% else %}
+                <button type="button" class="btn btn-primary" disabled>Registrar lanzamiento · pendiente de carga</button>
+                {% endif %}
+                {% if group.timing.unloaded_at %}
+                <button type="button" class="btn btn-outline-secondary" disabled>✓ Descarga registrada</button>
+                {% elif group.timing.launched_at %}
+                <form method="post" action="{% url 'productions:plate_unload_register' production.pk group.position.pk %}" data-prevent-double-submit data-confirm-message="¿Registrar la descarga de {{ group.position.operational_label }}? La aplicación guardará automáticamente la hora actual.">{% csrf_token %}<button class="btn btn-success w-100">Registrar descarga · tomar hora</button></form>
+                {% else %}
+                <button type="button" class="btn btn-success" disabled>Registrar descarga · pendiente de lanzamiento</button>
+                {% endif %}
+                {% if group.physical_total == 0 and group.assigned_total == 0 %}
+                <form method="post" action="{% url 'productions:plate_timing_reset' production.pk group.position.pk %}" data-prevent-double-submit data-confirm-message="¿Eliminar este control vacío? Se borrarán sus horas para poder usar nuevamente el plaquero.">
+                  {% csrf_token %}<button class="btn btn-outline-danger w-100">Cancelar inicio · Eliminar control vacío</button>
+                </form>
+                {% endif %}
+              </div>
+              {% endif %}
+              {% endif %}
+            </section>
+            {% if group.physical_total > 0 %}
+            {% if is_manager or areas.PLATE_CREW in user_areas or areas.PLATE_PACK in user_areas %}
+            <footer class="plate-position-actions">
+              {% if is_manager or areas.PLATE_CREW in user_areas %}
+              <a class="btn btn-primary w-100" href="{% url 'productions:plate_crew_create' production.pk %}?position={{ group.position.pk }}#operational-entry-form">Repartir entre cuadrillas</a>
+              {% endif %}
+              {% if group.timing.unloaded_at %}
+                {% if is_manager or areas.PLATE_PACK in user_areas %}
+                <a class="btn btn-success w-100" href="{% url 'productions:plate_pack_create' production.pk %}?position={{ group.position.pk }}#operational-entry-form">Ver códigos y registrar empaque</a>
+                {% endif %}
+              {% elif is_manager or areas.PLATE_PACK in user_areas %}
+              <button class="btn btn-outline-secondary w-100" type="button" disabled>Códigos para empaque · pendiente de descarga</button>
+              {% endif %}
+            </footer>
+            {% endif %}
+            {% endif %}
+              </div>
+            </details>
+          </article>
+          {% empty %}<div class="empty-state text-center"><p class="mb-0 text-secondary">Todavía no hay bandejas físicas registradas en plaqueros.</p></div>{% endfor %}
+        </div>
+        {% elif module_key == 'plate-crews' %}
+        <p class="small text-secondary">Cada bloque representa un plaquero. Ejemplo válido: cuadrilla A 100 + cuadrilla B 50 + cuadrilla C 39 = 189 bandejas.</p>
+        {% if plate_crew_data.crew_totals %}
+        <section class="tunnel-crew-payroll-summary mb-3">
+          <p class="eyebrow mb-2">TOTAL PARA PAGO POR CUADRILLA</p>
+          {% for item in plate_crew_data.crew_totals %}
+          <div class="plate-crew-payroll-row">
+            <strong>{{ item.crew.name }}</strong>
+            <span><strong>{{ item.weight_kg|floatformat:"2u" }} kg</strong><small>{{ item.tray_count }} bandejas × 10 kg</small></span>
+            <ul class="plate-crew-product-breakdown">
+              {% for product_item in item.products %}
+              <li><span>{% if product_item.product %}{{ product_item.product.code }} · {{ product_item.product.description }}{% else %}Producto no identificado · registro anterior{% endif %}</span><strong>{{ product_item.tray_count }} bandejas · {{ product_item.weight_kg|floatformat:"2u" }} kg</strong></li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endfor %}
+        </section>
+        {% endif %}
+        <div class="tunnel-crew-rack-list">
+          {% for group in plate_crew_data.groups %}
+          <article class="tunnel-crew-rack plate-card-collapsible plate-crew-card-collapsible plate-position-plaquero-{{ group.position.plaquero_number }} {% if group.is_assignment_complete %}tunnel-crew-rack-complete{% endif %}{% if selected_plate_position.pk == group.position.pk %} plate-position-selected{% endif %}">
+            <details class="plate-position-fold" data-plate-fold{% if selected_plate_position.pk == group.position.pk %} open{% endif %}>
+              <summary class="plate-card-summary">
+                <span class="plate-card-summary-title"><small>BACHADA {{ group.position.batch_number }}</small><strong><span class="plate-position-dot" aria-hidden="true"></span>Plaquero {{ group.position.plaquero_number }}</strong></span>
+                <span class="plate-card-summary-progress"><strong>{{ group.assigned_total }} / {{ group.physical_total }}</strong><small>{{ group.pending_total }} pendientes · tope {{ group.capacity }}</small></span>
+                <span class="plate-card-chevron" aria-hidden="true"></span>
+              </summary>
+              <div class="plate-card-detail">
+            <section class="plate-timing-compact">
+              <span>Inicio: <strong>{% if group.timing.load_started_at %}{{ group.timing.load_started_at|date:"H:i:s" }}{% else %}pendiente{% endif %}</strong></span>
+              <span>Fin de carga: <strong>{% if group.timing.load_completed_at %}{{ group.timing.load_completed_at|date:"H:i:s" }}{% else %}pendiente{% endif %}</strong></span>
+              <span>Tiempo de llenado: <strong>{% if group.filling_duration %}{{ group.filling_duration }}{% else %}pendiente{% endif %}</strong></span>
+              <span>Lanzamiento: <strong>{% if group.timing.launched_at %}{{ group.timing.launched_at|date:"H:i:s" }}{% else %}pendiente{% endif %}</strong></span>
+              <span>Descarga: <strong>{% if group.timing.unloaded_at %}{{ group.timing.unloaded_at|date:"H:i:s" }}{% else %}pendiente{% endif %}</strong></span>
+              <span>Tiempo de proceso: <strong>{% if group.process_duration %}{{ group.process_duration }}{% else %}pendiente{% endif %}</strong></span>
+            </section>
+            {% for entry in group.entries %}
+            <section class="tunnel-crew-entry-row">
+              <div><strong>{{ entry.crew.name }}</strong><span class="plate-crew-product">{% if entry.product %}{{ entry.product.code }} · {{ entry.product.description }}{% else %}Producto no identificado · corrija este registro anterior{% endif %}</span><span>{{ entry.tray_count }} bandejas · {% widthratio entry.tray_count 1 10 %} kg · {{ entry.page }}</span><small>Registrado por: {{ entry.responsible.get_full_name|default:entry.responsible.username }}</small></div>
+              {% if not operational_read_only %}<div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'productions:operational_entry_update' production.pk module_key entry.pk %}">Corregir</a>
+                <form method="post" action="{% url 'productions:operational_entry_delete' production.pk module_key entry.pk %}" data-prevent-double-submit data-confirm-message="¿Eliminar {{ entry.crew.name }} de la Bachada {{ group.position.batch_number }}, Plaquero {{ group.position.plaquero_number }}?">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Eliminar</button></form>
+              </div>{% endif %}
+            </section>
+            {% empty %}<p class="small text-secondary mb-0 p-3">Todavía no se asignaron cuadrillas a este plaquero.</p>{% endfor %}
+              </div>
+            </details>
+          </article>
+          {% empty %}<div class="empty-state text-center"><p class="mb-0 text-secondary">Primero registre las bandejas físicas en «Envasado en plaqueros».</p></div>{% endfor %}
+        </div>
+        {% elif module_key == 'plate-pack' %}
+        <p class="small text-secondary">Cada bloque conserva la procedencia completa: bachada, plaquero, código, pallet y saldo pendiente. Solo se habilita después de registrar la descarga.</p>
+        <section class="plate-pack-overview mb-3">
+          <div><small>Descargadas</small><strong>{{ plate_packaging_data.physical_total }}</strong></div>
+          <div><small>Empacadas</small><strong>{{ plate_packaging_data.packed_total }}</strong></div>
+          <div><small>Pendientes</small><strong>{{ plate_packaging_data.pending_total }}</strong></div>
+        </section>
+        <details class="plate-pack-product-summary mb-3">
+          <summary>
+            <span>Total empacado por producto</span>
+            <strong>{{ plate_pack_product_totals|length }} productos</strong>
+          </summary>
+          <div class="plate-pack-product-summary-grid">
+            {% for item in plate_pack_product_totals %}
+            <article>
+              <div>
+                <span class="plate-pack-code">{{ item.product.code }}</span>
+                <strong>{{ item.product.description }}</strong>
+              </div>
+              <dl>
+                <div><dt>Bultos</dt><dd>{{ item.package_count }}</dd></div>
+                <div><dt>Bandejas</dt><dd>{{ item.tray_count }}</dd></div>
+                <div><dt>Kg</dt><dd>{{ item.kg|floatformat:"2u" }}</dd></div>
+              </dl>
+              <small>{{ item.pallet_count }} pallet{{ item.pallet_count|pluralize:"s" }}: {{ item.pallet_label }}</small>
+            </article>
+            {% empty %}
+            <div class="empty-state text-center"><p class="mb-0 text-secondary">Todavía no hay productos empacados en pallets.</p></div>
+            {% endfor %}
+          </div>
+        </details>
+        <details id="pallet-control" class="plate-pallet-control mb-4">
+          <summary class="plate-pallet-control-summary">
+            <div><p class="eyebrow mb-1">PALLETS</p><h3 class="h5 mb-0">Control de bultos formados</h3></div>
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'productions:plate_balance' production.pk %}">Saldos y procedencia</a>
+          </summary>
+          {% for pallet_data in plate_pallet_dashboard %}
+          <details class="plate-pallet-card{% if pallet_data.status == 'CLOSED' %} plate-pallet-card-closed{% endif %}">
+            <summary class="plate-pallet-card-summary">
+              <div><span>PALLET</span><strong>P{{ pallet_data.pallet_number }}</strong></div>
+              <div class="text-end"><strong>{{ pallet_data.package_count }} / {{ pallet_data.capacity }} bultos</strong><small>{{ pallet_data.kg|floatformat:"2u" }} kg · {{ pallet_data.status|lower }}</small></div>
+            </summary>
+            <div class="plate-pallet-products">
+              {% for product_row in pallet_data.products %}
+              <section>
+                <div><span class="plate-pack-code">{{ product_row.product.code }}</span><strong>{{ product_row.product.description }}</strong></div>
+                <div class="text-end"><strong>{{ product_row.package_count }} bultos</strong><small>{{ product_row.tray_count }} bandejas · {{ product_row.kg|floatformat:"2u" }} kg</small></div>
+                {% for movement in product_row.movements %}
+                <div class="plate-pallet-movement">
+                  <small>Movimiento automático: {{ movement.package_count }} bultos · {{ movement.created_at|date:"d/m/Y H:i" }} · {{ movement.responsible.get_full_name|default:movement.responsible.username }}</small>
+                  {% if not operational_read_only and pallet_data.status == 'OPEN' %}
+                  <form method="post" action="{% url 'productions:plate_pallet_line_delete' production.pk movement.pk %}" data-prevent-double-submit data-confirm-message="¿Eliminar este movimiento y devolver sus bandejas al origen?">
+                    {% csrf_token %}<button class="btn btn-sm btn-outline-danger">Eliminar movimiento</button>
+                  </form>
+                  {% endif %}
+                </div>
+                {% endfor %}
+              </section>
+              {% endfor %}
+            </div>
+            {% if pallet_data.pallet and not operational_read_only %}
+            <footer>
+              <form method="post" action="{% url 'productions:plate_pallet_status' production.pk pallet_data.pallet.pk %}" data-prevent-double-submit>
+                {% csrf_token %}
+                {% if pallet_data.status == 'OPEN' %}
+                <input type="hidden" name="status" value="CLOSED">
+                <button class="btn btn-ghost w-100">Cerrar P{{ pallet_data.pallet_number }} con {{ pallet_data.package_count }} bultos</button>
+                {% else %}
+                <input type="hidden" name="status" value="OPEN">
+                <button class="btn btn-outline-primary w-100">Reabrir P{{ pallet_data.pallet_number }}</button>
+                {% endif %}
+              </form>
+            </footer>
+            {% endif %}
+          </details>
+          {% empty %}
+          <div class="empty-state text-center"><p class="mb-0 text-secondary">Todavía no se formaron bultos automáticos en pallets.</p></div>
+          {% endfor %}
+        </details>
+        <details class="plate-pack-products-after-pallets mb-3">
+          <summary>
+            <span>Productos con saldos / plaqueros</span>
+            <strong>{{ plate_packaging_data.groups|length }} plaqueros</strong>
+          </summary>
+        <div class="plate-pack-position-list mt-3">
+          {% for group in plate_packaging_data.groups %}
+          <article class="plate-pack-position plate-position-plaquero-{{ group.position.plaquero_number }}{% if group.is_complete %} plate-pack-position-complete{% endif %}{% if selected_plate_pack_position.pk == group.position.pk %} plate-position-selected{% endif %}">
+            <header>
+              <div>
+                <p class="eyebrow mb-1">BACHADA {{ group.position.batch_number }}</p>
+                <h3 class="h5 mb-0"><span class="plate-position-dot" aria-hidden="true"></span>Plaquero {{ group.position.plaquero_number }}</h3>
+              </div>
+              <div class="text-end">
+                <strong>{{ group.packed_total }} / {{ group.physical_total }}</strong>
+                <small>{{ group.pending_total }} pendientes</small>
+              </div>
+            </header>
+            {% if group.is_unloaded %}
+            <div class="plate-pack-unload-state">Descargado {{ group.timing.unloaded_at|date:"d/m/Y H:i:s" }}</div>
+            {% else %}
+            <div class="plate-pack-unload-state plate-pack-unload-pending">Pendiente de descarga: todavía no se puede empacar.</div>
+            {% endif %}
+            {% for source in group.sources %}
+            <section id="plate-source-{{ source.pk }}" class="plate-pack-source{% if source.is_packaging_complete %} plate-pack-source-complete{% endif %}">
+              <div class="plate-pack-source-heading">
+                <div>
+                  <span class="plate-pack-code">{{ source.product.code }}</span>
+                  <strong>{{ source.product.description }}</strong>
+                </div>
+                <div class="text-end">
+                  <strong>{{ source.pending_tray_count }} pendientes</strong>
+                  <small>{{ source.tray_count }} físicas · {{ source.packaged_tray_count }} empacadas</small>
+                </div>
+              </div>
+              {% if group.is_unloaded and source.pending_tray_count > 0 %}
+              <div class="plate-pack-auto-result">
+                <span>CÁLCULO AUTOMÁTICO DESDE ENV. PLACAS</span>
+                <strong>{{ source.pending_tray_count }} bandejas → {{ source.calculated_package_count }} sacos · {{ source.calculated_package_kg|floatformat:"2u" }} kg</strong>
+                {% if source.calculated_balance_trays %}
+                <small>Queda {{ source.calculated_balance_trays }} bandeja de saldo ({{ source.calculated_balance_kg|floatformat:"2u" }} kg) para unirla con el siguiente plaquero compatible.</small>
+                {% else %}
+                <small>Sin saldo: todas las bandejas disponibles forman sacos completos.</small>
+                {% endif %}
+              </div>
+              {% endif %}
+              {% for allocation in source.active_packaging_allocations %}
+              <div class="plate-pack-allocation">
+                <div>
+                  <strong>P{{ allocation.pallet_number }} · {{ allocation.package_count }} bultos</strong>
+                  <span>{{ allocation.tray_count }} bandejas · {{ allocation.kilos|floatformat:"2u" }} kg</span>
+                  <small>Registrado por: {{ allocation.responsible.get_full_name|default:allocation.responsible.username }}</small>
+                </div>
+                {% if not operational_read_only %}
+                <div class="d-flex flex-wrap gap-2">
+                  <a class="btn btn-sm btn-outline-primary" href="{% url 'productions:operational_entry_update' production.pk module_key allocation.pk %}">Corregir</a>
+                  <form method="post" action="{% url 'productions:operational_entry_delete' production.pk module_key allocation.pk %}" data-prevent-double-submit data-confirm-message="¿Eliminar {{ allocation.package_count }} bultos de {{ source.product.code }} en P{{ allocation.pallet_number }}?">
+                    {% csrf_token %}<button class="btn btn-sm btn-outline-danger">Eliminar</button>
+                  </form>
+                </div>
+                {% endif %}
+              </div>
+              {% endfor %}
+              {% if not operational_read_only and group.is_unloaded and source.pending_tray_count >= 2 %}
+              <div class="plate-pack-source-action">
+                <span>{% if source.packaged_tray_count %}Todavía quedan bultos completos por formar.{% else %}Producto listo para seleccionar en el cálculo.{% endif %}</span>
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'productions:plate_pack_create' production.pk %}?position={{ group.position.pk }}&amp;product={{ source.product.pk }}#auto-pack-form">{% if source.packaged_tray_count %}Continuar en otro pallet{% else %}Asignar sacos a un pallet{% endif %}</a>
+              </div>
+              {% endif %}
+              {% if not operational_read_only and group.is_unloaded and source.pending_tray_count > 0 %}
+              <details class="plate-pack-manual-balance">
+                <summary>Registrar saldo manual de este código</summary>
+                <form method="post" action="{% url 'productions:plate_pack_manual_balance' production.pk %}" class="row g-2 align-items-end mt-2" data-prevent-double-submit>
+                  {% csrf_token %}
+                  <input type="hidden" name="position" value="{{ group.position.pk }}">
+                  <input type="hidden" name="source_entry" value="{{ source.pk }}">
+                  <div class="col-6 col-md-3">
+                    <label class="form-label small fw-semibold" for="balance-trays-{{ source.pk }}">Bandejas</label>
+                    <input class="form-control form-control-sm" id="balance-trays-{{ source.pk }}" name="tray_count" type="number" min="1" max="{{ source.pending_tray_count }}" value="{{ source.calculated_balance_trays|default:source.pending_tray_count }}" inputmode="numeric" required>
+                  </div>
+                  <div class="col-12 col-md">
+                    <label class="form-label small fw-semibold" for="balance-note-{{ source.pk }}">Motivo / observación</label>
+                    <input class="form-control form-control-sm" id="balance-note-{{ source.pk }}" name="observation" placeholder="Ejemplo: saldo de 10 kg para completar después">
+                  </div>
+                  <div class="col-6 col-md-auto">
+                    <button class="btn btn-sm btn-outline-warning w-100" data-confirm-message="¿Guardar este saldo manual? Ya no quedará disponible para formar bultos en este PP.">Guardar saldo</button>
+                  </div>
+                </form>
+              </details>
+              {% elif source.has_ten_kg_balance %}
+              <div class="plate-pack-source-result plate-pack-source-result-balance"><span>10 kg</span><strong>Saldo guardado para completar después</strong></div>
+              {% elif source.registered_balance_trays %}
+              <div class="plate-pack-source-result plate-pack-source-result-balance"><span>{{ source.registered_balance_trays }}</span><strong>Saldo manual guardado para completar después</strong></div>
+              {% elif source.is_packaging_complete %}
+              <div class="plate-pack-source-result plate-pack-source-result-complete"><span>✓</span><strong>Producto completamente empacado</strong></div>
+              {% endif %}
+            </section>
+            {% empty %}
+            <p class="small text-secondary mb-0 p-3">Este plaquero no tiene códigos activos.</p>
+            {% endfor %}
+          </article>
+          {% empty %}
+          <div class="empty-state text-center">
+            <p class="mb-2 text-secondary">Todavía no hay códigos registrados o descargados en los plaqueros.</p>
+            <p class="small text-secondary mb-0">Cuando descargues un plaquero, aquí aparecerá cada código con la opción <strong>Registrar saldo manual de este código</strong>.</p>
+          </div>
+          {% endfor %}
+        </div>
+        </details>
+        {% if plate_packaging_data.legacy_entries %}
+        <details class="plate-pack-legacy mt-3">
+          <summary>Ver registros anteriores sin plaquero de origen</summary>
+          <div class="operational-record-list mt-2">
+            {% for entry in plate_packaging_data.legacy_entries %}
+            <article class="operational-record">
+              <div><strong class="d-block">P{{ entry.pallet_number }} · {{ entry.product.code }}</strong><span class="small text-secondary">{{ entry.product.description }} · {{ entry.package_count }} bultos</span></div>
+            </article>
+            {% endfor %}
+          </div>
+        </details>
+        {% endif %}
+        {% else %}
+        {% if module_key == 'troquelado' %}
+        <div class="troquelado-dashboard" data-troquelado-dashboard>
+          <p class="small text-secondary mb-2">Resumen de la jornada en esta PP, actualizado al guardar.</p>
+          <div class="troquelado-dash-metrics">
+            <div><small>Registros</small><strong data-troquelado-dash-count>{{ troquelado_dashboard.record_count }}</strong></div>
+            <div><small>Cajas</small><strong data-troquelado-dash-cajas>{{ troquelado_dashboard.cajas_total }}</strong></div>
+            <div class="is-total"><small>Total pesado</small><strong class="kg" data-troquelado-dash-kg>{{ troquelado_dashboard.kg_total|floatformat:"2u" }}</strong></div>
+          </div>
+          {% if troquelado_dashboard.per_crew %}
+          <div class="troquelado-dash-crews">
+            {% for crew in troquelado_dashboard.per_crew %}
+            <details class="troquelado-crew-group"{% if forloop.first %} open{% endif %}>
+              <summary class="troquelado-crew-summary">
+                <span class="troquelado-crew-name">{{ crew.crew_name }}</span>
+                <span class="troquelado-crew-total">{{ crew.kg|floatformat:"2u" }} kg</span>
+              </summary>
+              <div class="troquelado-dash-workers">
+                {% for worker in crew.workers %}
+                <div class="troquelado-worker-row" data-troquelado-dash-worker>
+                  <span class="troquelado-worker-avatar">{{ worker.initial }}</span>
+                  <div class="troquelado-worker-main">
+                    <strong>{{ worker.name }}</strong>
+                    <div class="troquelado-worker-bar"><span style="width:{{ worker.percent }}%"></span></div>
+                  </div>
+                  <div class="troquelado-worker-amounts">
+                    <strong>{{ worker.kg|floatformat:"2u" }} kg</strong>
+                    <small>
+                      {% for category in worker.categories %}{{ category.label }} {{ category.kg|floatformat:"2u" }} kg{% if category.kg_per_hour %} · {{ category.kg_per_hour|floatformat:"2u" }} Kg/Hr{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}
+                    </small>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+            </details>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="troquelado-empty">Todavía no hay datos. Guarde el primer troquelado para ver el resumen por cuadrilla.</p>
+          {% endif %}
+        </div>
+        {% endif %}
+        <p class="small text-secondary">{% if operational_read_only %}Los datos están disponibles en modo consulta.{% else %}Use <strong>Corregir</strong> para cambiar los datos o <strong>Eliminar</strong> si el registro no debe existir.{% endif %}</p>
+        <div class="operational-record-list">
+          {% for card in record_cards %}
+          <article class="operational-record {% if editing and card.entry.pk == object.pk %}operational-record-editing{% endif %}">
+            <div><strong class="d-block">{{ card.title }}</strong>{% if card.detail %}<span class="small text-secondary">{{ card.detail }}</span>{% endif %}</div>
+            {% if not operational_read_only %}<div class="d-flex flex-wrap gap-2 mt-2">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'productions:operational_entry_update' production.pk module_key card.entry.pk %}">Corregir</a>
+              <form method="post" action="{% url 'productions:operational_entry_delete' production.pk module_key card.entry.pk %}" data-prevent-double-submit data-confirm-message="¿Eliminar este registro: {{ card.title }}?">
+                {% csrf_token %}<button class="btn btn-sm btn-outline-danger">Eliminar</button>
+              </form>
+            </div>{% endif %}
+          </details>
+          {% empty %}<div class="empty-state text-center"><p class="mb-0 text-secondary">Todavía no hay registros en esta área.</p></div>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+</div>
+{% if module_key == 'troquelado' %}
+<script>
+(function () {
+  const root = document.querySelector('[data-troquelado-calc]');
+  if (!root) return;
+  const cajas = root.querySelector('input[name="cajas"]');
+  const kg = root.querySelector('input[name="kg_por_caja"]');
+  const total = root.querySelector('[data-troquelado-total]');
+  const ok = root.querySelector('[data-troquelado-ok]');
+  const hint = root.querySelector('[data-troquelado-hint]');
+  const unit = total ? total.querySelector('.unit') : null;
+
+  const fmt = function (v) {
+    if (!isFinite(v)) return '0';
+    return v.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  };
+    const update = function () {
+      const c = parseFloat(String(cajas ? cajas.value : '').replace(',', '.')) || 0;
+      const k = parseFloat(String(kg ? kg.value : '').replace(',', '.')) || 0;
+      const v = c * k;
+      const valid = c >= 1 && k >= 0 && isFinite(v);
+      if (total) {
+        if (unit) total.removeChild(unit);
+        total.textContent = fmt(v) + ' ';
+        if (unit) total.appendChild(unit);
+        total.classList.toggle('is-ready', valid);
+        total.classList.toggle('is-bad', !valid && c >= 1 && !k);
+      }
+      if (ok) {
+        ok.classList.toggle('is-show', valid);
+        ok.textContent = valid ? '✔' : '';
+      }
+      if (hint) {
+        if (c >= 1 && k >= 0) {
+          hint.textContent = c + ' caja' + (c === 1 ? '' : 's') + ' × ' + fmt(k) + ' kg = ' + fmt(v) + ' kg';
+        } else {
+          hint.textContent = 'Escriba las cajas y el peso que marca la balanza; el total se calcula solo.';
+        }
+      }
+    };
+  if (cajas) cajas.addEventListener('input', update);
+  if (kg) kg.addEventListener('input', update);
+  root.querySelectorAll('[data-troquelado-add]').forEach(function (chip) {
+    const step = parseInt(chip.getAttribute('data-troquelado-add'), 10) || 1;
+    const click = function () {
+      if (!cajas) return;
+      const cur = parseInt(cajas.value, 10) || 0;
+      cajas.value = String(Math.max(0, cur + step));
+      cajas.dispatchEvent(new Event('input', { bubbles: true }));
+      cajas.focus();
+    };
+    chip.addEventListener('click', click);
+    chip.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        click();
+      }
+    });
+  });
+  update();
+
+  const chipsRoot = document.querySelector('[data-troquelado-type]');
+  if (chipsRoot) {
+    const select =
+      (chipsRoot.parentElement && chipsRoot.parentElement.querySelector('[data-troquelado-type-select]')) ||
+      chipsRoot.querySelector('[data-troquelado-type-select]');
+    const chips = chipsRoot.querySelectorAll('.troquelado-type-chip');
+    const refresh = function () {
+      const current = select ? select.value : '';
+      chips.forEach(function (chip) {
+        chip.classList.toggle('is-selected', String(chip.getAttribute('data-value')) === current);
+      });
+    };
+    chips.forEach(function (chip) {
+      const click = function () {
+        if (select) {
+          select.value = chip.getAttribute('data-value');
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        refresh();
+      };
+      chip.addEventListener('click', click);
+      chip.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          click();
+        }
+      });
+    });
+    if (select) select.addEventListener('change', refresh);
+    refresh();
+  }
+})();
+
+(function () {
+  const root = document.querySelector('[data-troquelado-quick]');
+  if (!root) return;
+  const dataScript = document.getElementById('troquelado-quick-data');
+  let workers = [];
+  try {
+    workers = dataScript ? JSON.parse(dataScript.textContent) : [];
+  } catch (_) {}
+  const byId = new Map(workers.map(function (w) { return [String(w.pk), w]; }));
+  const rows = Array.from(document.querySelectorAll('[data-quick-worker-id]'));
+  const workerInput = root.querySelector('[data-quick-worker-input]');
+  const workerName = root.querySelector('[data-quick-worker-name]');
+  const status = root.querySelector('[data-quick-status]');
+  const capture = root.querySelector('[data-quick-capture]');
+  const calc = root.querySelector('[data-troquelado-calc]');
+  const cajas = calc ? calc.querySelector('input[name="cajas"]') : null;
+  const kg = calc ? calc.querySelector('input[name="kg_por_caja"]') : null;
+  const typeSelect = root.querySelector('[data-troquelado-type-select]');
+  const shift = root.querySelector('select[name="shift"]');
+  const start = root.querySelector('input[name="start_time"]');
+  const end = root.querySelector('input[name="end_time"]');
+  const obs = root.querySelector('textarea[name="observation"]');
+  const saveBtn = root.querySelector('[data-quick-save]');
+  const nextBtn = root.querySelector('[data-quick-save-next]');
+  const readOnly = root.dataset.quickReadonly === '1';
+  const recordsSection = document.querySelector('.operational-records');
+  let currentCsrf = '';
+  const fmt = function (v) {
+    if (!isFinite(v)) return '0';
+    return v.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  };
+  const compact = function (v) {
+    const n = parseFloat(v);
+    return isFinite(n) ? String(n) : '0';
+  };
+  const escapeHtml = function (value) {
+    return String(value).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  };
+
+  const setStatus = function (text, ok) {
+    if (!status) return;
+    status.textContent = text;
+    status.className = 'status ' + (ok ? 'status-approved' : 'status-review');
+  };
+
+  const refreshRowLabels = function () {
+    rows.forEach(function (row) {
+      const data = byId.get(String(row.dataset.quickWorkerId));
+      const label = row.querySelector('[data-quick-worker-kg-label]');
+      if (!label) return;
+      if (data && data.has_entries) {
+        label.textContent = data.kg_display + ' kg';
+        row.classList.add('has-records');
+      } else {
+        label.textContent = 'pendiente';
+        row.classList.remove('has-records');
+      }
+    });
+  };
+
+  const setSelected = function (id) {
+    const data = byId.get(String(id));
+    if (!data) return;
+    workerInput.value = id;
+    rows.forEach(function (row) {
+      const is = String(row.dataset.quickWorkerId) === String(id);
+      row.classList.toggle('is-selected', is);
+      row.setAttribute('aria-selected', is ? 'true' : 'false');
+    });
+    if (workerName) workerName.textContent = data.name;
+    if (shift) shift.value = data.shift || (shift.options[0] ? shift.options[0].value : '');
+    if (start) start.value = data.start_time || '06:00';
+    if (end) end.value = data.end_time || '18:00';
+    if (typeSelect) {
+      typeSelect.value = data.product_type || '';
+      typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    if (cajas) cajas.value = '';
+    if (kg) kg.value = '';
+    if (obs) obs.value = '';
+    if (capture) capture.classList.remove('d-none');
+    setStatus('', false);
+    if (cajas) cajas.focus();
+  };
+
+  rows.forEach(function (row) {
+    row.addEventListener('click', function () {
+      setSelected(row.dataset.quickWorkerId);
+    });
+  });
+
+  const refreshCsrf = async function () {
+    const response = await fetch('/sesion/csrf/', {
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    });
+    if (!response.ok) throw new Error('csrf');
+    const payload = await response.json();
+    return payload.csrfToken || '';
+  };
+
+  const updateListRow = function (id, payload) {
+    const row = rows.find(function (r) { return String(r.dataset.quickWorkerId) === String(id); });
+    if (!row) return;
+    const label = row.querySelector('[data-quick-worker-kg-label]');
+    if (label) label.textContent = payload.worker_kg_display + ' kg';
+    row.classList.add('has-records');
+  };
+
+  const workerCategoriesText = function (payload) {
+    return (payload.categories || []).map(function (c) {
+      const perHour = parseFloat(String(c.kg_per_hour_display)) > 0
+        ? ' · ' + compact(c.kg_per_hour_display) + ' Kg/Hr'
+        : '';
+      return c.label + ' ' + compact(c.kg_display) + ' kg' + perHour;
+    }).join('; ');
+  };
+
+  const workerRowHtml = function (payload) {
+    const name = (payload.worker_name || (workerName ? (workerName.textContent || '').trim() : '') || 'Sin nombre').trim();
+    const initial = (name.slice(0, 1) || '?').toUpperCase();
+    return '<div class="troquelado-worker-row" data-troquelado-dash-worker>'
+      + '<span class="troquelado-worker-avatar">' + escapeHtml(initial) + '</span>'
+      + '<div class="troquelado-worker-main"><strong>' + escapeHtml(name) + '</strong>'
+      + '<div class="troquelado-worker-bar"><span style="width:' + payload.percent + '%"></span></div></div>'
+      + '<div class="troquelado-worker-amounts"><strong>' + escapeHtml(compact(payload.worker_kg_display)) + ' kg</strong>'
+      + '<small>' + escapeHtml(workerCategoriesText(payload)) + '</small></div></div>';
+  };
+
+  const updateDashboard = function (payload) {
+    const scope = recordsSection || document;
+    const grand = scope.querySelector('[data-troquelado-dash-kg]');
+    if (grand) grand.textContent = compact(payload.grand_total_display) + ' kg';
+    const countEl = scope.querySelector('[data-troquelado-dash-count]');
+    if (countEl) countEl.textContent = String(payload.record_count);
+    const cajasEl = scope.querySelector('[data-troquelado-dash-cajas]');
+    if (cajasEl) cajasEl.textContent = String(payload.cajas_total);
+    const statusEl = scope.querySelector('[data-troquelado-record-count]');
+    if (statusEl) statusEl.textContent = String(payload.record_count);
+
+    const dashboard = scope.querySelector('[data-troquelado-dashboard]');
+    const crewName = (payload.crew_name || (root.dataset.quickCrew || '').trim() || '').trim();
+    const currentName = (payload.worker_name || (workerName ? (workerName.textContent || '').trim() : '') || '').trim();
+    if (!dashboard || !crewName || !currentName) return;
+
+    let groupsBox = dashboard.querySelector('.troquelado-dash-crews');
+    let group = null;
+    if (groupsBox) {
+      groupsBox.querySelectorAll('.troquelado-crew-group').forEach(function (g) {
+        const nameEl = g.querySelector('.troquelado-crew-name');
+        if (nameEl && (nameEl.textContent || '').trim() === crewName) group = g;
+      });
+    }
+    if (!group) {
+      const empty = dashboard.querySelector('.troquelado-empty');
+      if (empty) empty.remove();
+      if (!groupsBox) {
+        groupsBox = document.createElement('div');
+        groupsBox.className = 'troquelado-dash-crews';
+        dashboard.appendChild(groupsBox);
+      }
+      group = document.createElement('details');
+      group.className = 'troquelado-crew-group';
+      group.open = true;
+      group.innerHTML = '<summary class="troquelado-crew-summary">'
+        + '<span class="troquelado-crew-name"></span>'
+        + '<span class="troquelado-crew-total"></span></summary>'
+        + '<div class="troquelado-dash-workers"></div>';
+      groupsBox.appendChild(group);
+    }
+    const crewNameEl = group.querySelector('.troquelado-crew-name');
+    if (crewNameEl) crewNameEl.textContent = crewName;
+    const totalEl = group.querySelector('.troquelado-crew-total');
+    if (totalEl) totalEl.textContent = compact(payload.crew_kg_display) + ' kg';
+
+    let workersBox = group.querySelector('.troquelado-dash-workers');
+    if (!workersBox) {
+      workersBox = document.createElement('div');
+      workersBox.className = 'troquelado-dash-workers';
+      group.appendChild(workersBox);
+    }
+    let workerRow = null;
+    Array.from(workersBox.querySelectorAll('[data-troquelado-dash-worker]')).forEach(function (row) {
+      const strong = row.querySelector('.troquelado-worker-main strong');
+      if (strong && (strong.textContent || '').trim() === currentName) workerRow = row;
+    });
+    if (workerRow) {
+      const amounts = workerRow.querySelector('.troquelado-worker-amounts');
+      if (amounts) {
+        const kgEl = amounts.querySelector('strong');
+        if (kgEl) kgEl.textContent = compact(payload.worker_kg_display) + ' kg';
+        const small = amounts.querySelector('small');
+        if (small) small.textContent = workerCategoriesText(payload);
+      }
+      const bar = workerRow.querySelector('.troquelado-worker-bar span');
+      if (bar) bar.style.width = payload.percent + '%';
+    } else {
+      workersBox.insertAdjacentHTML('beforeend', workerRowHtml(payload));
+    }
+  };
+
+  const prependRecordCard = function (payload) {
+    const card = payload.record_card;
+    const section = recordsSection;
+    if (!card || !section) return;
+    const statusEl = section.querySelector('[data-troquelado-record-count]');
+    if (statusEl) statusEl.textContent = String(payload.record_count);
+    const list = section.querySelector('.operational-record-list');
+    if (!list) return;
+    const empty = list.querySelector('.empty-state');
+    if (empty) empty.remove();
+    if (list.querySelector('[data-quick-new-card="' + card.entry_id + '"]')) return;
+    const article = document.createElement('article');
+    article.className = 'operational-record';
+    article.setAttribute('data-quick-new-card', String(card.entry_id));
+    let inner = '<div><strong class="d-block">' + escapeHtml(card.title) + '</strong>';
+    if (card.detail) inner += '<span class="small text-secondary">' + escapeHtml(card.detail) + '</span>';
+    inner += '</div>';
+    if (!readOnly) {
+      inner += '<div class="d-flex flex-wrap gap-2 mt-2">'
+        + '<a class="btn btn-sm btn-outline-primary" href="' + escapeHtml(card.edit_url) + '">Corregir</a>'
+        + '<form method="post" action="' + escapeHtml(card.delete_url) + '" data-quick-form="1" data-confirm-message="¿Eliminar este registro: ' + escapeHtml(card.title) + '?">'
+        + '<input type="hidden" name="csrfmiddlewaretoken" value="' + escapeHtml(currentCsrf) + '">'
+        + '<button class="btn btn-sm btn-outline-danger">Eliminar</button></form></div>';
+    }
+    article.innerHTML = inner;
+    list.prepend(article);
+  };
+
+  const setBusy = function (busy) {
+    [saveBtn, nextBtn].forEach(function (b) {
+      if (!b) return;
+      if (!b.dataset.origLabel) b.dataset.origLabel = b.textContent;
+      b.disabled = busy;
+      b.textContent = busy ? 'Guardando…' : b.dataset.origLabel;
+    });
+  };
+
+  const doSave = async function (advance) {
+    const id = workerInput.value;
+    const data = byId.get(String(id));
+    if (!data) {
+      setStatus('Elija un trabajador de la cuadrilla', false);
+      return;
+    }
+    if (!typeSelect || !typeSelect.value) {
+      setStatus('Seleccione una categoría', false);
+      return;
+    }
+    const cajasValue = parseFloat(String(cajas ? cajas.value : '').replace(',', '.'));
+    if (!cajasValue || cajasValue < 1) {
+      setStatus('Escriba al menos 1 caja', false);
+      if (cajas) cajas.focus();
+      return;
+    }
+    const kgValue = parseFloat(String(kg ? kg.value : '').replace(',', '.'));
+    if (!isFinite(kgValue)) {
+      setStatus('Escriba el peso que marca la balanza', false);
+      if (kg) kg.focus();
+      return;
+    }
+    setBusy(true);
+    const body = new FormData();
+    body.append('worker', id);
+    body.append('product_type', typeSelect.value);
+    body.append('cajas', cajas.value);
+    body.append('kg_por_caja', kg ? kg.value : '');
+    body.append('shift', shift ? shift.value : '');
+    body.append('start_time', start ? start.value : '');
+    body.append('end_time', end ? end.value : '');
+    body.append('observation', obs ? obs.value : '');
+    try {
+      currentCsrf = await refreshCsrf();
+      body.append('csrfmiddlewaretoken', currentCsrf);
+    } catch (_) {
+      setBusy(false);
+      setStatus('No pude renovar la sesión. Recargue e intente de nuevo.', false);
+      return;
+    }
+    try {
+      const response = await fetch(root.dataset.quickUrl, {
+        method: 'POST',
+        body: body,
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      });
+      const payload = await response.json().catch(function () {
+        return { ok: false, errors: { __all__: ['Error de comunicación'] } };
+      });
+      if (!response.ok || !payload.ok) {
+        const messages = Object.keys(payload.errors || {}).map(function (key) {
+          const value = payload.errors[key];
+          return Array.isArray(value) ? value.join(' · ') : String(value);
+        }).join(' · ');
+        setStatus(messages || 'No se pudo guardar', false);
+        return;
+      }
+      updateListRow(id, payload);
+      updateDashboard(payload);
+      prependRecordCard(payload);
+      setStatus('Guardado', true);
+      if (cajas) cajas.value = '';
+      if (kg) kg.value = '';
+      if (cajas) cajas.focus();
+      if (advance) {
+        const ids = rows.map(function (r) { return r.dataset.quickWorkerId; });
+        const idx = ids.indexOf(String(id));
+        const next = idx >= 0 ? ids[idx + 1] : null;
+        if (next) {
+          setSelected(next);
+        } else {
+          setStatus('Fin de la cuadrilla', true);
+        }
+      }
+    } catch (_) {
+      setStatus('Sin conexión; reintente', false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (saveBtn) saveBtn.addEventListener('click', function () { doSave(false); });
+  if (nextBtn) nextBtn.addEventListener('click', function () { doSave(true); });
+
+  document.addEventListener('submit', function (event) {
+    const form = event.target;
+    if (form.getAttribute('data-quick-form') !== '1') return;
+    event.preventDefault();
+    const message = form.getAttribute('data-confirm-message') || '';
+    if (message && !window.confirm(message)) return;
+    if (form.dataset.quickSubmitting === '1') return;
+    form.dataset.quickSubmitting = '1';
+    const button = form.querySelector('button[type="submit"], button:not([type])');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Eliminando…';
+    }
+    const body = new FormData(form);
+    if (!body.get('csrfmiddlewaretoken') && currentCsrf) {
+      body.append('csrfmiddlewaretoken', currentCsrf);
+    }
+    fetch(form.action, {
+      method: 'POST',
+      body: body,
+      credentials: 'same-origin',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    }).then(function (response) {
+      if (response.redirected) {
+        window.location.href = response.url;
+        return;
+      }
+      if (!response.ok) throw new Error('delete-failed');
+      window.location.reload();
+    }).catch(function () {
+      if (button) {
+        button.disabled = false;
+        button.textContent = 'Eliminar';
+      }
+      form.dataset.quickSubmitting = '';
+      window.alert('No se pudo eliminar el registro. Reintente.');
+    });
+  });
+  refreshRowLabels();
+  if (workerInput.value) setSelected(workerInput.value);
+})();
+</script>
+{% endif %}
+{% endblock %}
+
+

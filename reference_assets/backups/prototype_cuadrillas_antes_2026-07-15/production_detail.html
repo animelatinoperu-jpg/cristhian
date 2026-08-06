@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}PP {{ production.number }} · {{ production.plant_lot }}{% endblock %}
+{% block body_class %}production-detail-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/production-detail.css' %}">{% endblock %}
+{% block content %}
+<section class="detail-shell" aria-labelledby="production-detail-title">
+  <a class="detail-back" href="{% url 'productions:list' %}">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Todos los partes
+  </a>
+
+  <header class="detail-hero">
+    <img src="{% static 'img/login-puerto-pesquero.png' %}" alt="" aria-hidden="true">
+    <span class="detail-hero-shade" aria-hidden="true"></span>
+    <div class="detail-hero-top">
+      <div class="detail-hero-brand">
+        <span>CONTROL DE PLANTA</span>
+        <strong>{{ production.customer }}</strong>
+      </div>
+      <span class="detail-status detail-status-{{ production.status|lower }}">{{ production.get_status_display }}</span>
+    </div>
+    <div class="detail-hero-copy">
+      {% if production.series == 'DEMO' %}<span class="detail-demo">PP DE DEMOSTRACIÓN</span>{% endif %}
+      <p>PARTE DE PRODUCCIÓN</p>
+      <h1 id="production-detail-title">PP {{ production.number }} <span>· {{ production.plant_lot }}</span></h1>
+      <div class="detail-hero-meta">
+        <span>{{ production.main_product }}</span>
+        <span>{{ production.production_date|date:"d/m/Y" }}</span>
+        <span>Turno {{ production.get_shift_display }}</span>
+      </div>
+      <div class="detail-hero-actions">
+        <a href="{% url 'productions:report' production.pk %}">Ver reporte consolidado</a>
+        {% if can_edit %}<a class="is-primary" href="{% url 'productions:update' production.pk %}">Editar datos del PP</a>{% endif %}
+      </div>
+    </div>
+    <svg class="detail-hero-wave" viewBox="0 0 300 70" aria-hidden="true"><path d="M0 35c35-24 70-24 105 0s70 24 105 0 62-20 90-4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M0 50c35-24 70-24 105 0s70 24 105 0 62-20 90-4" fill="none" stroke="currentColor" stroke-width="1" opacity=".45"/></svg>
+  </header>
+
+  {% if production.series == 'DEMO' %}
+    <div class="detail-notice detail-notice-warning">
+      <span><strong>PP de demostración.</strong> Contiene datos de ejemplo para recorrer todos los módulos.</span>
+      <a href="{% url 'productions:create' %}">Crear un PP real</a>
+    </div>
+  {% endif %}
+  {% if production.status == 'VOID' %}
+    <div class="detail-notice detail-notice-danger"><strong>Parte eliminado.</strong> Está oculto de la lista activa y se conserva únicamente para auditoría. No admite nuevos registros mientras permanezca eliminado.</div>
+  {% endif %}
+
+  <div class="detail-editorial-heading">
+    <p>EXPLORE EL PARTE</p>
+    <h2>Resumen de producción</h2>
+    <span>Una vista rápida del avance y las diferencias registradas.</span>
+  </div>
+
+  <div class="detail-metrics" aria-label="Resumen de conciliación">
+    <article class="detail-metric">
+      <span class="detail-metric-code">RACKS</span>
+      <div><small>Bandejas en racks</small><strong>{{ tunnel_reconciliation.physical_total }}</strong></div>
+    </article>
+    <article class="detail-metric">
+      <span class="detail-metric-code">CUAD</span>
+      <div><small>Por cuadrillas</small><strong>{{ tunnel_reconciliation.declared_total }}</strong></div>
+    </article>
+    <article class="detail-metric {% if tunnel_reconciliation.difference %}is-alert{% endif %}">
+      <span class="detail-metric-code">TÚN</span>
+      <div><small>Diferencia túneles</small><strong>{{ tunnel_reconciliation.difference }}</strong></div>
+    </article>
+    <article class="detail-metric {% if plate_reconciliation.difference %}is-alert{% endif %}">
+      <span class="detail-metric-code">PLA</span>
+      <div><small>Diferencia placas</small><strong>{{ plate_reconciliation.difference }}</strong></div>
+    </article>
+  </div>
+
+  <div class="detail-layout">
+    <div class="detail-main-column">
+      <section class="detail-panel detail-tunnels-panel">
+        <div class="detail-panel-heading detail-panel-heading-centered">
+          <div><p>RECORRIDO POR TÚNELES</p><h2>Llenadas T1–T6</h2><span>Cada tarjeta reúne el avance, responsable y acciones de un túnel.</span></div>
+          {% if production.status != 'VOID' %}{% if is_manager or areas.TUNNEL in user_areas %}<a class="detail-action-link" href="{% url 'productions:tunnel_fill_create' production.pk %}">+ Nueva llenada</a>{% endif %}{% endif %}
+        </div>
+
+        <div class="detail-tunnel-gallery">
+          {% for fill in fills %}
+            <article class="detail-tunnel-card detail-tunnel-{{ fill.tunnel.code|lower }}">
+              <div class="detail-tunnel-cover">
+                <span class="detail-tunnel-sequence">LLENADA {{ fill.fill_number }}</span>
+                <strong>{{ fill.tunnel.code }}</strong>
+                <span class="detail-fill-status">{{ fill.get_status_display }}</span>
+              </div>
+              <div class="detail-tunnel-body">
+                <div class="detail-tunnel-supervisor"><small>SUPERVISOR</small><strong>{{ fill.supervisor.get_full_name|default:fill.supervisor.username }}</strong></div>
+                <div class="detail-tunnel-stats">
+                  <span><small>RACKS</small><strong>{{ fill.rack_trays|default:0 }}</strong></span>
+                  <span><small>CUADRILLAS</small><strong>{{ fill.crew_trays|default:0 }}</strong></span>
+                </div>
+                <div class="detail-row-actions">
+                  {% if production.status == 'VOID' %}
+                    <span class="detail-readonly">Solo lectura</span>
+                  {% else %}
+                    {% if fill.status != 'CLOSED' and is_manager or fill.status != 'CLOSED' and areas.TUNNEL in user_areas %}<a class="detail-fill-button" href="{% url 'productions:tunnel_batch' production.pk fill.pk %}">Llenar racks</a>{% endif %}
+                    {% if fill.status == 'CLOSED' and is_manager %}
+                      <form method="post" action="{% url 'productions:tunnel_fill_transition' production.pk fill.pk %}">{% csrf_token %}<input type="hidden" name="target_status" value="REOPENED"><input type="hidden" name="expected_version" value="{{ fill.version }}"><input class="form-control form-control-sm" name="reason" placeholder="Motivo" required><button class="detail-secondary-button">Reabrir</button></form>
+                    {% elif fill.status != 'CLOSED' %}
+                      <form method="post" action="{% url 'productions:tunnel_fill_transition' production.pk fill.pk %}">{% csrf_token %}<input type="hidden" name="target_status" value="CLOSED"><input type="hidden" name="expected_version" value="{{ fill.version }}">{% if is_manager %}<input class="form-control form-control-sm" name="reason" placeholder="Justificación si hay diferencia">{% endif %}<button class="detail-secondary-button">Cerrar llenada</button></form>
+                    {% endif %}
+                  {% endif %}
+                </div>
+              </div>
+            </article>
+          {% empty %}
+            <div class="detail-gallery-empty"><p>Aún no hay llenadas. Primero seleccione el túnel y la llenada; después aparecerán todos sus racks.</p>{% if is_manager or areas.TUNNEL in user_areas %}<a class="detail-fill-button" href="{% url 'productions:tunnel_fill_create' production.pk %}">Crear primera llenada</a>{% endif %}</div>
+          {% endfor %}
+        </div>
+
+        {% if production.status != 'VOID' %}{% if is_manager or areas.TUNNEL_CREW in user_areas %}<a class="detail-crew-link" href="{% url 'productions:tunnel_crew_create' production.pk %}">Bandejas por cuadrilla</a>{% endif %}{% endif %}
+      </section>
+
+      <section class="detail-panel detail-areas-panel">
+        <div class="detail-panel-heading detail-panel-heading-centered">
+          <div><p>BITÁCORA OPERATIVA</p><h2>Registros operativos</h2><span>Ingrese a cada etapa de la producción desde esta galería.</span></div>
+        </div>
+        {% if production.status == 'VOID' %}
+          <p class="detail-muted">Los módulos están en modo de solo lectura mientras el parte permanezca eliminado.</p>
+        {% else %}
+          <p class="detail-muted">Deslice las tarjetas o use las flechas para ver todas las áreas.</p>
+          <div class="module-carousel" data-module-carousel>
+            <button type="button" class="module-scroll-button module-scroll-prev" data-module-scroll="-1" aria-label="Ver áreas anteriores">‹</button>
+            <div class="module-grid" data-module-strip tabindex="0" aria-label="Áreas de registros operativos">
+              {% if is_manager or areas.RECEPTION in user_areas %}<a href="{% url 'productions:reception_create' production.pk %}"><span>R.M</span><strong>Recepción</strong><small>Materia prima</small></a>{% endif %}
+              {% if is_manager or areas.NUQUERAS in user_areas %}<a href="{% url 'productions:nuquera_create' production.pk %}"><span>NUQ</span><strong>Nuqueras</strong><small>Perfilado</small></a>{% endif %}
+              {% if is_manager or areas.PLATES in user_areas %}<a href="{% url 'productions:plate_create' production.pk %}"><span>P1–P3</span><strong>Env. placas</strong><small>Envasado</small></a>{% endif %}
+              {% if is_manager or areas.PLATE_CREW in user_areas %}<a href="{% url 'productions:plate_crew_create' production.pk %}"><span>CUAD</span><strong>Cuadrillas placas</strong><small>Bandejas</small></a>{% endif %}
+              {% if is_manager or areas.TUNNEL_PACK in user_areas %}<a href="{% url 'productions:tunnel_pack_create' production.pk %}"><span>EM-TUN</span><strong>Empaque túneles</strong><small>Bultos y palés</small></a>{% endif %}
+              {% if is_manager or areas.PLATE_PACK in user_areas %}<a href="{% url 'productions:plate_pack_create' production.pk %}"><span>EM-PLA</span><strong>Empaque placas</strong><small>Bultos y palés</small></a>{% endif %}
+              {% if is_manager or areas.MATERIALS in user_areas %}<a href="{% url 'productions:material_create' production.pk %}"><span>MAT</span><strong>Materiales</strong><small>Insumos</small></a>{% endif %}
+              {% if is_manager or areas.COSTS in user_areas %}<a href="{% url 'productions:cost_create' production.pk %}"><span>S/</span><strong>Costos</strong><small>Producción</small></a>{% endif %}
+            </div>
+            <button type="button" class="module-scroll-button module-scroll-next" data-module-scroll="1" aria-label="Ver áreas siguientes">›</button>
+          </div>
+        {% endif %}
+      </section>
+    </div>
+
+    <aside class="detail-side-column">
+      {% if is_manager %}
+        <section class="detail-panel detail-control-panel">
+          <div class="detail-panel-heading"><div><p>CONTROL</p><h2>Estado y aprobación</h2></div></div>
+          {% if can_restore %}
+            <form method="post" action="{% url 'productions:transition' production.pk %}" data-prevent-double-submit>{% csrf_token %}<input type="hidden" name="expected_version" value="{{ production.version }}"><input type="hidden" name="target_status" value="DRAFT"><textarea name="reason" class="form-control" placeholder="Motivo de restauración" required></textarea><button class="detail-control-button is-success">Restaurar parte como borrador</button></form>
+          {% else %}
+            {% for target, label in allowed_transition_choices %}<form method="post" action="{% url 'productions:transition' production.pk %}" class="detail-transition-form" data-prevent-double-submit>{% csrf_token %}<input type="hidden" name="expected_version" value="{{ production.version }}"><input type="hidden" name="target_status" value="{{ target }}">{% if production.status == 'CLOSED' or target == 'OBSERVED' %}<textarea name="reason" class="form-control" placeholder="Motivo obligatorio" required></textarea>{% endif %}<button class="detail-control-button">Cambiar a {{ label }}</button></form>{% empty %}<p class="detail-muted">Sin transiciones disponibles.</p>{% endfor %}
+          {% endif %}
+          {% if can_delete %}
+            <div class="detail-delete-zone">
+              <p>ZONA DE ELIMINACIÓN</p>
+              <form method="post" action="{% url 'productions:transition' production.pk %}" data-prevent-double-submit data-confirm-message="¿Eliminar este parte de producción? Se ocultará de la lista activa, pero conservará su historial.">{% csrf_token %}<input type="hidden" name="expected_version" value="{{ production.version }}"><input type="hidden" name="target_status" value="VOID"><textarea name="reason" class="form-control" placeholder="Motivo obligatorio de eliminación" required></textarea><button class="detail-control-button is-danger">Eliminar parte de producción</button></form>
+            </div>
+          {% endif %}
+        </section>
+      {% endif %}
+
+      {% if is_manager and production.status != 'VOID' %}
+        <section class="detail-panel detail-export-panel">
+          <div class="detail-panel-heading"><div><p>ARCHIVOS PRIVADOS</p><h2>Plantilla Excel completa</h2></div></div>
+          <p class="detail-muted">Se crea una copia de {{ production.template_version.code }} con sus 28 hojas, macros, fórmulas y formato intactos.</p>
+          {% if latest_file %}<a class="detail-download-main" href="{% url 'productions:download_file' latest_file.pk %}" download="{{ latest_file.filename }}">DESCARGAR EXCEL AHORA <span>.XLSM</span></a><p class="detail-file-name">Archivo listo: {{ latest_file.filename }}</p>{% endif %}
+          <form method="post" action="{% url 'productions:generate_excel' production.pk 'preliminary' %}" data-prevent-double-submit>{% csrf_token %}<button class="detail-export-button" {% if not excel_preliminary_ready %}disabled{% endif %}>Generar uno nuevo y descargar</button></form>
+          <form method="post" action="{% url 'productions:generate_excel' production.pk 'final' %}" data-prevent-double-submit>{% csrf_token %}<button class="detail-export-button is-primary" {% if not excel_final_ready %}disabled{% endif %}>Generar y descargar Excel final</button></form>
+          {% if not excel_preliminary_ready %}<div class="detail-export-message is-error">{{ excel_mapping_error }}</div>{% elif excel_mapping_scope != 'full' %}<div class="detail-export-message is-warning">El preliminar ya llena los campos administrativos, túneles, placas, empaques y materiales verificados. El final se habilitará cuando esté validado el mapa de las demás áreas.</div>{% elif production.status != 'APPROVED' and production.status != 'CLOSED' %}<div class="detail-export-message">Para generar el Excel final, primero apruebe o cierre la producción.</div>{% endif %}
+          {% if not latest_file %}<p class="detail-no-file">Todavía no existe un archivo Excel generado válido.</p>{% endif %}
+          <a class="detail-pdf-link" href="{% url 'productions:production_pdf' production.pk %}">Descargar resumen PDF</a>
+        </section>
+      {% endif %}
+    </aside>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Sesión actualizada · PP Planta{% endblock %}
+{% block content %}
+<section class="card border-0 shadow-sm professional-confirm-card mx-auto mt-4" style="max-width: 680px;">
+  <div class="card-body p-4 p-md-5">
+    <div class="professional-confirm-icon" aria-hidden="true">↻</div>
+    <h1 class="h3">La sesión del formulario venció</h1>
+    <p class="text-secondary mb-4">
+      No se guardó información incompleta. Regrese al formulario e inténtelo nuevamente;
+      la aplicación renovará automáticamente la sesión.
+    </p>
+    <a class="btn btn-success btn-lg" href="{{ retry_url }}">Volver e intentar nuevamente</a>
+  </div>
+</section>
+{% endblock %}

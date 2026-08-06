@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Control de cuadrillas · PP {{ production.number }}{% endblock %}
+{% block body_class %}crew-control-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/crew-control.css' %}">{% endblock %}
+{% block content %}
+<section class="crew-control-shell" aria-labelledby="crew-control-title">
+  <a class="crew-control-back" href="{% url 'productions:detail' production.pk %}">← Volver al PP {{ production.number }}</a>
+
+  <header class="crew-control-hero">
+    <div>
+      <p>CONTROL GENERAL DE CUADRILLAS</p>
+      <h1 id="crew-control-title">Túneles y envasado en plaqueros</h1>
+      <span>PP {{ production.number }} · {{ production.plant_lot }} · {{ production.production_date|date:"d/m/Y" }}</span>
+    </div>
+    <div class="crew-control-status">
+      <strong>CONSOLIDADO OFICIAL</strong>
+      <span>Se actualiza automáticamente con los registros del PP.</span>
+    </div>
+  </header>
+
+  <section class="crew-control-overview" aria-label="Totales generales">
+    <article>
+      <small>Cuadrillas participantes</small>
+      <strong>{{ summary.crew_count }}</strong>
+      <span>Entre ambos procesos</span>
+    </article>
+    <article>
+      <small>Trabajo en túneles</small>
+      <strong>{{ summary.tunnel_kg }} kg</strong>
+      <span>{{ summary.tunnel_trays }} bandejas</span>
+    </article>
+    <article>
+      <small>Trabajo en plaqueros</small>
+      <strong>{{ summary.plate_kg }} kg</strong>
+      <span>{{ summary.plate_trays }} bandejas</span>
+    </article>
+    <article class="is-total">
+      <small>Total general del PP</small>
+      <strong>{{ summary.total_kg }} kg</strong>
+      <span>{{ summary.total_trays }} bandejas × {{ summary.tray_kg }} kg</span>
+    </article>
+  </section>
+
+  <section class="crew-control-processes">
+    <article class="{% if summary.tunnel_difference %}has-difference{% endif %}">
+      <div>
+        <p>TÚNELES T1–T6</p>
+        <h2>Control de bandejas por rack</h2>
+      </div>
+      <dl>
+        <div><dt>Físicas</dt><dd>{{ summary.tunnel_physical }}</dd></div>
+        <div><dt>Asignadas</dt><dd>{{ summary.tunnel_trays }}</dd></div>
+        <div><dt>Diferencia</dt><dd>{{ summary.tunnel_difference }}</dd></div>
+      </dl>
+    </article>
+    <article class="{% if summary.plate_difference %}has-difference{% endif %}">
+      <div>
+        <p>ENVASADO EN PLAQUEROS</p>
+        <h2>Control por página y posición</h2>
+      </div>
+      <dl>
+        <div><dt>Físicas</dt><dd>{{ summary.plate_physical }}</dd></div>
+        <div><dt>Asignadas</dt><dd>{{ summary.plate_trays }}</dd></div>
+        <div><dt>Diferencia</dt><dd>{{ summary.plate_difference }}</dd></div>
+      </dl>
+    </article>
+  </section>
+
+  <section class="crew-control-results">
+    <div class="crew-control-heading">
+      <div>
+        <p>CONSOLIDADO PARA CONTROL Y PAGO</p>
+        <h2>Cantidad realizada por cada cuadrilla</h2>
+      </div>
+      <span>Ordenado de mayor a menor total de kilogramos.</span>
+    </div>
+
+    {% if summary.rows %}
+      <div class="crew-control-list">
+        {% for row in summary.rows %}
+          <article class="crew-summary-card">
+            <header>
+              <div>
+                <small>CUADRILLA</small>
+                <h3>{{ row.crew_name }}</h3>
+              </div>
+              <div class="crew-summary-total">
+                <strong>{{ row.total_kg }} kg</strong>
+                <span>{{ row.total_trays }} bandejas</span>
+              </div>
+            </header>
+
+            <div class="crew-process-totals">
+              <div>
+                <span>Túneles</span>
+                <strong>{{ row.tunnel_kg }} kg</strong>
+                <small>{{ row.tunnel_trays }} bandejas</small>
+              </div>
+              <div>
+                <span>Plaqueros</span>
+                <strong>{{ row.plate_kg }} kg</strong>
+                <small>{{ row.plate_trays }} bandejas</small>
+              </div>
+            </div>
+
+            <div class="crew-breakdown">
+              <div>
+                <h4>Túneles</h4>
+                <div class="crew-breakdown-grid is-tunnels">
+                  {% for tunnel in row.tunnels %}
+                    <span class="{% if tunnel.trays %}has-work{% endif %}">
+                      <small>{{ tunnel.code }}</small>
+                      <strong>{{ tunnel.trays }}</strong>
+                      <em>{{ tunnel.kg }} kg</em>
+                    </span>
+                  {% endfor %}
+                </div>
+              </div>
+              <div>
+                <h4>Plaqueros</h4>
+                <div class="crew-breakdown-grid is-plates">
+                  {% for plate_rack in row.plate_racks %}
+                    <span class="{% if plate_rack.trays %}has-work{% endif %}">
+                      <small>{{ plate_rack.label }}</small>
+                      <strong>{{ plate_rack.trays }}</strong>
+                      <em>{{ plate_rack.kg }} kg</em>
+                    </span>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+
+            <details class="crew-audit">
+              <summary>Ver detalle para comprobar el total</summary>
+              <div class="crew-audit-columns">
+                <section>
+                  <h4>Detalle de túneles</h4>
+                  {% for tunnel in row.tunnel_detail_groups %}
+                    <details class="crew-tunnel-audit">
+                      <summary>
+                        <span>
+                          <strong>{{ tunnel.code }}</strong>
+                          <small>{{ tunnel.details|length }} registro{{ tunnel.details|length|pluralize }}</small>
+                        </span>
+                        <span>{{ tunnel.trays }} bdj · {{ tunnel.kg }} kg</span>
+                      </summary>
+                      <div class="crew-tunnel-audit-body">
+                        {% for detail in tunnel.details %}
+                          <div class="crew-audit-row">
+                            <div>
+                              <strong>Llenada {{ detail.fill_number }} · {{ detail.location }}</strong>
+                              {% if detail.product %}<small>{{ detail.product }}</small>{% endif %}
+                              <small>Registrado por {{ detail.responsible }}</small>
+                            </div>
+                            <span>{{ detail.trays }} bdj · {{ detail.kg }} kg</span>
+                          </div>
+                        {% endfor %}
+                      </div>
+                    </details>
+                  {% empty %}
+                    <p>Esta cuadrilla no tiene bandejas asignadas en túneles.</p>
+                  {% endfor %}
+                </section>
+                <section>
+                  <h4>Detalle de plaqueros</h4>
+                  {% for detail in row.plate_details %}
+                    <div class="crew-audit-row">
+                      <div>
+                        <strong>{{ detail.position }}</strong>
+                        <small>{{ detail.page }} · Registrado por {{ detail.responsible }}</small>
+                      </div>
+                      <span>{{ detail.trays }} bdj · {{ detail.kg }} kg</span>
+                    </div>
+                  {% empty %}
+                    <p>Esta cuadrilla no tiene bandejas asignadas en plaqueros.</p>
+                  {% endfor %}
+                </section>
+              </div>
+            </details>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="crew-control-empty">
+        <h3>Todavía no existen registros por cuadrilla</h3>
+        <p>El consolidado aparecerá automáticamente cuando se asignen bandejas en túneles o plaqueros.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <footer class="crew-control-note">
+    <strong>Importante:</strong>
+    este es el consolidado oficial dentro de la aplicación. La integración de este resumen con el Excel se realizará en la siguiente etapa.
+  </footer>
+</section>
+{% endblock %}
