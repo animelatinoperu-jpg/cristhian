@@ -4,6 +4,19 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+_env_file = BASE_DIR / ".env"
+if _env_file.is_file():
+    with open(_env_file, encoding="utf-8") as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if not _line or _line.startswith("#") or "=" not in _line:
+                continue
+            _key, _, _val = _line.partition("=")
+            _key = _key.strip()
+            _val = _val.strip().strip('"').strip("'")
+            if _key and _key not in os.environ:
+                os.environ[_key] = _val
+
 
 def env(name, default=None):
     return os.environ.get(name, default)
@@ -76,6 +89,30 @@ else:
             "NAME": Path(sqlite_path) if sqlite_path else BASE_DIR / "db.sqlite3",
             "OPTIONS": {"timeout": 30},
         }
+    }
+
+_railway_env = {}
+_railway_file = BASE_DIR / ".env.railway"
+if _railway_file.is_file():
+    with open(_railway_file, encoding="utf-8") as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if not _line or _line.startswith("#") or "=" not in _line:
+                continue
+            _key, _, _val = _line.partition("=")
+            _key = _key.strip()
+            _val = _val.strip().strip('"').strip("'")
+            if _key:
+                _railway_env[_key] = _val
+if _railway_env:
+    DATABASES["railway"] = {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": _railway_env.get("POSTGRES_DB", "railway"),
+        "USER": _railway_env.get("POSTGRES_USER", "postgres"),
+        "PASSWORD": _railway_env.get("POSTGRES_PASSWORD", ""),
+        "HOST": _railway_env.get("POSTGRES_HOST", "localhost"),
+        "PORT": _railway_env.get("POSTGRES_PORT", "5432"),
+        "CONN_MAX_AGE": 0,
     }
 
 AUTH_PASSWORD_VALIDATORS = [
