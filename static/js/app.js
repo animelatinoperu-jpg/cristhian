@@ -193,7 +193,20 @@
   });
 
   document.querySelectorAll("[data-save-and-close-rack]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", (event) => {
+      const card = button.closest("[data-rack-card]");
+      const editor = rackMultiselectors.get(card?.querySelector("[data-rack-selector]")?.dataset.rackId || "");
+      if (editor) {
+        if (!editor.ready()) {
+          event.preventDefault();
+          return;
+        }
+        if (editor.extrasCount() > 0) {
+          event.preventDefault();
+          editor.flash('Primero guarde los productos adicionales con «Guardar productos» y luego cierre el rack.');
+          return;
+        }
+      }
       const form = document.getElementById(button.getAttribute("form"));
       if (!form) return;
       const product = document.getElementById(button.dataset.productInput || "")?.value || "";
@@ -215,6 +228,10 @@
   document.querySelectorAll("[data-save-rack]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.preventDefault();
+      const editor = rackMultiselectors.get(button.dataset.rackId || "");
+      if (editor && !editor.ready()) {
+        return;
+      }
       const form = button.closest("form");
       if (!form) return;
       const openRackInput = form.querySelector("[data-open-rack-input]");
@@ -331,13 +348,28 @@
     render();
   });
 
-  document.querySelectorAll("[data-tunnel-product-picker]").forEach((picker) => {
-    const search = picker.querySelector("[data-tunnel-product-search]");
-    const select = document.getElementById(search?.dataset.productSelect || "");
-    const suggestions = picker.querySelector("[data-tunnel-product-suggestions]");
-    const picked = picker.querySelector("[data-tunnel-product-picked]");
-    const lamina = picker.querySelector("[data-tunnel-product-lamina]");
-    if (!search || !select || !suggestions || !picked) return;
+  const rackMultiselectors = window.__rackMultiselectors || (window.__rackMultiselectors = new Map());
+
+  document.querySelectorAll("[data-rack-selector]").forEach((trigger) => {
+    const card = trigger.closest("[data-rack-card]");
+    if (!card || card.classList.contains("rack-card-closed")) return;
+
+    const panel = card.querySelector("[data-rack-multiselect]");
+    const search = card.querySelector("[data-rack-multiselect-search]");
+    const listEl = card.querySelector("[data-rack-multiselect-list]");
+    const countEl = card.querySelector("[data-rack-multiselect-count]");
+    const doneBtn = card.querySelector("[data-rack-multiselect-done]");
+    const labelEl = card.querySelector("[data-rack-selector-label]");
+    const editor = card.querySelector("[data-rack-tray-editor]");
+    const totalNode = card.querySelector("[data-rack-editor-total]");
+    const capacityNode = card.querySelector("[data-rack-editor-capacity]");
+    const warningNode = card.querySelector("[data-rack-tray-warning]");
+    const mainSelect = card.querySelector("[data-rack-product-select]");
+    const mainTray = card.querySelector("[data-rack-tray-input]");
+    const capacitySelect = card.querySelector("[data-rack-capacity-select]");
+    const entryIdInput = card.querySelector("[data-rack-entry-id]");
+    const rackTotalNode = card.querySelector("[data-rack-total]");
+    if (!panel || !search || !listEl || !countEl || !doneBtn || !labelEl || !editor || !totalNode || !capacityNode || !warningNode || !mainSelect || !mainTray || !capacitySelect || !entryIdInput) return;
 
     const normalize = (value) => (value || "")
       .normalize("NFD")
@@ -345,105 +377,741 @@
       .toLowerCase()
       .trim();
     const tokenise = (value) => normalize(value).split(/[^a-z0-9]+/).filter(Boolean);
-    const splitLabel = (label) => {
-      const parts = (label || "").split(" ? ");
-      return [parts[0] || "", parts.slice(1).join(" ? ") || ""];
-    };
     const matchesQuery = (option, term) => {
       if (!term) return true;
       if (option.searchable.includes(term)) return true;
-      const qTokens = tokenise(term);
-      if (!qTokens.length) return false;
+      const queryTokens = tokenise(term);
+      if (!queryTokens.length) return false;
       const tokens = tokenise(option.searchable);
-      return qTokens.every((queryToken) => tokens.some((token) => token.includes(queryToken)));
+      return queryTokens.every((queryToken) => tokens.some((token) => token.includes(queryToken)));
     };
-    const options = Array.from(select.options)
+    const splitProductLabel = (label) => {
+      const parts = (label || "").split(" ? ");
+      if (parts.length < 2) return [parts[0] || "", ""];
+      return [parts[0], parts.slice(1).join(" ? ")];
+    };
+
+    const formIndex = (entryIdInput.name.match(/^racks-(\d+)-/) || [])[1] || "0";
+    const options = Array.from(mainSelect.options)
+      .filter((option) => option.value)
+      .map((option) => {
+        const [code, name] = splitProductLabel(option.textContent || "");
+        return {
+          value: option.value,
+          code,
+          name,
+          label: (option.textContent || "").trim(),
+          searchable: normalize(`${code} ${name}`),
+          laminaColor: (option.dataset.laminaColor || "").trim(),
+        };
+      });
+    const optionByValue = (value) => options.find((option) => option.value === String(value));
+
+    const saved = new Map();
+    card.querySelectorAll("[data-edit-entry]").forEach((button) => {
+      saved.set(button.dataset.productId, {
+        trayCount: Number(button.dataset.trayCount || 0),
+        entryId: button.dataset.entryId || "",
+      });
+    });
+
+    const selection = new Map();
+
+    const rows = new Map();
+    let panelOpen = false;
+
+    const updateLabel = () => {
+      const size = selection.size;
+      if (!size) {
+        labelEl.textContent = "Seleccione los productos";
+        return;
+      }
+      const first = optionByValue(selection.keys().next().value);
+      labelEl.textContent = size === 1 && first
+        ? first.label
+        : `${size} productos seleccionados`;
+    };
+
+    const currentCapacity = () => {
+      const value = Number(capacitySelect.value);
+      return Number.isFinite(value) ? value : Number(capacityNode.textContent || 0);
+    };
+
+    const updateTotals = () => {
+      let incoming = 0;
+      let replaced = 0;
+      selection.forEach((_, pid) => {
+        const row = rows.get(pid);
+        const value = row ? parseInt(row.input.value, 10) : 0;
+        incoming += Number.isFinite(value) && value > 0 ? value : 0;
+        if (saved.has(pid)) replaced += saved.get(pid).trayCount;
+      });
+      const base = Number(rackTotalNode?.dataset.currentTotal || 0);
+      const capacity = currentCapacity();
+      capacityNode.textContent = capacity;
+      const total = base - replaced + incoming;
+      totalNode.textContent = total;
+      const exceeded = total > capacity;
+      totalNode.classList.toggle("rack-editor-total-exceed", exceeded);
+      if (exceeded) {
+        warningNode.textContent = "La cantidad total de bandejas supera la capacidad del rack.";
+        warningNode.classList.remove("d-none");
+      } else {
+        warningNode.classList.add("d-none");
+      }
+      return { total, capacity, exceeded };
+    };
+
+    const flash = (message) => {
+      warningNode.textContent = message;
+      warningNode.classList.remove("d-none");
+    };
+
+    const renderRows = () => {
+      editor.replaceChildren();
+      rows.clear();
+      selection.forEach((_, pid) => {
+        const option = optionByValue(pid);
+        if (!option) return;
+        const isSaved = saved.has(pid);
+        const rowEl = document.createElement("div");
+        rowEl.className = `rack-tray-row${isSaved ? " is-saved" : ""}`;
+        const nameCell = document.createElement("div");
+        nameCell.className = "rack-tray-name";
+        const nameLabel = document.createElement("strong");
+        nameLabel.textContent = option.label;
+        const nameSmall = document.createElement("small");
+        nameSmall.textContent = isSaved ? "Ya guardado en el rack" : "Producto nuevo en el rack";
+        nameCell.append(nameLabel, nameSmall);
+        if (option.laminaColor) {
+          const chip = document.createElement("small");
+          chip.className = "lamina-chip";
+          chip.dataset.laminaColor = option.laminaColor;
+          chip.textContent = `Lámina: ${option.laminaColor}`;
+          nameCell.appendChild(chip);
+        }
+        const fieldCell = document.createElement("div");
+        fieldCell.className = "rack-tray-field";
+        const fieldLabel = document.createElement("label");
+        fieldLabel.textContent = "Bandejas";
+        const input = document.createElement("input");
+        input.type = "number";
+        input.min = "1";
+        input.inputmode = "numeric";
+        input.placeholder = "0";
+        input.className = "form-control form-control-sm";
+        input.value = isSaved ? String(saved.get(pid).trayCount) : "";
+        input.addEventListener("input", () => {
+          updateTotals();
+        });
+        input.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            const button = card.querySelector("[data-save-rack]");
+            if (button) button.click();
+          }
+        });
+        fieldCell.append(fieldLabel, input);
+        rowEl.append(nameCell, fieldCell);
+        if (!isSaved) {
+          const removeButton = document.createElement("button");
+          removeButton.type = "button";
+          removeButton.className = "rack-tray-remove";
+          removeButton.textContent = "✕";
+          removeButton.title = "Quitar este producto";
+          removeButton.addEventListener("click", () => {
+            selection.delete(pid);
+            renderRows();
+            renderList();
+            updateLabel();
+            updateTotals();
+          });
+          rowEl.appendChild(removeButton);
+        }
+        editor.appendChild(rowEl);
+        rows.set(pid, { element: rowEl, input });
+      });
+    };
+
+    const renderList = () => {
+      const term = normalize(search.value);
+      listEl.innerHTML = "";
+      const visible = options.filter((option) => matchesQuery(option, term));
+      if (!visible.length) {
+        const empty = document.createElement("li");
+        empty.className = "rack-multiselect-empty";
+        empty.textContent = "Sin coincidencias";
+        listEl.appendChild(empty);
+        return;
+      }
+      visible.forEach((option) => {
+        const isSaved = saved.has(option.value);
+        const isOn = selection.has(option.value);
+        const item = document.createElement("li");
+        item.className = `rack-multiselect-option${isOn ? " is-on" : ""}${isSaved ? " is-saved" : ""}`;
+        const mark = document.createElement("span");
+        mark.className = "rack-multiselect-mark";
+        mark.textContent = isOn ? "✓" : "";
+        item.appendChild(mark);
+        const nameCell = document.createElement("span");
+        nameCell.className = "rack-multiselect-name";
+        const strong = document.createElement("strong");
+        strong.textContent = option.code || option.label;
+        const span = document.createElement("span");
+        span.textContent = option.name;
+        nameCell.append(strong, span);
+        item.appendChild(nameCell);
+        if (!isOn && option.laminaColor) {
+          const chip = document.createElement("small");
+          chip.className = "lamina-chip rack-multiselect-lamchip";
+          chip.dataset.laminaColor = option.laminaColor;
+          chip.textContent = option.laminaColor;
+          item.appendChild(chip);
+        }
+        if (isSaved) {
+          const note = document.createElement("small");
+          note.className = "rack-multiselect-locked";
+          note.textContent = "Ya guardado";
+          item.appendChild(note);
+        }
+        item.addEventListener("click", () => {
+          if (isSaved) return;
+          if (isOn) selection.delete(option.value); else selection.set(option.value, true);
+          renderList();
+          renderRows();
+          updateLabel();
+          updateTotals();
+          search.focus();
+        });
+        listEl.appendChild(item);
+      });
+      const size = selection.size;
+      countEl.textContent = `${size} producto${size === 1 ? "" : "s"} seleccionado${size === 1 ? "" : "s"}`;
+    };
+
+    const openPanel = () => {
+      panelOpen = true;
+      trigger.setAttribute("aria-expanded", "true");
+      panel.classList.remove("d-none");
+      search.value = "";
+      renderList();
+      search.focus();
+    };
+    const closePanel = () => {
+      panelOpen = false;
+      trigger.setAttribute("aria-expanded", "false");
+      panel.classList.add("d-none");
+    };
+
+    trigger.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (panelOpen) closePanel(); else openPanel();
+    });
+    search.addEventListener("input", renderList);
+    search.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") event.preventDefault();
+    });
+    doneBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      closePanel();
+    });
+    document.addEventListener("mousedown", (event) => {
+      if (!panelOpen) return;
+      const wasInPanel = panel.contains(event.target);
+      const wasOnTrigger = trigger.contains(event.target);
+      if (!wasInPanel && !wasOnTrigger) closePanel();
+    });
+
+    const mainPid = () => {
+      if (entryIdInput.value) {
+        for (const pid of selection.keys()) {
+          if (saved.has(pid) && saved.get(pid).entryId === entryIdInput.value) return pid;
+        }
+      }
+      return selection.keys().next().value;
+    };
+
+    const syncPayload = () => {
+      const main = mainPid();
+      let extrasCount = 0;
+      for (const pid of selection.keys()) {
+        const row = rows.get(pid);
+        const tray = row ? String(row.input.value || "") : "";
+        if (String(pid) === String(main)) {
+          mainSelect.value = pid;
+          mainTray.value = tray;
+          continue;
+        }
+        let productInput = card.querySelector(`[data-extra-product="${pid}"]`);
+        let trayInput = card.querySelector(`[data-extra-trays="${pid}"]`);
+        if (!productInput || !trayInput) {
+          productInput = document.createElement("input");
+          productInput.type = "hidden";
+          productInput.dataset.extraProduct = pid;
+          trayInput = document.createElement("input");
+          trayInput.type = "hidden";
+          trayInput.dataset.extraTrays = pid;
+          card.appendChild(productInput);
+          card.appendChild(trayInput);
+        }
+        productInput.name = `racks-${formIndex}-extra_product_${extrasCount}`;
+        trayInput.name = `racks-${formIndex}-extra_trays_${extrasCount}`;
+        productInput.value = pid;
+        trayInput.value = tray;
+        extrasCount += 1;
+      }
+      return { ok: true, extrasCount, main };
+    };
+
+    const prepareSave = () => {
+      if (!selection.size) {
+        flash("Seleccione un producto antes de guardar.");
+        return { ok: false };
+      }
+      for (const [, row] of rows) {
+        if (!Number.isFinite(parseInt(row.input.value, 10)) || parseInt(row.input.value, 10) < 1) {
+          flash("Ingrese la cantidad de bandejas de cada producto seleccionado.");
+          return { ok: false };
+        }
+      }
+      const result = syncPayload();
+      if (!result.ok) {
+        flash(result.message || "No se pudo preparar el guardado.");
+        return { ok: false };
+      }
+      const totals = updateTotals();
+      if (totals.exceeded) {
+        flash("La cantidad total de bandejas supera la capacidad del rack.");
+        return { ok: false };
+      }
+      return { ok: true, extrasCount: result.extrasCount };
+    };
+
+    rackMultiselectors.set(trigger.dataset.rackId, {
+      ready: () => {
+        const result = prepareSave();
+        return result && result.ok;
+      },
+      extrasCount: () => {
+        const result = prepareSave();
+        if (!result || !result.ok) return 1;
+        let pending = 0;
+        for (const pid of selection.keys()) {
+          if (String(pid) === String(result.main)) continue;
+          if (!saved.has(pid)) pending += 1;
+        }
+        return pending;
+      },
+      flash,
+    });
+
+    let editingPid = "";
+    card.querySelectorAll("[data-edit-entry]").forEach((button) => {
+      button.addEventListener("click", () => {
+        editingPid = button.dataset.productId || "";
+        if (editingPid) selection.set(editingPid, true);
+        renderRows();
+        renderList();
+        updateLabel();
+        updateTotals();
+      });
+    });
+    const cancelEdit = card.querySelector("[data-cancel-entry-edit]");
+    if (cancelEdit) cancelEdit.addEventListener("click", () => {
+      if (editingPid) selection.delete(editingPid);
+      editingPid = "";
+      entryIdInput.value = "";
+      mainSelect.value = "";
+      mainTray.value = "";
+      renderRows();
+      renderList();
+      updateLabel();
+      updateTotals();
+    });
+
+    renderRows();
+    if (mainSelect.value && mainTray.value) {
+      const mainRow = rows.get(mainSelect.value);
+      if (mainRow) mainRow.input.value = mainTray.value;
+    }
+    updateLabel();
+    updateTotals();
+  });
+
+  document.querySelectorAll("[data-plate-product-editor]").forEach((container) => {
+    const form = container.closest("form");
+    if (!form) return;
+    const trigger = container.querySelector("[data-plate-selector]");
+    const panel = container.querySelector("[data-plate-multiselect]");
+    const search = container.querySelector("[data-plate-multiselect-search]");
+    const listEl = container.querySelector("[data-plate-multiselect-list]");
+    const countEl = container.querySelector("[data-plate-multiselect-count]");
+    const doneBtn = container.querySelector("[data-plate-multiselect-done]");
+    const labelEl = container.querySelector("[data-plate-selector-label]");
+    const editor = container.querySelector("[data-plate-tray-editor]");
+    const totalNode = container.querySelector("[data-plate-editor-total]");
+    const capacityNode = container.querySelector("[data-plate-editor-capacity]");
+    const warningNode = container.querySelector("[data-plate-tray-warning]");
+    const mainSelect = form.querySelector('select[name="product"]');
+    const mainTray = form.querySelector('input[name="tray_count"]');
+    const positionSelect = form.querySelector('select[name="position"]');
+    if (!trigger || !panel || !search || !listEl || !countEl || !doneBtn || !labelEl || !editor || !totalNode || !capacityNode || !warningNode || !mainSelect || !mainTray || !positionSelect) return;
+
+    const parsePairMap = (raw) => new Map(
+      String(raw || "").split(";").filter(Boolean).map((item) => {
+        const separator = item.indexOf("=");
+        return [item.slice(0, separator), Number(item.slice(separator + 1)) || 0];
+      })
+    );
+    const laminaColors = new Map(
+      String(container.dataset.plateLaminaColors || "").split(";").filter(Boolean).map((item) => {
+        const separator = item.indexOf("=");
+        return [item.slice(0, separator), item.slice(separator + 1)];
+      })
+    );
+    const capacities = parsePairMap(container.dataset.plateCaps);
+    const totals = parsePairMap(container.dataset.plateTotals);
+    const savedByPosition = new Map();
+    String(container.dataset.plateSaved || "").split("|").filter(Boolean).forEach((block) => {
+      const separator = block.indexOf(":");
+      const positionId = block.slice(0, separator);
+      const entries = new Map();
+      block.slice(separator + 1).split(";").filter(Boolean).forEach((payload) => {
+        const [pid, trayText, entryId] = payload.split("=");
+        entries.set(pid, { trayCount: Number(trayText) || 0, entryId: entryId || "" });
+      });
+      savedByPosition.set(positionId, entries);
+    });
+
+    const normalize = (value) => (value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+    const tokenise = (value) => normalize(value).split(/[^a-z0-9]+/).filter(Boolean);
+    const matchesQuery = (option, term) => {
+      if (!term) return true;
+      if (option.searchable.includes(term)) return true;
+      const queryTokens = tokenise(term);
+      if (!queryTokens.length) return false;
+      const tokens = tokenise(option.searchable);
+      return queryTokens.every((queryToken) => tokens.some((token) => token.includes(queryToken)));
+    };
+
+    const options = Array.from(mainSelect.options)
       .filter((option) => option.value)
       .map((option) => ({
         value: option.value,
         label: (option.textContent || "").trim(),
         searchable: normalize(option.textContent || ""),
-        laminaColor: (option.dataset.laminaColor || "").trim(),
+        laminaColor: laminaColors.get(option.value) || "",
       }));
+    const optionByValue = (value) => options.find((option) => option.value === String(value));
 
-    const showLamina = (option) => {
-      if (!lamina) return;
-      lamina.replaceChildren();
-      if (!option?.laminaColor) {
-        lamina.hidden = true;
+    const selection = new Map();
+    let saved = new Map();
+    let panelOpen = false;
+    let capacity = 189;
+
+    const currentPosition = () => positionSelect.value || "";
+    const loadPositionState = () => {
+      const positionId = currentPosition();
+      saved = savedByPosition.get(positionId) || new Map();
+      capacity = capacities.get(positionId) || 189;
+      trigger.disabled = !positionId;
+      selection.clear();
+      renderRows();
+      renderList();
+      updateLabel();
+      updateTotals();
+    };
+
+    const updateLabel = () => {
+      const size = selection.size;
+      if (!size) {
+        labelEl.textContent = "Seleccione los productos";
         return;
       }
-      const chip = document.createElement("span");
-      chip.className = "lamina-chip";
-      chip.dataset.laminaColor = option.laminaColor;
-      chip.textContent = `Lámina: ${option.laminaColor}`;
-      lamina.appendChild(chip);
-      lamina.hidden = false;
+      const first = optionByValue(selection.keys().next().value);
+      labelEl.textContent = size === 1 && first
+        ? first.label
+        : `${size} productos seleccionados`;
     };
 
-    const syncSelection = () => {
-      const term = normalize(search.value);
-      const exact = options.find((option) => option.searchable === term || normalize(option.label) === term);
-      if (exact) {
-        select.value = exact.value;
-        picked.textContent = `Seleccionado: ${exact.label}`;
-        showLamina(exact);
-        return exact;
+    const currentBaseTotal = () => {
+      const positionId = currentPosition();
+      const base = totals.get(positionId) || 0;
+      let incoming = 0;
+      selection.forEach((_, pid) => {
+        const row = rowsByPid.get(pid);
+        const value = row ? parseInt(row.input.value, 10) : 0;
+        incoming += Number.isFinite(value) && value > 0 ? value : 0;
+      });
+      return base + incoming;
+    };
+    const rowsByPid = new Map();
+
+    const updateTotals = () => {
+      const positionId = currentPosition();
+      const base = totals.get(positionId) || 0;
+      let incoming = 0;
+      let replaced = 0;
+      selection.forEach((_, pid) => {
+        const row = rowsByPid.get(pid);
+        const value = row ? parseInt(row.input.value, 10) : 0;
+        if (Number.isFinite(value) && value > 0) incoming += value;
+        if (saved.has(pid)) replaced += saved.get(pid).trayCount;
+      });
+      capacityNode.textContent = capacity;
+      const total = base - replaced + incoming;
+      totalNode.textContent = total;
+      const exceeded = total > capacity;
+      totalNode.classList.toggle("rack-editor-total-exceed", exceeded);
+      if (exceeded) {
+        warningNode.textContent = "La cantidad total de bandejas supera la capacidad del plaquero.";
+        warningNode.classList.remove("d-none");
+      } else {
+        warningNode.classList.add("d-none");
       }
-      select.value = "";
-      picked.textContent = term ? "Escriba m?s para ver sugerencias con c?digo." : "Escriba para ver sugerencias con c?digo.";
-      showLamina(null);
-      return null;
+      return { total, capacity, exceeded };
     };
 
-    const render = () => {
-      const term = normalize(search.value);
-      const visible = options.filter((option) => matchesQuery(option, term)).slice(0, 10);
-      suggestions.innerHTML = "";
-      suggestions.hidden = !term;
-      if (term) {
-        visible.forEach((option) => {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = "tunnel-product-choice";
-          const [code, name] = splitLabel(option.label);
-          button.innerHTML = `<strong>${code}</strong>${name ? `<span>${name}</span>` : ""}`;
-          if (option.laminaColor) {
-            const chip = document.createElement("small");
-            chip.className = "lamina-chip";
-            chip.dataset.laminaColor = option.laminaColor;
-            chip.textContent = option.laminaColor;
-            button.appendChild(chip);
-          }
-          button.addEventListener("click", () => {
-            select.value = option.value;
-            search.value = option.label;
-            picked.textContent = `Seleccionado: ${option.label}`;
-            showLamina(option);
-            render();
-          });
-          suggestions.appendChild(button);
+    const flash = (message) => {
+      warningNode.textContent = message;
+      warningNode.classList.remove("d-none");
+    };
+
+    const renderRows = () => {
+      editor.replaceChildren();
+      rowsByPid.clear();
+      selection.forEach((_, pid) => {
+        const option = optionByValue(pid);
+        if (!option) return;
+        const isSaved = saved.has(pid);
+        const rowEl = document.createElement("div");
+        rowEl.className = `rack-tray-row${isSaved ? " is-saved" : ""}`;
+        const nameCell = document.createElement("div");
+        nameCell.className = "rack-tray-name";
+        const nameLabel = document.createElement("strong");
+        nameLabel.textContent = option.label;
+        const nameSmall = document.createElement("small");
+        nameSmall.textContent = isSaved ? "Ya guardado en el plaquero" : "Producto nuevo en el plaquero";
+        nameCell.append(nameLabel, nameSmall);
+        if (option.laminaColor) {
+          const chip = document.createElement("small");
+          chip.className = "lamina-chip";
+          chip.dataset.laminaColor = option.laminaColor;
+          chip.textContent = `Lámina: ${option.laminaColor}`;
+          nameCell.appendChild(chip);
+        }
+        const fieldCell = document.createElement("div");
+        fieldCell.className = "rack-tray-field";
+        const fieldLabel = document.createElement("label");
+        fieldLabel.textContent = "Bandejas";
+        const input = document.createElement("input");
+        input.type = "number";
+        input.min = "1";
+        input.inputmode = "numeric";
+        input.placeholder = "0";
+        input.className = "form-control form-control-sm";
+        input.value = isSaved ? String(saved.get(pid).trayCount) : "";
+        input.addEventListener("input", () => {
+          updateTotals();
         });
-        if (!visible.length) {
-          const empty = document.createElement("span");
-          empty.className = "tunnel-product-empty";
-          empty.textContent = "Sin coincidencias";
-          suggestions.appendChild(empty);
+        fieldCell.append(fieldLabel, input);
+        rowEl.append(nameCell, fieldCell);
+        if (!isSaved) {
+          const removeButton = document.createElement("button");
+          removeButton.type = "button";
+          removeButton.className = "rack-tray-remove";
+          removeButton.textContent = "✕";
+          removeButton.title = "Quitar este producto";
+          removeButton.addEventListener("click", () => {
+            selection.delete(pid);
+            renderRows();
+            renderList();
+            updateLabel();
+            updateTotals();
+          });
+          rowEl.appendChild(removeButton);
+        }
+        editor.appendChild(rowEl);
+        rowsByPid.set(pid, { element: rowEl, input });
+      });
+    };
+
+    const renderList = () => {
+      const term = normalize(search.value);
+      listEl.innerHTML = "";
+      const visible = options.filter((option) => matchesQuery(option, term));
+      if (!visible.length) {
+        const empty = document.createElement("li");
+        empty.className = "rack-multiselect-empty";
+        empty.textContent = "Sin coincidencias";
+        listEl.appendChild(empty);
+        return;
+      }
+      visible.forEach((option) => {
+        const isSaved = saved.has(option.value);
+        const isOn = selection.has(option.value);
+        const item = document.createElement("li");
+        item.className = `rack-multiselect-option${isOn ? " is-on" : ""}${isSaved ? " is-saved" : ""}`;
+        const mark = document.createElement("span");
+        mark.className = "rack-multiselect-mark";
+        mark.textContent = isOn ? "✓" : "";
+        item.appendChild(mark);
+        const nameCell = document.createElement("span");
+        nameCell.className = "rack-multiselect-name";
+        const strong = document.createElement("strong");
+        strong.textContent = option.code || option.label;
+        const span = document.createElement("span");
+        span.textContent = option.name;
+        nameCell.append(strong, span);
+        item.appendChild(nameCell);
+        if (!isOn && option.laminaColor) {
+          const chip = document.createElement("small");
+          chip.className = "lamina-chip rack-multiselect-lamchip";
+          chip.dataset.laminaColor = option.laminaColor;
+          chip.textContent = option.laminaColor;
+          item.appendChild(chip);
+        }
+        if (isSaved) {
+          const note = document.createElement("small");
+          note.className = "rack-multiselect-locked";
+          note.textContent = "Ya guardado";
+          item.appendChild(note);
+        }
+        item.addEventListener("click", () => {
+          if (isSaved) return;
+          if (isOn) selection.delete(option.value); else selection.set(option.value, true);
+          renderList();
+          renderRows();
+          updateLabel();
+          updateTotals();
+          search.focus();
+        });
+        listEl.appendChild(item);
+      });
+      const size = selection.size;
+      countEl.textContent = `${size} producto${size === 1 ? "" : "s"} seleccionado${size === 1 ? "" : "s"}`;
+    };
+
+    const openPanel = () => {
+      panelOpen = true;
+      trigger.setAttribute("aria-expanded", "true");
+      panel.classList.remove("d-none");
+      search.value = "";
+      renderList();
+      search.focus();
+    };
+    const closePanel = () => {
+      panelOpen = false;
+      trigger.setAttribute("aria-expanded", "false");
+      panel.classList.add("d-none");
+    };
+
+    trigger.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (panelOpen) closePanel(); else openPanel();
+    });
+    search.addEventListener("input", renderList);
+    search.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") event.preventDefault();
+    });
+    doneBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      closePanel();
+    });
+    document.addEventListener("mousedown", (event) => {
+      if (!panelOpen) return;
+      const wasInPanel = panel.contains(event.target);
+      const wasOnTrigger = trigger.contains(event.target);
+      if (!wasInPanel && !wasOnTrigger) closePanel();
+    });
+
+    const syncPayload = () => {
+      const first = selection.keys().next().value;
+      let extrasCount = 0;
+      for (const pid of selection.keys()) {
+        const row = rowsByPid.get(pid);
+        const tray = row ? String(row.input.value || "") : "";
+        if (String(pid) === String(first)) {
+          mainSelect.value = pid;
+          mainTray.value = tray;
+          continue;
+        }
+        let productInput = form.querySelector(`[data-plate-extra-product="${pid}"]`);
+        let trayInput = form.querySelector(`[data-plate-extra-trays="${pid}"]`);
+        if (!productInput || !trayInput) {
+          productInput = document.createElement("input");
+          productInput.type = "hidden";
+          productInput.dataset.plateExtraProduct = pid;
+          trayInput = document.createElement("input");
+          trayInput.type = "hidden";
+          trayInput.dataset.plateExtraTrays = pid;
+          form.appendChild(productInput);
+          form.appendChild(trayInput);
+        }
+        productInput.name = `extra_product_${extrasCount}`;
+        trayInput.name = `extra_trays_${extrasCount}`;
+        productInput.value = pid;
+        trayInput.value = tray;
+        extrasCount += 1;
+      }
+      return { ok: true, extrasCount };
+    };
+
+    const initialPayload = () => {
+      if (!selection.size) return { ok: false, message: "Seleccione al menos un producto." };
+      if (!currentPosition()) return { ok: false, message: "Seleccione el plaquero antes de guardar." };
+      return { ok: true };
+    };
+
+    const prepareSave = () => {
+      for (const [, row] of rowsByPid) {
+        if (!Number.isFinite(parseInt(row.input.value, 10)) || parseInt(row.input.value, 10) < 1) {
+          flash("Ingrese la cantidad de bandejas de cada producto seleccionado.");
+          return { ok: false };
         }
       }
-      syncSelection();
+      if (!selection.size) {
+        flash("Seleccione al menos un producto para guardar.");
+        return { ok: false };
+      }
+      if (!currentPosition()) {
+        flash("Seleccione el plaquero antes de guardar.");
+        return { ok: false };
+      }
+      const result = initialPayload();
+      if (!result.ok) {
+        flash(result.message || "No se pudo preparar el guardado.");
+        return { ok: false };
+      }
+      const totals = updateTotals();
+      if (totals.exceeded) {
+        flash("La cantidad total de bandejas supera la capacidad del plaquero.");
+        return { ok: false };
+      }
+      syncPayload();
+      return { ok: true };
     };
 
-    search.addEventListener("input", render);
-    search.addEventListener("focus", render);
-    select.addEventListener("change", () => {
-      const selected = options.find((option) => option.value === select.value);
-      search.value = selected ? selected.label : "";
-      picked.textContent = selected ? `Seleccionado: ${selected.label}` : "Escriba para ver sugerencias con c?digo.";
-      showLamina(selected);
-      render();
+    const saveButton = form.querySelector("[data-plate-save-button]");
+    if (saveButton) {
+      saveButton.addEventListener("click", (event) => {
+        if (!form.classList.contains("plate-capture-ready")) return;
+        const result = prepareSave();
+        if (!result.ok) {
+          event.preventDefault();
+          return;
+        }
+      });
+    }
+    positionSelect.addEventListener("change", () => {
+      doneBtn.click();
+      loadPositionState();
     });
-    render();
+    loadPositionState();
   });
 
   document.querySelectorAll("[data-rack-card]").forEach((card) => {
@@ -609,7 +1277,7 @@
     addEventListener("load", async () => {
       try {
         const registration = await navigator.serviceWorker.register(
-          "/service-worker.js?v=20260724-delete-action-2",
+          "/service-worker.js?v=20260810-seleccion-limpia",
           {updateViaCache: "none"}
         );
         await registration.update();

@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-header">
   <div class="page-header-copy">
-    <a class="page-header-back" href="{% url 'productions:detail' production.pk %}">← Volver al PP {{ production.number }}</a>
+    <a class="page-header-back" href="javascript:history.back()">← Volver</a>
     <span class="page-header-kicker">TRAZABILIDAD ENTRE PRODUCCIONES</span>
     <h1>Saldos de productos y pallets</h1>
     <span class="page-header-sub">Los saldos se conservan por código, cliente, PP, bachada y plaquero. Solo se mezclan automáticamente cuando el producto es exactamente el mismo.</span>

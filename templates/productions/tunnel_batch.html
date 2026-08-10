@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-header">
   <div class="page-header-copy">
-    <a class="page-header-back" href="{% url 'productions:detail' production.pk %}">← Volver al PP {{ production.number }}</a>
+    <a class="page-header-back" href="javascript:history.back()">← Volver</a>
     <span class="page-header-kicker">CAPTURA POR TÚNEL</span>
     <h1>{{ fill.tunnel.code }} · Llenada {{ fill.fill_number }}</h1>
     <span class="page-header-sub">Escriba producto y bandejas en cada rack. Puede guardar todos juntos.</span>
@@ -147,32 +147,36 @@
       {% endif %}
       {% if rack_form.non_field_errors %}<div class="alert alert-danger py-2 small">{{ rack_form.non_field_errors }}</div>{% endif %}
       <div class="alert alert-warning py-2 small d-none" data-editing-notice>
-        Corrigiendo <strong data-editing-label></strong>. Cambie el producto o las bandejas y pulse <strong>Guardar bandejas</strong>.
+        Corrigiendo <strong data-editing-label></strong>. Cambie las bandejas y pulse <strong>Guardar productos</strong>.
         <button type="button" class="btn btn-sm btn-link p-0 ms-1" data-cancel-entry-edit>Cancelar</button>
       </div>
-      <div class="mb-3"><label class="form-label fw-semibold" for="{{ rack_form.max_trays.id_for_label }}">Capacidad del rack</label>{{ rack_form.max_trays }}<div class="form-text">Se confirma al pulsar Guardar bandejas.</div>{% for error in rack_form.max_trays.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}</div>
+      <div class="mb-3"><label class="form-label fw-semibold" for="{{ rack_form.max_trays.id_for_label }}">Capacidad del rack</label>{{ rack_form.max_trays }}<div class="form-text">Se confirma al pulsar Guardar productos.</div>{% for error in rack_form.max_trays.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}</div>
       <div class="mb-3">
-        <label class="form-label fw-semibold" for="{{ rack_form.product.id_for_label }}">Producto</label>
-        <div class="tunnel-product-picker" data-tunnel-product-picker>
-          <input
-            class="form-control mb-2 d-md-none tunnel-product-search"
-            type="search"
-            placeholder="Escriba c?digo o nombre, ej. TEN"
-            autocomplete="off"
-            inputmode="search"
-            data-tunnel-product-search
-            data-product-select="{{ rack_form.product.id_for_label }}"
-          >
-          <div class="tunnel-product-suggestions d-md-none" data-tunnel-product-suggestions></div>
-          {{ rack_form.product }}
-          <div class="tunnel-product-lamina" data-tunnel-product-lamina hidden></div>
-          <div class="form-text d-md-none" data-tunnel-product-picked>Escriba para ver sugerencias con c?digo.</div>
+        <label class="form-label fw-semibold mb-1">Productos del rack</label>
+        <button type="button" class="rack-selector" data-rack-selector data-rack-id="{{ rack_form.rack.pk }}">
+          <span class="rack-selector-label" data-rack-selector-label>Seleccione los productos</span>
+          <span class="rack-selector-arrow" data-rack-selector-chevron>▼</span>
+        </button>
+        <div class="rack-multiselect d-none" data-rack-multiselect>
+          <div class="rack-multiselect-searchbox">
+            <span class="rack-multiselect-searchmark">🔍</span>
+            <input class="form-control form-control-sm" type="search" placeholder="Buscar producto por c?digo o nombre..." autocomplete="off" data-rack-multiselect-search>
+          </div>
+          <ul class="rack-multiselect-list" data-rack-multiselect-list></ul>
+          <div class="rack-multiselect-footer">
+            <span class="rack-multiselect-count" data-rack-multiselect-count>0 seleccionados</span>
+            <button type="button" class="btn btn-sm btn-primary" data-rack-multiselect-done>LISTO</button>
+          </div>
         </div>
+        <div class="d-none">{{ rack_form.product }}{{ rack_form.tray_count }}</div>
         {% for error in rack_form.product.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+        {% for error in rack_form.tray_count.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+        <div class="rack-tray-editor" data-rack-tray-editor></div>
+        <div class="rack-editor-total">TOTAL BANDEJAS: <strong data-rack-editor-total>0</strong> / <span data-rack-editor-capacity>{{ rack_form.max_trays.value|default:50 }}</span></div>
+        <div class="text-danger small d-none" data-rack-tray-warning>La cantidad total de bandejas supera la capacidad del rack.</div>
       </div>
-      <div><label class="form-label fw-semibold" for="{{ rack_form.tray_count.id_for_label }}">Bandejas</label>{{ rack_form.tray_count }}{% for error in rack_form.tray_count.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}</div>
       <div class="mt-3">
-        <button class="btn btn-primary w-100" type="button" data-save-rack data-rack-id="{{ rack_form.rack.pk }}">Guardar producto en este rack</button>
+        <button class="btn btn-primary w-100" type="button" data-save-rack data-rack-id="{{ rack_form.rack.pk }}">Guardar productos en este rack</button>
       </div>
       <div class="rack-close-form mt-3">
         <input class="form-control form-control-sm mb-2" form="rack-close-{{ rack_form.rack.pk }}" name="reason" placeholder="Motivo opcional del cierre"><button class="btn btn-ghost w-100" type="submit" form="rack-close-{{ rack_form.rack.pk }}" data-save-and-close-rack data-product-input="{{ rack_form.product.id_for_label }}" data-tray-input="{{ rack_form.tray_count.id_for_label }}" data-capacity-input="{{ rack_form.max_trays.id_for_label }}" data-confirm-message="¿Guardar y cerrar el rack {{ rack_form.rack.code }}? Quedará negro aunque esté incompleto.">Guardar y cerrar rack</button>

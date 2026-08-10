@@ -41,6 +41,8 @@ from .models import (
     active_excel_crew_ids,
 )
 
+from .services.template_catalog import template_plate_codes
+
 
 SPANISH_FIELD_LABELS = {
     "number": "Número de PP",
@@ -920,6 +922,31 @@ class PlateEntryForm(StyledModelForm):
             self.fields["shift"].initial = self.instance.shift
         elif self.production is not None:
             self.fields["shift"].initial = self.production.shift
+        if not self.instance.pk:
+            self.fields["product"].required = False
+            self.fields["tray_count"].required = False
+            self.fields["product"].widget.attrs.update(
+                {
+                    "class": "form-select",
+                    "data-plate-product-select": "",
+                }
+            )
+            self.fields["tray_count"].widget = forms.NumberInput(
+                attrs={
+                    "class": "form-control",
+                    "min": 1,
+                    "inputmode": "numeric",
+                    "placeholder": "0",
+                    "data-plate-tray-input": "",
+                }
+            )
+        if production is not None:
+            plate_codes = template_plate_codes(production.template_version)
+            if plate_codes:
+                self.fields["product"].queryset = Product.objects.filter(
+                    code__in=plate_codes,
+                    active=True,
+                ).order_by("code", "description")
         if production is not None:
             positions = plate_positions_by_batch(
                 self.fields["position"].queryset.filter(
@@ -970,6 +997,12 @@ class PlateEntryForm(StyledModelForm):
         cleaned = super().clean()
         position = cleaned.get("position")
         shift = cleaned.get("shift")
+        product = cleaned.get("product")
+        tray_count = cleaned.get("tray_count")
+        if not self.instance.pk and bool(product) != bool(tray_count):
+            raise forms.ValidationError(
+                "Seleccione el producto e ingrese las bandejas, o deje ambos campos vacíos."
+            )
         if self.production is not None and position is not None:
             timing = PlatePositionTiming.objects.filter(
                 production=self.production,
@@ -986,6 +1019,19 @@ class PlateEntryForm(StyledModelForm):
         return cleaned
 
 
+class PlateCrewProductSelect(forms.Select):
+    """Deshabilita las opciones de productos sin bandejas pendientes de asignar."""
+
+    disabled_product_ids = None
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        product = getattr(value, "instance", None)
+        if product and self.disabled_product_ids and product.pk in self.disabled_product_ids:
+            option["attrs"]["disabled"] = ""
+        return option
+
+
 class PlateCrewEntryForm(StyledModelForm):
     crew_name = forms.CharField(
         label="Cuadrilla",
@@ -1000,15 +1046,11 @@ class PlateCrewEntryForm(StyledModelForm):
         help_text="Escriba parte del nombre. Si no existe, créela desde esta misma pantalla.",
     )
     crew = forms.ModelChoiceField(queryset=Crew.objects.none(), widget=forms.HiddenInput(), required=False)
-    page = forms.ChoiceField(
-        label="Bloque del Excel",
-        choices=[(f"PAGINA {number}", f"Página {number}") for number in range(1, 6)],
-        help_text="Conserva el bloque usado por la plantilla Excel oficial.",
-    )
 
     class Meta:
         model = PlateCrewEntry
-        fields = ["position", "page", "product", "crew_name", "crew", "tray_count", "observation"]
+        fields = ["position", "product", "crew_name", "crew", "tray_count"]
+        widgets = {"product": PlateCrewProductSelect}
 
     def __init__(self, *args, production=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1079,9 +1121,47 @@ class PlateCrewEntryForm(StyledModelForm):
                 pk__in=product_ids,
                 active=True,
             ).order_by("description", "code")
-            self.fields["product"].label_from_instance = lambda product: (
-                f"{product.code} — {product.description}"
-            )
+            product_availability = {}
+            if str(selected_position_id).isdigit():
+                position_id = int(selected_position_id)
+                position_physical = dict(
+                    PlateEntry.objects.filter(
+                        production=production,
+                        position_id=position_id,
+                        is_active=True,
+                    )
+                    .values_list("product_id")
+                    .annotate(total=Sum("tray_count"))
+                )
+                position_assigned = (
+                    PlateCrewEntry.objects.filter(
+                        production=production,
+                        position_id=position_id,
+                        is_active=True,
+                    )
+                )
+                if self.instance.pk:
+                    position_assigned = position_assigned.exclude(pk=self.instance.pk)
+                position_assigned = dict(
+                    position_assigned.values_list("product_id").annotate(
+                        total=Sum("tray_count")
+                    )
+                )
+                for product_id in product_ids:
+                    physical = position_physical.get(product_id, 0)
+                    assigned = position_assigned.get(product_id, 0)
+                    product_availability[product_id] = {
+                        "physical": physical,
+                        "assigned": assigned,
+                        "pending": max(physical - assigned, 0),
+                    }
+            self._product_availability = product_availability
+            self.fields["product"].widget.disabled_product_ids = {
+                product_id
+                for product_id, availability in product_availability.items()
+                if availability["pending"] <= 0
+            }
+            self.fields["product"].label_from_instance = self._product_label
             self.fields["tray_count"].help_text = (
                 "La aplicación controla el total del plaquero y también el total "
                 "disponible del producto seleccionado."
@@ -1090,11 +1170,25 @@ class PlateCrewEntryForm(StyledModelForm):
             self.fields["crew_name"].initial = self.instance.crew.name
             self.fields["crew"].initial = self.instance.crew_id
 
+    def _product_label(self, product):
+        availability = self._product_availability.get(product.pk)
+        if availability is None:
+            return f"{product.code} — {product.description}"
+        if availability["pending"] <= 0:
+            return (
+                f"{product.code} — {product.description} — COMPLETO"
+            )
+        return (
+            f"{product.code} — {product.description} — "
+            f"{availability['pending']} disponibles de {availability['physical']}"
+        )
+
     def clean_crew_name(self):
         return " ".join(self.cleaned_data["crew_name"].strip().upper().split())
 
     def clean(self):
         cleaned = super().clean()
+        self.instance.page = "PAGINA 1"
         name = cleaned.get("crew_name")
         if name:
             crew = active_crew_queryset().filter(name__iexact=name).first()

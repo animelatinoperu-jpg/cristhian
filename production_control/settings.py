@@ -95,9 +95,7 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {
-        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
-        if DEBUG
-        else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"
     },
 }
 MEDIA_ROOT = Path(env("DJANGO_MEDIA_ROOT", str(BASE_DIR / "storage" / "private")))

@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-header no-print">
   <div class="page-header-copy">
-    <a class="page-header-back" href="{% url 'productions:detail' production.pk %}">← Volver al panel</a>
+    <a class="page-header-back" href="javascript:history.back()">← Volver</a>
     <span class="page-header-kicker">REPORTE CONSOLIDADO</span>
     <h1>PP {{ production.number }} · {{ production.plant_lot }}</h1>
   </div>

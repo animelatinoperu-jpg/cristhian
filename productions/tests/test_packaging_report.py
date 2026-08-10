@@ -300,6 +300,138 @@ class PackagingReportTests(TestCase):
         self.assertEqual(entry.tray_count, 20)
         self.assertEqual(entry.kilos, 200)
 
+    def test_tunnel_pack_page_shows_tunnel_cards_and_filters_by_tunnel(self):
+        self.template.rules = {
+            "package_kg": 20,
+            "package_trays": 2,
+            "tunnel_pallet_package_capacity": 10,
+            "tunnel_pallet_max": 50,
+        }
+        self.template.save(update_fields=["rules"])
+        other_product = Product.objects.create(code="PP-004", description="ANILLAS VERDES SM ST")
+        tunnel1 = Tunnel.objects.create(code="T1", name="Túnel uno")
+        tunnel2 = Tunnel.objects.create(code="T2", name="Túnel dos")
+        fill1 = TunnelFill.objects.create(
+            production=self.production,
+            tunnel=tunnel1,
+            fill_number=1,
+            date=dt.date(2026, 7, 18),
+            supervisor=self.user,
+        )
+        rack1 = TunnelRack.objects.create(fill=fill1, code="R01", position_key="T1!R01", max_trays=50)
+        TunnelEntry.objects.create(
+            production=self.production,
+            responsible=self.user,
+            rack=rack1,
+            product=self.product,
+            tray_count=6,
+            date=dt.date(2026, 7, 18),
+        )
+        fill2 = TunnelFill.objects.create(
+            production=self.production,
+            tunnel=tunnel2,
+            fill_number=1,
+            date=dt.date(2026, 7, 18),
+            supervisor=self.user,
+        )
+        rack2 = TunnelRack.objects.create(fill=fill2, code="R01", position_key="T2!R01", max_trays=50)
+        TunnelEntry.objects.create(
+            production=self.production,
+            responsible=self.user,
+            rack=rack2,
+            product=self.product,
+            tray_count=6,
+            date=dt.date(2026, 7, 18),
+        )
+        TunnelEntry.objects.create(
+            production=self.production,
+            responsible=self.user,
+            rack=rack2,
+            product=other_product,
+            tray_count=4,
+            date=dt.date(2026, 7, 18),
+        )
+
+        url = reverse("productions:tunnel_pack_create", args=[self.production.pk])
+        response = self.client.get(url)
+        self.assertContains(response, "Tarjetas de túneles")
+        self.assertContains(response, "Túnel uno")
+        self.assertContains(response, "Túnel dos")
+        self.assertContains(response, "6 bultos")
+        self.assertContains(response, "tunnel-pack-card-t1")
+        self.assertContains(response, "tunnel-pack-card-t2")
+        self.assertContains(response, "img/tunnel-t1.webp")
+        self.assertContains(response, "img/tunnel-t2.webp")
+
+        filtered = self.client.get(url, {"tunnel": "T1"})
+        self.assertContains(filtered, "tunnel-pack-card-active")
+        self.assertContains(filtered, "3 bultos")
+        self.assertContains(filtered, 'name="tunnel"')
+        self.assertNotContains(filtered, "PP-004")
+
+        filtered_t2 = self.client.get(url, {"tunnel": "T2"})
+        self.assertContains(filtered_t2, "PP-003")
+        self.assertContains(filtered_t2, "PP-004")
+        self.assertContains(filtered_t2, "3 bultos")
+        self.assertContains(filtered_t2, "2 bultos")
+
+    def test_tunnel_auto_pack_can_be_limited_to_one_tunnel(self):
+        self.template.rules = {
+            "package_kg": 20,
+            "package_trays": 2,
+            "tunnel_pallet_package_capacity": 10,
+            "tunnel_pallet_max": 50,
+        }
+        self.template.save(update_fields=["rules"])
+        tunnel1 = Tunnel.objects.create(code="T1", name="Túnel uno")
+        tunnel2 = Tunnel.objects.create(code="T2", name="Túnel dos")
+        for tunnel in (tunnel1, tunnel2):
+            fill = TunnelFill.objects.create(
+                production=self.production,
+                tunnel=tunnel,
+                fill_number=1,
+                date=dt.date(2026, 7, 18),
+                supervisor=self.user,
+            )
+            rack = TunnelRack.objects.create(fill=fill, code="R01", position_key=f"{tunnel.code}!R01", max_trays=50)
+            TunnelEntry.objects.create(
+                production=self.production,
+                responsible=self.user,
+                rack=rack,
+                product=self.product,
+                tray_count=6,
+                date=dt.date(2026, 7, 18),
+            )
+
+        url = reverse("productions:tunnel_pack_auto", args=[self.production.pk])
+        response = self.client.post(url, {"product": str(self.product.pk), "tunnel": "T1"})
+        self.assertRedirects(
+            response,
+            f"{reverse('productions:tunnel_pack_create', args=[self.production.pk])}?product={self.product.pk}&pallet=1&tunnel=T1#tunnel-auto-pack-form",
+        )
+        entry = TunnelPackagingEntry.objects.get(
+            production=self.production,
+            product=self.product,
+            pallet_number=1,
+            is_active=True,
+        )
+        self.assertEqual(entry.package_count, 3)
+
+        exhausted = self.client.post(
+            url,
+            {"product": str(self.product.pk), "tunnel": "T1"},
+            follow=True,
+        )
+        self.assertContains(exhausted, "no reúne bandejas pendientes")
+
+        other = self.client.post(url, {"product": str(self.product.pk), "tunnel": "T2"})
+        entry.refresh_from_db()
+        self.assertEqual(entry.package_count, 6)
+
+        global_url = reverse("productions:tunnel_pack_create", args=[self.production.pk])
+        page = self.client.get(global_url)
+        self.assertContains(page, "6 bultos")
+
     def test_tunnel_auto_packaging_moves_to_next_pallet_when_current_is_full(self):
         self.template.rules = {"package_kg": 20, "package_trays": 2, "tunnel_pallet_package_capacity": 10, "tunnel_pallet_max": 50}
         self.template.save(update_fields=["rules"])

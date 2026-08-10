@@ -384,8 +384,10 @@ class PlateBalanceTests(TestCase):
         self.assertContains(response, "se formaron 10 bultos")
         self.assertContains(response, "Producto completamente empacado")
         self.assertNotContains(response, "Calcular bultos de este producto")
-        self.assertNotContains(
-            response,
-            f'<option value="{self.product_a.pk}"',
-            html=False,
+        auto_select = response.content.decode("utf-8").split(
+            'id="auto-pack-product"', 1
+        )[1].split("</select>", 1)[0]
+        self.assertNotIn(
+            f'value="{self.product_a.pk}"',
+            auto_select,
         )

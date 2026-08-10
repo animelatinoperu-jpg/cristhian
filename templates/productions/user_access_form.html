@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-header">
   <div class="page-header-copy">
-    <a class="page-header-back" href="{% url 'productions:user_list' %}">← Usuarios</a>
+    <a class="page-header-back" href="javascript:history.back()">← Volver</a>
     <span class="page-header-kicker">ACCESOS</span>
     <h1>{{ managed_user.get_full_name|default:managed_user.username }}</h1>
     <span class="page-header-sub">@{{ managed_user.username }} · Solicitó: {{ managed_user.get_requested_role_display|default:"No indicado" }}</span>

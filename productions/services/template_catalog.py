@@ -9,6 +9,7 @@ from pathlib import Path
 from django.db import transaction
 
 from productions.models import Crew, Material, PlatePosition, Product, Rate, Worker
+from productions.services.excel.analyzer import XlsmAnalyzer
 
 
 CELL_RE = re.compile(r"^([A-Z]+)(\d+)$")
@@ -300,6 +301,31 @@ def _maximum_pallet(report, sheet_name):
     return maximum
 
 
+def template_plate_codes(template_version):
+    """Códigos de producto de la plantilla (hoja PP), calculados una sola vez y guardados en its rules.
+
+    La hoja PP de cada plantilla define los productos exactos que se producen.
+    Al analizar la plantilla se guardan los códigos en ``rules["plate_product_codes"]``
+    para no reanalizar el archivo en cada página. Devuelve [] si no se pudo
+    determinar la lista (códigos ausentes o archivo inválido), para que el
+    llamador use su lista general.
+    """
+    rules = template_version.rules or {}
+    cached = rules.get("plate_product_codes")
+    if cached is not None:
+        return list(cached)
+    codes = []
+    try:
+        report = XlsmAnalyzer(template_version.file.path).analyze()
+        codes = [item["code"] for item in extract_production_products(report)]
+    except Exception:
+        codes = []
+    updated = {**rules, "plate_product_codes": codes}
+    template_version.rules = updated
+    template_version.save(update_fields=["rules"])
+    return codes
+
+
 @transaction.atomic
 def sync_template_catalog(template_version, report_path):
     report = json.loads(Path(report_path).read_text(encoding="utf-8"))
@@ -406,6 +432,7 @@ def sync_template_catalog(template_version, report_path):
         "tunnel_racks": extract_tunnel_racks(report),
         "tunnel_pallet_max": _maximum_pallet(report, "EM-TUN"),
         "plate_pallet_max": _maximum_pallet(report, "EM-PLA"),
+        "plate_product_codes": [item["code"] for item in extract_production_products(report)],
     }
     template_version.rules = rules
     template_version.save(update_fields=["rules"])

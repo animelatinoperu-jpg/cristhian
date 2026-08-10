@@ -37,6 +37,7 @@ from .forms import (
     TunnelCrewEntryForm,
     TunnelBatchFormSet,
     active_crew_queryset,
+    active_product_queryset,
     find_existing_crew_by_name,
     normalized_crew_name,
     TunnelEntryForm,
@@ -69,6 +70,7 @@ from .services.packaging_report_pdf import (
 from .services.reception_report import build_reception_report_pdf, build_reception_report_xlsx
 from .services.reception_tareo_report import ReceptionTareoReportError, build_reception_tareo_xlsx
 from .services.reception_tareo_report_pdf import build_reception_tareo_pdf
+from .services.template_catalog import template_plate_codes
 from .services.nuquera_tareo_report import NuqueraTareoReportError, build_nuquera_tareo_xlsx
 from .services.nuquera_tareo_report_pdf import build_nuquera_tareo_pdf
 from .services.troquelado_report import TroqueladoReportError, build_troquelado_xlsx
@@ -891,6 +893,46 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
                 messages.success(request, f"Se asignó {crew.name} al rack {locked_rack.code}.")
         return redirect(f"{reverse('productions:tunnel_batch', args=[self.production.pk, self.fill.pk])}?open_rack={rack.pk}#rack-{rack.pk}")
 
+    def _save_tunnel_entry(self, request, rack, product, tray_count, extra_target, locked_entries):
+        """Guarda o actualiza un registro de bandejas del rack y registra la auditoría."""
+        entry = locked_entries.get(extra_target.pk) if extra_target else None
+        old_value = None
+        if entry is None:
+            entry = TunnelEntry(
+                production=self.production,
+                responsible=request.user,
+                rack=rack,
+                product=product,
+                tray_count=tray_count,
+                date=self.fill.date,
+                observation="",
+            )
+            action = AuditLog.Action.CREATE
+        else:
+            old_value = {"product": entry.product.description, "tray_count": entry.tray_count}
+            entry.product = product
+            entry.tray_count = tray_count
+            entry.date = self.fill.date
+            entry.observation = ""
+            entry.responsible = request.user
+            action = AuditLog.Action.UPDATE
+        entry.full_clean()
+        with suppress_automatic_audit():
+            entry.save()
+        AuditLog.objects.create(
+            user=request.user,
+            production=self.production,
+            module="tunnel_racks",
+            model_name=entry._meta.label,
+            record_pk=str(entry.pk),
+            action=action,
+            old_value=old_value,
+            new_value={"rack": rack.code, "product": product.description, "tray_count": tray_count},
+            ip_address=request.META.get("REMOTE_ADDR"),
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+        )
+        return 1
+
     def post(self, request, *args, **kwargs):
         racks = self._racks()
         if "crew_rack_id" in request.POST:
@@ -905,6 +947,8 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
                 post_data[f"racks-{index}-entry_id"] = ""
                 post_data[f"racks-{index}-product"] = ""
                 post_data[f"racks-{index}-tray_count"] = ""
+                for key in [key for key in post_data if key.startswith(f"racks-{index}-extra_")]:
+                    del post_data[key]
         formset = TunnelBatchFormSet(post_data, prefix="racks")
         valid = formset.is_valid()
         allowed_ids = {rack.pk for rack in racks}
@@ -915,43 +959,100 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
         if not valid:
             return render(request, self.template_name, self._context(formset, racks), status=400)
 
+        extra_fields = {}
+        for i in range(len(formset.forms)):
+            items = []
+            k = 0
+            while True:
+                pk_key = f"racks-{i}-extra_product_{k}"
+                tray_key = f"racks-{i}-extra_trays_{k}"
+                if pk_key not in post_data and tray_key not in post_data:
+                    break
+                items.append((post_data.get(pk_key, ""), post_data.get(tray_key, "")))
+                k += 1
+            if items:
+                extra_fields[i] = items
+
         plans = []
-        for form in formset.forms:
+        for i, form in enumerate(formset.forms):
             rack = next(rack for rack in racks if rack.pk == form.cleaned_data["rack_id"])
             max_trays = form.cleaned_data["max_trays"]
             entry_id = form.cleaned_data.get("entry_id")
             product = form.cleaned_data.get("product")
             trays = form.cleaned_data.get("tray_count")
+            extras = []
+            extras_error = False
+            for pk_str, trays_str in extra_fields.get(i, []):
+                if not pk_str and not trays_str:
+                    continue
+                if not pk_str.isdigit() or not trays_str.isdigit():
+                    form.add_error(None, "Uno de los productos seleccionados no es válido. Verifique sus datos.")
+                    extras_error = True
+                    continue
+                extra_product = Product.objects.filter(pk=int(pk_str), active=True).first()
+                if extra_product is None:
+                    form.add_error(None, "Uno de los productos seleccionados ya no está disponible. Reloje la pantalla.")
+                    extras_error = True
+                    continue
+                extras.append((extra_product, int(trays_str)))
             if rack.status == TunnelRack.Status.CLOSED:
                 # Los racks cerrados siguen formando parte del formset para que
                 # la lista no cambie, pero deben ser filas de solo lectura. No
                 # pueden impedir que se guarden bandejas en los racks abiertos.
-                if entry_id or product or trays:
+                if entry_id or product or trays or extras:
                     form.add_error(None, "Este rack está cerrado. Reábralo antes de modificarlo.")
-                plans.append((rack, max_trays, None, None, None))
+                plans.append((rack, max_trays, None, None, None, []))
                 continue
             if rack.current_total > max_trays:
                 form.add_error("max_trays", f"El rack ya contiene {rack.current_total} bandejas; no puede reducirse a {max_trays}.")
-            if not product:
-                plans.append((rack, max_trays, None, None, None))
+            if not product and not extras:
+                plans.append((rack, max_trays, None, None, None, []))
                 continue
             if entry_id:
                 existing = next((entry for entry in rack.active_entries if entry.pk == entry_id), None)
                 if existing is None:
                     form.add_error(None, "El registro que intenta corregir cambió o fue eliminado. Recargue la pantalla.")
-                    plans.append((rack, max_trays, product, trays, None))
+                    plans.append((rack, max_trays, product, trays, None, []))
                     continue
             else:
-                existing = next((entry for entry in rack.active_entries if entry.product_id == product.pk), None)
+                existing = next((entry for entry in rack.active_entries if product is not None and entry.product_id == product.pk), None)
             if existing and any(
                 entry.pk != existing.pk and entry.product_id == product.pk
                 for entry in rack.active_entries
             ):
                 form.add_error("product", "Ese producto ya está guardado en este rack. Corrija directamente ese registro.")
+            if extras:
+                used_products = {product.pk} if product else set()
+                clean_extras = []
+                for extra_product, extra_trays in extras:
+                    if extra_product.pk in used_products:
+                        form.add_error(None, f"El producto «{extra_product.description}» ya fue seleccionado en este rack.")
+                        extras_error = True
+                        continue
+                    used_products.add(extra_product.pk)
+                    clean_extras.append((extra_product, extra_trays))
+                if extras_error:
+                    plans.append((rack, max_trays, product, trays, existing, []))
+                    continue
+                extras = [
+                    (extra_product, extra_trays, next(
+                        (entry for entry in rack.active_entries
+                         if entry.pk != (existing.pk if existing else None) and entry.product_id == extra_product.pk),
+                        None,
+                    ))
+                    for extra_product, extra_trays in clean_extras
+                ]
             total_without_existing = rack.current_total - (existing.tray_count if existing else 0)
-            if total_without_existing + trays > max_trays:
-                form.add_error("tray_count", f"El rack superaría su capacidad de {max_trays} bandejas; actualmente tiene {rack.current_total}.")
-            plans.append((rack, max_trays, product, trays, existing))
+            for _, _, target in extras:
+                if target:
+                    total_without_existing -= target.tray_count
+            total_check = total_without_existing + (trays or 0) + sum(item[1] for item in extras)
+            if total_check > max_trays:
+                if extras or not product:
+                    form.add_error(None, "La cantidad total de bandejas supera la capacidad del rack.")
+                else:
+                    form.add_error("tray_count", f"El rack superaría su capacidad de {max_trays} bandejas; actualmente tiene {rack.current_total}.")
+            plans.append((rack, max_trays, product, trays, existing, extras))
         if any(form.errors for form in formset.forms):
             return render(request, self.template_name, self._context(formset, racks), status=400)
 
@@ -961,14 +1062,18 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
                     rack.pk: rack
                     for rack in TunnelRack.objects.select_for_update().filter(pk__in=allowed_ids)
                 }
-                existing_ids = {existing.pk for _, _, _, _, existing in plans if existing}
+                existing_ids = {existing.pk for _, _, _, _, existing, _ in plans if existing}
+                for _, _, _, _, _, extras in plans:
+                    for _, _, target in extras:
+                        if target:
+                            existing_ids.add(target.pk)
                 locked_entries = {
                     entry.pk: entry
                     for entry in TunnelEntry.objects.select_for_update().filter(pk__in=existing_ids, is_active=True)
                 }
                 saved = 0
                 capacity_changes = 0
-                for rack, max_trays, product, trays, existing in plans:
+                for rack, max_trays, product, trays, existing, extras in plans:
                     locked_rack = locked_racks[rack.pk]
                     if locked_rack.max_trays != max_trays:
                         old_capacity = locked_rack.max_trays
@@ -990,6 +1095,15 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
                         capacity_changes += 1
                     rack.max_trays = max_trays
                     if not product:
+                        for extra_product, extra_trays, extra_target in extras:
+                            saved += self._save_tunnel_entry(
+                                request,
+                                rack,
+                                extra_product,
+                                extra_trays,
+                                extra_target,
+                                locked_entries,
+                            )
                         continue
                     old_value = None
                     if existing:
@@ -1030,6 +1144,15 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
                         user_agent=request.META.get("HTTP_USER_AGENT", ""),
                     )
                     saved += 1
+                    for extra_product, extra_trays, extra_target in extras:
+                        saved += self._save_tunnel_entry(
+                            request,
+                            rack,
+                            extra_product,
+                            extra_trays,
+                            extra_target,
+                            locked_entries,
+                        )
         except (ValidationError, IntegrityError) as exc:
             formset._non_form_errors = formset.error_class([
                 "; ".join(exc.messages) if hasattr(exc, "messages") else "No se pudo guardar porque otro registro cambió. Recargue la pantalla."
@@ -2199,7 +2322,7 @@ def _tunnel_pallet_capacity(production):
     )
 
 
-def _tunnel_product_availability(production):
+def _tunnel_product_availability(production, tunnel_code=None):
     package_trays = _tunnel_package_trays(production)
     package_kg = _tunnel_package_kg(production)
     physical_rows = list(
@@ -2282,6 +2405,35 @@ def _tunnel_product_availability(production):
                 "sources": source_rows,
             }
         )
+    if tunnel_code:
+        tunnel_physical = defaultdict(int)
+        for row in physical_rows:
+            if row["rack__fill__tunnel__code"] == tunnel_code:
+                tunnel_physical[row["product"]] += int(row["total"] or 0)
+        sliced_rows = []
+        for item in rows:
+            physical_trays = tunnel_physical.get(item["product"].pk, 0)
+            sources = [
+                source
+                for source in item["sources"]
+                if source["tunnel"] == tunnel_code
+            ]
+            pending_trays = sum(source["pending_trays"] for source in sources)
+            possible_packages = pending_trays // package_trays
+            item.update(
+                {
+                    "physical_trays": physical_trays,
+                    "packed_trays": physical_trays - pending_trays,
+                    "pending_trays": pending_trays,
+                    "possible_packages": possible_packages,
+                    "possible_kg": Decimal(possible_packages) * package_kg,
+                    "balance_trays": pending_trays % package_trays,
+                    "sources": sources,
+                }
+            )
+            if physical_trays or sources:
+                sliced_rows.append(item)
+        rows = sliced_rows
     return sorted(
         rows,
         key=lambda item: (
@@ -2337,8 +2489,65 @@ def _next_tunnel_pallet_number(production):
     return maximum_pallet
 
 
-def _tunnel_packaging_data(production):
-    availability = _tunnel_product_availability(production)
+def _tunnel_pack_cards(production, availability=None):
+    """Tarjetas por túnel con bandejas, pendientes y bultos formables.
+
+    El pendiente por túnel sale del mismo cálculo de consumo FIFO por
+    fila (rack) que usa el empaque, así las tarjetas y el cálculo
+    automático siempre coinciden.
+    """
+    if availability is None:
+        availability = _tunnel_product_availability(production)
+    tunnel_names = {tunnel.code: tunnel.name for tunnel in Tunnel.objects.all()}
+    rows = (
+        TunnelEntry.objects.filter(production=production, is_active=True)
+        .values("rack__fill__tunnel__code", "rack__fill__fill_number")
+        .annotate(total=Sum("tray_count"))
+    )
+    by_tunnel = {}
+    for row in rows:
+        code = row["rack__fill__tunnel__code"]
+        card = by_tunnel.setdefault(
+            code,
+            {
+                "code": code,
+                "name": tunnel_names.get(code, code),
+                "fills": set(),
+                "physical": 0,
+                "pending": 0,
+                "possible": 0,
+            },
+        )
+        card["fills"].add(row["rack__fill__fill_number"])
+        card["physical"] += int(row["total"] or 0)
+    for item in availability:
+        for source in item["sources"]:
+            card = by_tunnel.get(source["tunnel"])
+            if card is None:
+                continue
+            card["pending"] += source["pending_trays"]
+            card["possible"] += source["possible_packages"]
+    cards = []
+    package_kg = _tunnel_package_kg(production)
+    for card in by_tunnel.values():
+        card["fills"] = sorted(card["fills"])
+        card["packed"] = max(card["physical"] - card["pending"], 0)
+        card["pct"] = (
+            round(card["packed"] * 100 / card["physical"]) if card["physical"] else 0
+        )
+        card["possible_kg"] = Decimal(card["possible"]) * package_kg
+        cards.append(card)
+    return sorted(cards, key=lambda card: card["code"])
+
+
+def _tunnel_packaging_data(production, tunnel_code=None, availability=None, tunnels=None):
+    if availability is None:
+        availability = _tunnel_product_availability(production, tunnel_code=tunnel_code)
+    if tunnels is None:
+        tunnels = _tunnel_pack_cards(
+            production,
+            availability=_tunnel_product_availability(production),
+        )
     pallets = _tunnel_pallet_dashboard(production)
     return {
         "availability": availability,
@@ -2346,8 +2555,11 @@ def _tunnel_packaging_data(production):
         "physical_total": sum(item["physical_trays"] for item in availability),
         "packed_total": sum(item["packed_trays"] for item in availability),
         "pending_total": sum(item["pending_trays"] for item in availability),
+        "possible_total": sum(item["possible_packages"] for item in availability),
         "pallet_capacity": _tunnel_pallet_capacity(production),
         "pallet_max": production.template_version.rules.get("tunnel_pallet_max", 50),
+        "tunnels": tunnels,
+        "tunnel_codes": [card["code"] for card in tunnels],
     }
 
 
@@ -2649,8 +2861,31 @@ class OperationalContextMixin:
                 None,
             )
         if self.module_key == "tunnel-pack":
-            tunnel_packaging_data = _tunnel_packaging_data(self.production)
+            tunnel_availability = _tunnel_product_availability(self.production)
+            tunnel_cards = _tunnel_pack_cards(
+                self.production,
+                availability=tunnel_availability,
+            )
+            available_tunnel_codes = {card["code"] for card in tunnel_cards}
+            requested_tunnel = (self.request.GET.get("tunnel") or "").strip().upper()
+            selected_tunnel_code = (
+                requested_tunnel if requested_tunnel in available_tunnel_codes else None
+            )
+            tunnel_packaging_data = _tunnel_packaging_data(
+                self.production,
+                tunnel_code=selected_tunnel_code,
+                availability=(
+                    tunnel_availability
+                    if selected_tunnel_code is None
+                    else _tunnel_product_availability(
+                        self.production,
+                        tunnel_code=selected_tunnel_code,
+                    )
+                ),
+                tunnels=tunnel_cards,
+            )
             context["tunnel_packaging_data"] = tunnel_packaging_data
+            context["selected_tunnel_code"] = selected_tunnel_code
             available_product_ids = [
                 item["product"].pk
                 for item in tunnel_packaging_data["availability"]
@@ -4049,16 +4284,176 @@ class PlateCreateView(OperationalCreateView):
             f"{timing.position_id}={timezone.localtime(timing.load_started_at):%H:%M:%S}"
             for timing in started_timings
         )
+        positions = PlatePosition.objects.filter(
+            template_version=self.production.template_version,
+            active=True,
+        )
+        totals = dict(
+            PlateEntry.objects.filter(production=self.production, is_active=True)
+            .values_list("position_id")
+            .annotate(total=Sum("tray_count"))
+        )
+        context["plate_capture_position_capacities"] = ";".join(
+            f"{position.pk}={position.max_trays}" for position in positions
+        )
+        context["plate_capture_position_totals"] = ";".join(
+            f"{position.pk}={totals.get(position.pk, 0)}" for position in positions
+        )
+        saved_by_position = {}
+        for entry in PlateEntry.objects.filter(
+            production=self.production, is_active=True
+        ).order_by("product__description", "pk"):
+            saved_by_position.setdefault(entry.position_id, []).append(
+                (entry.product_id, entry.tray_count, entry.pk)
+            )
+        context["plate_capture_saved_entries"] = "|".join(
+            f"{position_id}:{' ;'.join(f'{pid}={trays}={eid}' for pid, trays, eid in entries)}"
+            for position_id, entries in sorted(saved_by_position.items())
+        )
+        plate_products = active_product_queryset()
+        plate_codes = template_plate_codes(self.production.template_version)
+        if plate_codes:
+            plate_products = Product.objects.filter(
+                code__in=plate_codes,
+                active=True,
+            ).order_by("code", "description")
+        context["plate_capture_lamina_colors"] = ";".join(
+            f"{product.pk}={product.lamina_color}" for product in plate_products
+        )
         return context
 
+    def _collect_plate_rows(self, form):
+        rows = []
+        product = form.cleaned_data.get("product")
+        tray_count = form.cleaned_data.get("tray_count")
+        if product and tray_count:
+            rows.append((product, tray_count))
+        for index in range(0, 7):
+            product_id = self.request.POST.get(f"extra_product_{index}", "") or ""
+            tray_text = self.request.POST.get(f"extra_trays_{index}", "") or ""
+            if product_id.isdigit() and tray_text.isdigit() and int(tray_text) >= 1:
+                rows.append(
+                    (
+                        get_object_or_404(Product, pk=int(product_id), active=True),
+                        int(tray_text),
+                    )
+                )
+        return rows
+
     def form_valid(self, form):
-        response = super().form_valid(form)
-        if getattr(self, "object", None) is not None and response.status_code == 302:
-            return redirect(
-                f"{reverse('productions:plate_create', args=[self.production.pk])}"
-                f"?position={self.object.position_id}#operational-entry-form"
+        form.instance.production = self.production
+        form.instance.responsible = self.request.user
+        if not form.instance.date:
+            form.instance.date = (
+                self.production.production_date or self.production.reception_date
             )
-        return response
+        position = form.cleaned_data.get("position")
+        if position is None:
+            return self.form_invalid(form)
+        rows = self._collect_plate_rows(form)
+        if not rows:
+            form.add_error(None, "Seleccione al menos un producto con sus bandejas.")
+            return self.form_invalid(form)
+        if len({row[0].pk for row in rows}) < len(rows):
+            form.add_error(None, "No puede repetir el mismo producto en el plaquero.")
+            return self.form_invalid(form)
+        try:
+            with transaction.atomic():
+                locked_entry = PlateEntry(
+                    production=self.production,
+                    position=position,
+                )
+                _lock_plate_positions(locked_entry)
+                position = locked_entry.position
+                timing = (
+                    PlatePositionTiming.objects.select_for_update()
+                    .filter(
+                        production=self.production,
+                        position=position,
+                    )
+                    .first()
+                )
+                if timing is None or not timing.load_started_at:
+                    raise ValidationError(
+                        "Primero inicie el llenado del plaquero y tome la hora; después registre sus productos."
+                    )
+                if timing.load_completed_at:
+                    raise ValidationError(
+                        "La carga de este plaquero ya fue finalizada. No puede agregar más productos."
+                    )
+                shift = form.cleaned_data.get("shift") or ProductionOrder.Shift.from_datetime(
+                    timing.load_started_at
+                )
+                saved_stack = []
+                used_products = set()
+                for product, tray_count in rows:
+                    if product.pk in used_products:
+                        raise ValidationError(
+                            {"tray_count": f"El producto «{product.description}» ya fue seleccionado en este plaquero."}
+                        )
+                    used_products.add(product.pk)
+                    existing = (
+                        PlateEntry.objects.select_for_update()
+                        .filter(
+                            production=self.production,
+                            position=position,
+                            product=product,
+                            is_active=True,
+                        )
+                        .first()
+                    )
+                    if existing is None:
+                        entry = PlateEntry(
+                            production=self.production,
+                            position=position,
+                            product=product,
+                            tray_count=tray_count,
+                            date=form.instance.date,
+                            shift=shift,
+                            responsible=self.request.user,
+                            observation=form.cleaned_data.get("observation", ""),
+                        )
+                        action = AuditLog.Action.CREATE
+                        old_value = None
+                    else:
+                        entry = existing
+                        old_value = _operational_record_payload(existing)
+                        entry.tray_count = tray_count
+                        entry.shift = shift
+                        entry.observation = form.cleaned_data.get("observation", "")
+                        action = AuditLog.Action.UPDATE
+                    entry.full_clean()
+                    with suppress_automatic_audit():
+                        entry.save()
+                    AuditLog.objects.create(
+                        user=self.request.user,
+                        production=self.production,
+                        module="plates",
+                        model_name=entry._meta.label,
+                        record_pk=str(entry.pk),
+                        action=action,
+                        old_value=old_value,
+                        new_value=_operational_record_payload(entry),
+                        ip_address=self.request.META.get("REMOTE_ADDR"),
+                        user_agent=self.request.META.get("HTTP_USER_AGENT", ""),
+                    )
+                    saved_stack.append(entry)
+        except (ValidationError, IntegrityError) as exc:
+            form.add_error(
+                None,
+                "; ".join(exc.messages)
+                if hasattr(exc, "messages")
+                else "Registro duplicado o incompatible.",
+            )
+            return self.form_invalid(form)
+        messages.success(
+            self.request,
+            f"{len(saved_stack)} producto{'s' if len(saved_stack) != 1 else ''} guardado{'s' if len(saved_stack) != 1 else ''} en el plaquero.",
+        )
+        return redirect(
+            f"{reverse('productions:plate_create', args=[self.production.pk])}"
+            f"?position={position.pk}#operational-entry-form"
+        )
 
 
 class PlateTimingActionView(LoginRequiredMixin, View):
@@ -4490,6 +4885,17 @@ class TunnelAutoPackagingView(LoginRequiredMixin, View):
         if not str(product_id).isdigit():
             messages.error(request, "Seleccione producto para empacar túneles.")
             return redirect("productions:tunnel_pack_create", pk=production.pk)
+        requested_tunnel = (request.POST.get("tunnel") or "").strip().upper()
+        tunnel_code = (
+            requested_tunnel
+            if requested_tunnel
+            in set(
+                TunnelEntry.objects.filter(production=production, is_active=True)
+                .values_list("rack__fill__tunnel__code", flat=True)
+                .distinct()
+            )
+            else None
+        )
         pallet_number = _next_tunnel_pallet_number(production)
         maximum_pallet = production.template_version.rules.get("tunnel_pallet_max", 50)
         if pallet_number < 1 or (maximum_pallet and pallet_number > maximum_pallet):
@@ -4502,7 +4908,9 @@ class TunnelAutoPackagingView(LoginRequiredMixin, View):
                 availability = next(
                     (
                         item
-                        for item in _tunnel_product_availability(production)
+                        for item in _tunnel_product_availability(
+                            production, tunnel_code=tunnel_code
+                        )
                         if item["product"].pk == product.pk
                     ),
                     None,
@@ -4582,6 +4990,8 @@ class TunnelAutoPackagingView(LoginRequiredMixin, View):
         url = reverse("productions:tunnel_pack_create", args=[production.pk])
         if str(product_id).isdigit():
             url = f"{url}?product={product_id}&pallet={pallet_number}"
+            if tunnel_code:
+                url = f"{url}&tunnel={tunnel_code}"
         return redirect(f"{url}#tunnel-auto-pack-form")
 
 
@@ -5982,7 +6392,7 @@ def manifest(request):
 
 
 def service_worker(request):
-    content = """const CACHE='pp-shell-v5';const ASSETS=['/','/manifest.webmanifest','/static/css/app.css','/static/js/app.js?v=20260724-delete-action-2','/static/icons/icon.svg'];self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});self.addEventListener('activate',e=>e.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))])));self.addEventListener('fetch',e=>{if(e.request.method==='GET')e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)))});"""
+    content = """const CACHE='pp-shell-v8';const ASSETS=['/','/manifest.webmanifest','/static/css/app.css','/static/js/app.js?v=20260810-seleccion-limpia','/static/icons/icon.svg'];self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});self.addEventListener('activate',e=>e.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))])));self.addEventListener('fetch',e=>{if(e.request.method==='GET')e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)))});"""
     response = HttpResponse(content, content_type="application/javascript")
     response["Service-Worker-Allowed"] = "/"
     response["Cache-Control"] = "no-cache, no-store, must-revalidate"

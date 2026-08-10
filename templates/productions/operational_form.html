@@ -5,11 +5,7 @@
 {% block content %}
 <div class="page-header">
   <div class="page-header-copy">
-    {% if module_key == 'plate-crews' %}
-    <a class="page-header-back" href="{% url 'productions:plate_create' production.pk %}">← Volver a Envasado en plaqueros</a>
-    {% else %}
-    <a class="page-header-back" href="{% url 'productions:detail' production.pk %}">← Volver al PP {{ production.number }}</a>
-    {% endif %}
+    <a class="page-header-back" href="javascript:history.back()">← Volver</a>
     <span class="page-header-kicker">{% if module_key == 'troquelado' %}ETAPA OPERATIVA · TROQUELADO{% else %}REGISTRO DE PLANTA{% endif %}</span>
     <h1>{% if editing %}{{ form_title }}{% elif module_key == 'tunnel-crews' and selected_fill %}{{ selected_fill.tunnel.code }} · Llenada {{ selected_fill.fill_number }} · Bandejas por cuadrilla{% elif module_key == 'plate-crews' %}Bandejas por cuadrilla en plaqueros{% elif module_key == 'plate-pack' and selected_plate_pack_position %}{{ selected_plate_pack_position.operational_label }} · Códigos y empaque{% else %}{{ module_title }}{% endif %}</h1>
   </div>
@@ -298,8 +294,48 @@
     <div class="alert alert-info mb-3"><strong>Primero inicie el llenado y tome la hora.</strong> La aplicación definirá automáticamente el turno: Día 06:00–13:59, Tarde 14:00–21:59 o Noche 22:00–05:59. Cada plaquero puede acumular uno o varios productos, con un máximo total de <strong>189 bandejas</strong>. Después se habilitará el registro de productos.</div>
     {% endif %}
     {% if module_key == 'tunnel-pack' and not editing %}
+    <section class="card border-0 shadow-sm mb-3 tunnel-pack-selector">
+      <div class="card-body p-3 p-md-4">
+        <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
+          <div>
+            <p class="eyebrow mb-1">SELECCIÓN POR TÚNEL</p>
+            <h2 class="h4 mb-1">Tarjetas de túneles</h2>
+            <p class="small text-secondary mb-0">Toque el túnel que va a empacar. Puede empacar uno y luego el siguiente.</p>
+          </div>
+          <div class="d-flex flex-column align-items-end gap-2">
+            <span class="status">{% if selected_tunnel_code %}Túnel {{ selected_tunnel_code }} seleccionado{% else %}Seleccione un túnel{% endif %}</span>
+            <div class="tunnel-pack-summary">
+              <span>{{ tunnel_packaging_data.tunnels|length }} túnel{{ tunnel_packaging_data.tunnels|pluralize:"es" }}</span>
+              <span>{{ tunnel_packaging_data.pending_total }} pendientes</span>
+              {% if tunnel_packaging_data.possible_total %}<span class="tunnel-pack-summary-ready">{{ tunnel_packaging_data.possible_total }} bulto{{ tunnel_packaging_data.possible_total|pluralize:"s" }} listo{{ tunnel_packaging_data.possible_total|pluralize:"s" }}</span>{% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="tunnel-pack-cards">
+          {% if tunnel_packaging_data.tunnels %}
+          {% for tunnel in tunnel_packaging_data.tunnels %}
+          <a class="tunnel-pack-card tunnel-pack-card-{{ tunnel.code|lower }}{% if tunnel.code == selected_tunnel_code %} tunnel-pack-card-active{% endif %}{% if tunnel.pending == 0 %} tunnel-pack-card-done{% endif %}" href="{% url 'productions:tunnel_pack_create' production.pk %}?tunnel={{ tunnel.code }}" style="background-image:url('{% static 'img/tunnel-'|add:tunnel.code|lower|add:'.webp' %}')" aria-label="Seleccionar túnel {{ tunnel.code }}" {% if tunnel.code == selected_tunnel_code %}aria-current="true"{% endif %}>
+            <span class="tunnel-pack-badge">{{ tunnel.code }}</span>
+            {% if tunnel.pending == 0 %}<span class="tunnel-pack-done-badge">Al día</span>{% elif tunnel.possible %}<span class="tunnel-pack-bultos-badge">{{ tunnel.possible }} bulto{{ tunnel.possible|pluralize:"s" }} · {{ tunnel.possible_kg|floatformat:"0" }} kg</span>{% endif %}
+            <span class="tunnel-pack-name">{{ tunnel.name }}</span>
+            <small class="tunnel-pack-meta">Llenada{{ tunnel.fills|pluralize:"s" }} {{ tunnel.fills|join:", " }} · {{ tunnel.physical }} bandejas</small>
+            <div class="tunnel-pack-hero{% if tunnel.pending == 0 %} tunnel-pack-hero-done{% endif %}">
+              <strong>{% if tunnel.pending %}{{ tunnel.pending }}{% else %}{{ tunnel.packed }}{% endif %}</strong>
+              <span>{% if tunnel.pending %}pendientes{% else %}empacadas{% endif %}</span>
+            </div>
+            <div class="tunnel-pack-bar" aria-hidden="true"><span style="width:{{ tunnel.pct }}%"></span></div>
+            {% if tunnel.pending == 1 %}<span class="tunnel-pack-stats-wait">Falta 1 bandeja</span>{% endif %}
+          </a>
+          {% endfor %}
+          {% else %}
+          <p class="small text-secondary mb-0">Primero registre bandejas en túneles para ver las tarjetas.</p>
+          {% endif %}
+        </div>
+      </div>
+    </section>
     <form id="tunnel-auto-pack-form" method="post" action="{% url 'productions:tunnel_pack_auto' production.pk %}" class="card border-0 shadow-sm auto-pack-form mb-3" data-prevent-double-submit>
       {% csrf_token %}
+      {% if selected_tunnel_code %}<input type="hidden" name="tunnel" value="{{ selected_tunnel_code }}">{% endif %}
       <div class="card-body p-3 p-md-4">
         <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
           <div>
@@ -554,7 +590,11 @@
           </div>
           {% elif selected_reception_car %}
           <div class="alert alert-success d-flex flex-wrap justify-content-between align-items-center gap-2">
+            {% if selected_reception_car.dino_count %}
+            <span><strong>Agregando otro dino al CARRO {{ selected_reception_car.car_number }}.</strong><br>{{ selected_reception_car.vehicle.plate }} y {{ selected_reception_car.product.description }} siguen fijados. Toque una cuadrilla para registrar sus dinos y kilos.</span>
+            {% else %}
             <span><strong>Carro {{ selected_reception_car.car_number }} creado.</strong><br>{{ selected_reception_car.vehicle.plate }} y {{ selected_reception_car.product.description }} quedan fijados. Toque una cuadrilla para registrar sus dinos y kilos.</span>
+            {% endif %}
             <a class="btn btn-sm btn-ghost" href="{{ module_create_url }}#reception-entry-form">Registrar otro carro</a>
           </div>
           {% else %}
@@ -651,8 +691,41 @@
               <button class="btn btn-ghost" type="submit" formaction="{% url 'productions:plate_load_start_selected' production.pk %}" formmethod="post" formnovalidate data-plate-start-button>Iniciar llenado · tomar hora</button>
             </div>
             <div class="col-12 plate-capture-step-heading plate-capture-product-heading" data-plate-capture-field><span>PASO 3</span><strong>Registre los productos y las bandejas</strong></div>
-            {% endif %}
-            <div class="col-12 {% if field.name == 'observations' or field.name == 'observation' %}col-md-12{% else %}col-md-6{% endif %}{% if module_key == 'reception' and not editing and field.name in 'time observation' or module_key == 'reception' and not editing and not selected_reception_car and field.name in 'crew container weight_kg' or module_key == 'reception' and not editing and selected_reception_car and not selected_reception_crew and field.name in 'vehicle_text car_number product crew container weight_kg' or module_key == 'reception' and selected_reception_crew and field.name in 'vehicle_text car_number product crew' or module_key == 'nuqueras' and nuquera_focused_worker and field.name != 'weight_kg' %} d-none{% endif %}"{% if module_key == 'plates' and not editing and field.name == 'product' or module_key == 'plates' and not editing and field.name == 'tray_count' or module_key == 'plates' and not editing and field.name == 'observation' %} data-plate-capture-field{% endif %}>
+            <div
+              class="col-12"
+              data-plate-product-editor
+              data-plate-caps="{{ plate_capture_position_capacities }}"
+              data-plate-totals="{{ plate_capture_position_totals }}"
+              data-plate-saved="{{ plate_capture_saved_entries }}"
+              data-plate-lamina-colors="{{ plate_capture_lamina_colors }}"
+            >
+              <div class="mb-1">
+                <label class="form-label fw-semibold mb-1">Productos del plaquero</label>
+                <button type="button" class="rack-selector" data-plate-selector>
+                  <span class="rack-selector-label" data-plate-selector-label>Seleccione los productos</span>
+                  <span class="rack-selector-arrow" aria-hidden="true">▼</span>
+                </button>
+                <div class="rack-multiselect d-none" data-plate-multiselect>
+                  <div class="rack-multiselect-searchbox">
+                    <span class="rack-multiselect-searchmark">🔍</span>
+                    <input class="form-control form-control-sm" type="search" placeholder="Buscar producto por código o nombre..." autocomplete="off" data-plate-multiselect-search>
+                  </div>
+                  <ul class="rack-multiselect-list" data-plate-multiselect-list></ul>
+                  <div class="rack-multiselect-footer">
+                    <span class="rack-multiselect-count" data-plate-multiselect-count>0 seleccionados</span>
+                    <button type="button" class="btn btn-sm btn-primary" data-plate-multiselect-done>LISTO</button>
+                  </div>
+                </div>
+                <div class="d-none">{{ form.product }}{{ form.tray_count }}</div>
+                {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                <div class="rack-tray-editor" data-plate-tray-editor></div>
+                <div class="rack-editor-total">TOTAL BANDEJAS: <strong data-plate-editor-total>0</strong> / <span data-plate-editor-capacity>189</span></div>
+                <div class="text-danger small d-none" data-plate-tray-warning>La cantidad total de bandejas supera la capacidad del plaquero.</div>
+              </div>
+            </div>
+            {% elif module_key == 'plates' and not editing and field.name == 'tray_count' %}
+            {% else %}
+            <div class="col-12 {% if field.name == 'observations' or field.name == 'observation' %}col-md-12{% else %}col-md-6{% endif %}{% if module_key == 'reception' and not editing and field.name in 'time observation' or module_key == 'reception' and not editing and not selected_reception_car and field.name in 'crew container weight_kg' or module_key == 'reception' and not editing and selected_reception_car and not selected_reception_crew and field.name in 'vehicle_text car_number product crew container weight_kg' or module_key == 'reception' and selected_reception_crew and field.name in 'vehicle_text car_number product crew' or module_key == 'nuqueras' and nuquera_focused_worker and field.name != 'weight_kg' %} d-none{% endif %}"{% if module_key == 'plates' and not editing and field.name == 'observation' or module_key == 'plates' and not editing and field.name == 'product' or module_key == 'plates' and not editing and field.name == 'tray_count' %} data-plate-capture-field{% endif %}>
               {% if field.name == 'observation' %}
               <details class="border rounded-3 p-2 bg-light"{% if field.value or field.errors %} open{% endif %}>
                 <summary class="fw-semibold">Agregar observación <span class="text-secondary fw-normal">(opcional)</span></summary>
@@ -670,6 +743,7 @@
               {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
               {% endif %}
             </div>
+            {% endif %}
             {% endif %}
             {% endif %}
           {% endfor %}
@@ -835,7 +909,7 @@
         <p class="small text-secondary">Cada bloque representa una posición de plaquero. El envasado físico puede contener varios productos, pero su suma tiene un tope de 189 bandejas.</p>
         <div class="tunnel-crew-rack-list">
           {% for group in plate_crew_data.groups %}
-          <article id="plate-position-{{ group.position.pk }}" class="tunnel-crew-rack plate-card-collapsible plate-position-plaquero-{{ group.position.plaquero_number }} {% if group.is_physical_full %}plate-position-physical-full{% endif %}{% if group.timing.unloaded_at %} plate-position-unloaded plate-card-state-unloaded{% elif group.timing.launched_at %} plate-position-launched plate-card-state-launched{% elif group.timing.load_completed_at or group.is_physical_full %} plate-card-state-complete{% elif group.timing.load_started_at %} plate-card-state-filling{% else %} plate-card-state-idle{% endif %}">
+          <article id="plate-position-{{ group.position.pk }}" class="tunnel-crew-rack plate-card-collapsible plate-physical-card plate-position-plaquero-{{ group.position.plaquero_number }} {% if group.is_physical_full %}plate-position-physical-full{% endif %}{% if group.timing.unloaded_at %} plate-position-unloaded plate-card-state-unloaded{% elif group.timing.launched_at %} plate-position-launched plate-card-state-launched{% elif group.timing.load_completed_at or group.is_physical_full %} plate-card-state-complete{% elif group.timing.load_started_at %} plate-card-state-filling{% else %} plate-card-state-idle{% endif %}">
             <details class="plate-position-fold" data-plate-fold{% if plate_card_open_position_id == group.position.pk and not group.timing.unloaded_at %} open{% endif %}>
               <summary class="plate-card-summary">
                 <span class="plate-card-summary-title">
@@ -856,7 +930,7 @@
             {% for entry in group.physical_entries %}
             <section class="tunnel-crew-entry-row">
               <div><strong>{{ entry.product.description }}</strong><span>{{ entry.tray_count }} bandejas</span><small>Registrado por: {{ entry.responsible.get_full_name|default:entry.responsible.username }}</small></div>
-              {% if not operational_read_only %}<div class="d-flex flex-wrap gap-2">
+              {% if not operational_read_only %}<div class="plate-row-actions">
                 <a class="btn btn-sm btn-outline-primary" href="{% url 'productions:operational_entry_update' production.pk module_key entry.pk %}">Corregir</a>
                 <form method="post" action="{% url 'productions:operational_entry_delete' production.pk module_key entry.pk %}" data-prevent-double-submit data-confirm-message="¿Eliminar {{ entry.tray_count }} bandejas de la Bachada {{ group.position.batch_number }}, Plaquero {{ group.position.plaquero_number }}?">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Eliminar</button></form>
               </div>{% endif %}

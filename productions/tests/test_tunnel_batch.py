@@ -575,6 +575,98 @@ class TunnelBatchCaptureTests(TestCase):
         self.assertContains(response, "R01 · 15 pendientes")
         self.assertContains(response, f"?open_rack={rack.pk}#rack-{rack.pk}")
 
+    def test_batch_save_with_multiple_products_via_extra_rows(self):
+        self.client.get(self.url)
+        third = Product.objects.create(code="P003", description="PRODUCTO TERCERO")
+        data = self._post_data(10)
+        data["racks-0-extra_product_0"] = str(self.other_product.pk)
+        data["racks-0-extra_trays_0"] = "5"
+        data["racks-0-extra_product_1"] = str(third.pk)
+        data["racks-0-extra_trays_1"] = "3"
+
+        response = self.client.post(self.url, data)
+
+        self.assertRedirects(response, self.url)
+        rack = self.fill.racks.order_by("code").first()
+        entries = {
+            (entry.product_id, entry.tray_count)
+            for entry in TunnelEntry.objects.filter(rack=rack, is_active=True)
+        }
+        self.assertEqual(
+            entries,
+            {(self.product.pk, 10), (self.other_product.pk, 5), (third.pk, 3)},
+        )
+        self.assertEqual(
+            AuditLog.objects.filter(action=AuditLog.Action.CREATE, module="tunnel_racks").count(),
+            3,
+        )
+
+    def test_extra_rows_update_already_saved_entries(self):
+        self.client.get(self.url)
+        self.client.post(self.url, self._post_data(20))
+        entry = TunnelEntry.objects.get(is_active=True)
+        racks = list(self.fill.racks.order_by("code"))
+        data = {
+            "racks-TOTAL_FORMS": "2",
+            "racks-INITIAL_FORMS": "0",
+            "racks-MIN_NUM_FORMS": "0",
+            "racks-MAX_NUM_FORMS": "1000",
+            "racks-0-rack_id": str(racks[0].pk),
+            "racks-0-entry_id": "",
+            "racks-0-max_trays": "50",
+            "racks-0-product": "",
+            "racks-0-tray_count": "",
+            "racks-0-extra_product_0": str(self.product.pk),
+            "racks-0-extra_trays_0": "7",
+            "racks-1-rack_id": str(racks[1].pk),
+            "racks-1-entry_id": "",
+            "racks-1-max_trays": "50",
+            "racks-1-product": "",
+            "racks-1-tray_count": "",
+        }
+
+        response = self.client.post(self.url, data)
+
+        self.assertRedirects(response, self.url)
+        entry.refresh_from_db()
+        self.assertEqual(entry.tray_count, 7)
+        update_log = AuditLog.objects.filter(
+            record_pk=str(entry.pk),
+            action=AuditLog.Action.UPDATE,
+        ).latest("timestamp")
+        self.assertEqual(update_log.old_value["tray_count"], 20)
+        self.assertEqual(update_log.new_value["tray_count"], 7)
+
+    def test_duplicate_product_in_extra_rows_is_rejected(self):
+        self.client.get(self.url)
+        data = self._post_data(10)
+        data["racks-0-extra_product_0"] = str(self.other_product.pk)
+        data["racks-0-extra_trays_0"] = "5"
+        data["racks-0-extra_product_1"] = str(self.other_product.pk)
+        data["racks-0-extra_trays_1"] = "5"
+
+        response = self.client.post(self.url, data)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(response, "ya fue seleccionado en este rack", status_code=400)
+        self.assertFalse(TunnelEntry.objects.exists())
+
+    def test_extra_rows_cannot_exceed_rack_capacity(self):
+        self.client.get(self.url)
+        data = self._post_data(10)
+        data["racks-0-extra_product_0"] = str(self.other_product.pk)
+        data["racks-0-extra_trays_0"] = "41"
+
+        response = self.client.post(self.url, data)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(
+            response,
+            "La cantidad total de bandejas supera la capacidad del rack",
+            status_code=400,
+        )
+        self.assertFalse(TunnelEntry.objects.exists())
+
     def test_quick_create_warns_and_reuses_name_with_different_accent(self):
         Crew.objects.create(code="CUAD-FERMIN", name="FERMIN")
         quick_url = reverse(

@@ -385,6 +385,35 @@ class OperationalCorrectionTests(TestCase):
             ),
         )
 
+    def test_plate_products_list_is_limited_to_the_template_products(self):
+        Product.objects.create(code="PP-002", description="OTRO DE LA PLANTILLA")
+        fuera = Product.objects.create(code="PP-999", description="FUERA DE LA PLANTILLA")
+        self.template.rules = {
+            **self.template.rules,
+            "plate_product_codes": [self.product.code, "PP-002"],
+        }
+        self.template.save(update_fields=["rules"])
+
+        response = self.client.get(
+            reverse("productions:plate_create", args=[self.production.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="%d"' % self.product.pk)
+        self.assertNotContains(response, 'value="%d"' % fuera.pk)
+
+    def test_plate_products_list_falls_back_when_template_has_no_plate_codes(self):
+        extra = Product.objects.create(code="PP-002", description="OTRO PRODUCTO")
+        self.template.rules.pop("plate_product_codes", None)
+        self.template.save(update_fields=["rules"])
+
+        response = self.client.get(
+            reverse("productions:plate_create", args=[self.production.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="%s"' % extra.pk)
+
     def test_plate_crew_page_returns_to_plate_physical_capture(self):
         response = self.client.get(
             reverse("productions:plate_crew_create", args=[self.production.pk])
