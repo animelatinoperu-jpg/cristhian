@@ -1,87 +1,8 @@
 """sync_railway_to_local -- Copia producciones desde Railway Postgres a SQLite local."""
 
 from django.core.management.base import BaseCommand, CommandError
-from django.db import connections, transaction
-from django.db.models import Max
-
-from productions.models import (
-    AreaAssignment,
-    AuditLog,
-    CostEntry,
-    Crew,
-    Customer,
-    GeneratedFile,
-    MaterialUsage,
-    NuqueraEntry,
-    PlateCarryoverBalance,
-    PlateCrewEntry,
-    PlateEntry,
-    PlatePackagingAllocation,
-    PlatePackagingEntry,
-    PlatePallet,
-    PlatePalletConsumption,
-    PlatePalletLine,
-    PlatePosition,
-    PlatePositionTiming,
-    Product,
-    ProductionOrder,
-    Rate,
-    ReceptionCarTiming,
-    ReceptionEntry,
-    Role,
-    TemplateVersion,
-    TroqueladoEntry,
-    Tunnel,
-    TunnelCrewEntry,
-    TunnelEntry,
-    TunnelFill,
-    TunnelPackagingEntry,
-    TunnelRack,
-    User,
-    Vehicle,
-    Worker,
-)
-
-PRODUCTION_DEPENDENCIES = [
-    (Customer, "customer"),
-    (TemplateVersion, "template_version"),
-    (User, "responsible"),
-    (User, "created_by"),
-]
-
-PRODUCTION_CHILDREN = [
-    (TunnelFill, "production"),
-    (ReceptionEntry, "production"),
-    (ReceptionCarTiming, "production"),
-    (NuqueraEntry, "production"),
-    (TunnelCrewEntry, "production"),
-    (PlateEntry, "production"),
-    (PlateCrewEntry, "production"),
-    (PlatePosition, "production"),
-    (PlatePositionTiming, "production"),
-    (TunnelPackagingEntry, "production"),
-    (PlatePackagingEntry, "production"),
-    (PlateCarryoverBalance, "production"),
-    (PlatePallet, "production"),
-    (MaterialUsage, "production"),
-    (CostEntry, "production"),
-    (TroqueladoEntry, "production"),
-]
-
-CHILD_CHILDREN = [
-    (TunnelEntry, "rack__fill__production"),
-    (TunnelRack, "fill__production"),
-    (PlatePackagingAllocation, "position__production"),
-    (PlatePalletConsumption, "pallet__production"),
-    (PlatePalletLine, "pallet__production"),
-    (GeneratedFile, "production"),
-    (AuditLog, "production"),
-    (AreaAssignment, "production"),
-]
-
-RELATED_MODELS = [
-    Product, Crew, Tunnel, Rate, Role, Vehicle, Worker,
-]
+from django.db import connections, transaction, IntegrityError
+from django.apps import apps
 
 
 class Command(BaseCommand):
@@ -91,67 +12,124 @@ class Command(BaseCommand):
         parser.add_argument("--force", action="store_true", help="Sobrescribir producciones locales aunque ya existan")
 
     def handle(self, *args, **options):
-        remote_alias = "railway"
-        force_flag = options["force"]
+        remote = "railway"
+        force = options["force"]
 
         try:
-            remote_db = connections[remote_alias]
-        except Exception:
-            raise CommandError(
-                "No se encontro la conexion 'railway' en DATABASES. "
-                "Asegurese de que el archivo .env.railway existe con las credenciales correctas."
-            )
+            connections[remote].ensure_connection()
+        except Exception as e:
+            raise CommandError(f"No se pudo conectar a Railway: {e}")
 
-        local_pks = set(
-            ProductionOrder.objects.using("default").values_list("pk", flat=True)
-        )
+        ProductionOrder = apps.get_model("productions", "ProductionOrder")
+        User = apps.get_model("productions", "User")
+        Customer = apps.get_model("productions", "Customer")
+        TemplateVersion = apps.get_model("productions", "TemplateVersion")
+        Product = apps.get_model("productions", "Product")
 
-        remote_productions = (
-            ProductionOrder.objects.using(remote_alias)
-            .select_related(*[f"{dep[0]._meta.db_table}__{dep[1]}" for dep in PRODUCTION_DEPENDENCIES if dep[0] is not User])
-            .order_by("pk")
-        )
+        remote_ids = set(ProductionOrder.objects.using(remote).values_list("pk", flat=True))
+        local_ids = set(ProductionOrder.objects.using("default").values_list("pk", flat=True))
 
-        total = remote_productions.count()
-        self.stdout.write(f"Producciones en Railway: {total}")
+        self.stdout.write(f"Producciones en Railway: {len(remote_ids)}")
+        self.stdout.write(f"Producciones locales: {len(local_ids)}")
+
+        new_ids = remote_ids - local_ids if not force else remote_ids
+        if not new_ids:
+            self.stdout.write(self.style.SUCCESS("Todo sincronizado."))
+            return
+
+        related = []
+        for model in apps.get_models():
+            if model._meta.app_label != "productions":
+                continue
+            if model is ProductionOrder:
+                continue
+            for field in model._meta.get_fields():
+                if field.is_relation and field.related_model == ProductionOrder:
+                    related.append((model, field.name))
+                    break
 
         copied = 0
-        skipped = 0
+        for pk in sorted(new_ids):
+            prod = ProductionOrder.objects.using(remote).get(pk=pk)
+            label = f"PP-{prod.number}/{str(prod.created_at.year)[-2:]}"
 
-        for prod in remote_productions.iterator(chunk_size=10):
-            if prod.pk in local_pks and not force_flag:
-                skipped += 1
-                continue
+            sid = transaction.savepoint(using="default")
+            try:
+                self._map_fks(prod, remote, User, Customer, TemplateVersion, Product)
+                old_pk = prod.pk
+                prod.pk = None
+                prod._state.db = "default"
+                prod.save(using="default")
+                new_pk = prod.pk
 
-            with transaction.atomic(using="default"):
-                self._copy_production(prod, remote_alias)
-            copied += 1
-            self.stdout.write(f"  [OK] PP-{prod.pp_number}/{prod.created_at.year % 100:02d}")
+                for model, fk_name in related:
+                    for obj in model.objects.using(remote).filter(**{fk_name: old_pk}).iterator(chunk_size=100):
+                        try:
+                            obj.pk = None
+                            obj._state.db = "default"
+                            setattr(obj, fk_name + "_id", new_pk)
+                            obj.save(using="default")
+                        except IntegrityError:
+                            pass
 
-        self.stdout.write(self.style.SUCCESS(f"Sync completo: {copied} copiadas, {skipped} omitidas (ya existian)."))
+                transaction.savepoint_commit(sid, using="default")
+                copied += 1
+                self.stdout.write(f"  [OK] {label}")
 
-    def _copy_production(self, prod, remote):
-        prod_pk = prod.pk
+            except Exception as e:
+                transaction.savepoint_rollback(sid, using="default")
+                self.stdout.write(self.style.WARNING(f"  [SKIP] {label}: {e}"))
 
-        for record in self._iter_related(prod, remote):
-            record.pk = None
-            record._state.db = "default"
-            record.save(using="default")
+        self.stdout.write(self.style.SUCCESS(f"Sync completo: {copied} producciones."))
 
-        self._copy_children(prod_pk, remote)
+    def _map_fks(self, prod, remote, User, Customer, TemplateVersion, Product):
+        """Mapea las FKs de la produccion remota a IDs locales."""
+        if prod.created_by_id:
+            remote_user = User.objects.using(remote).get(pk=prod.created_by_id)
+            local_user = User.objects.using("default").filter(username=remote_user.username).first()
+            if local_user:
+                prod.created_by_id = local_user.pk
+            else:
+                try:
+                    remote_user.pk = None
+                    remote_user._state.db = "default"
+                    remote_user.save(using="default")
+                    prod.created_by_id = remote_user.pk
+                except IntegrityError:
+                    prod.created_by_id = User.objects.using("default").first().pk
 
-    def _iter_related(self, prod, remote):
-        for user_model, attr in PRODUCTION_DEPENDENCIES:
-            if isinstance(getattr(prod, attr, None), user_model):
-                obj = getattr(prod, attr)
-                if not obj._state.db:
-                    obj._state.db = "default"
-                yield obj
+        if prod.customer_id:
+            remote_cust = Customer.objects.using(remote).get(pk=prod.customer_id)
+            local_cust = Customer.objects.using("default").filter(name__iexact=remote_cust.name).first()
+            if not local_cust:
+                remote_cust.pk = None
+                remote_cust._state.db = "default"
+                remote_cust.save(using="default")
+                local_cust = remote_cust
+            prod.customer_id = local_cust.pk
 
-    def _copy_children(self, prod_pk, remote):
-        for model, lookup in PRODUCTION_CHILDREN + CHILD_CHILDREN:
-            filter_kwargs = {lookup + "_id": prod_pk}
-            for obj in model.objects.using(remote).filter(**filter_kwargs).iterator(chunk_size=50):
-                obj.pk = None
-                obj._state.db = "default"
-                obj.save(using="default")
+        if prod.template_version_id:
+            remote_tv = TemplateVersion.objects.using(remote).get(pk=prod.template_version_id)
+            local_tv = TemplateVersion.objects.using("default").filter(code=remote_tv.code).first()
+            if not local_tv:
+                local_tv = TemplateVersion.objects.using("default").create(
+                    code=remote_tv.code,
+                    original_filename=remote_tv.original_filename,
+                    sha256=remote_tv.sha256,
+                    uploaded_by=User.objects.using("default").first(),
+                    active=remote_tv.active,
+                    observations=remote_tv.observations,
+                    mapping_version=remote_tv.mapping_version,
+                    rules=remote_tv.rules,
+                )
+            prod.template_version_id = local_tv.pk
+
+        if prod.main_product_id:
+            remote_mp = Product.objects.using(remote).get(pk=prod.main_product_id)
+            local_mp = Product.objects.using("default").filter(code=remote_mp.code).first()
+            if not local_mp:
+                remote_mp.pk = None
+                remote_mp._state.db = "default"
+                remote_mp.save(using="default")
+                local_mp = remote_mp
+            prod.main_product_id = local_mp.pk
