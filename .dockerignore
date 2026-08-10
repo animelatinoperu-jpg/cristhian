@@ -18,8 +18,6 @@ env
 storage/
 private/
 staticfiles/
-input/
-config/
 *.egg-info
 .pytest_cache
 .mypy_cache

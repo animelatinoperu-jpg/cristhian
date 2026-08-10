@@ -10,7 +10,6 @@ htmlcov/
 tmp/
 storage/private/generated/*
 storage/private/templates/*
-input/*.xlsm
 !storage/private/generated/.gitkeep
 !storage/private/templates/.gitkeep
 !input/.gitkeep
