@@ -1,0 +1,2297 @@
+[
+{
+  "model": "productions.customer",
+  "pk": 1,
+  "fields": {
+    "created_at": "2026-07-13T22:34:43.801Z",
+    "updated_at": "2026-08-05T17:48:54.145Z",
+    "version": 8,
+    "name": "Cliente de demostración",
+    "tax_id": "DEMO",
+    "active": true
+  }
+},
+{
+  "model": "productions.customer",
+  "pk": 2,
+  "fields": {
+    "created_at": "2026-07-20T23:29:23.520Z",
+    "updated_at": "2026-07-20T23:29:23.520Z",
+    "version": 1,
+    "name": "GLOBAL TOP FOOD",
+    "tax_id": "20555555555",
+    "active": true
+  }
+},
+{
+  "model": "productions.customer",
+  "pk": 3,
+  "fields": {
+    "created_at": "2026-07-23T19:01:56.073Z",
+    "updated_at": "2026-07-23T19:01:56.073Z",
+    "version": 1,
+    "name": "CLIENTE 47904b",
+    "tax_id": "2047904b000",
+    "active": true
+  }
+},
+{
+  "model": "productions.customer",
+  "pk": 4,
+  "fields": {
+    "created_at": "2026-08-04T03:19:16.423Z",
+    "updated_at": "2026-08-04T03:19:16.423Z",
+    "version": 1,
+    "name": "GLOBAL TOP FOOD PERU S.A.C.",
+    "tax_id": "",
+    "active": true
+  }
+},
+{
+  "model": "productions.customer",
+  "pk": 19,
+  "fields": {
+    "created_at": "2026-08-08T02:49:53.261Z",
+    "updated_at": "2026-08-08T02:49:53.261Z",
+    "version": 1,
+    "name": "SMOKE 37cbfa",
+    "tax_id": "2900037cbfa",
+    "active": true
+  }
+},
+{
+  "model": "productions.customer",
+  "pk": 20,
+  "fields": {
+    "created_at": "2026-08-08T02:50:30.309Z",
+    "updated_at": "2026-08-08T02:50:30.309Z",
+    "version": 1,
+    "name": "SMOKE 2042b7",
+    "tax_id": "290002042b7",
+    "active": true
+  }
+},
+{
+  "model": "productions.customer",
+  "pk": 23,
+  "fields": {
+    "created_at": "2026-08-08T21:07:16.587Z",
+    "updated_at": "2026-08-08T21:07:16.587Z",
+    "version": 1,
+    "name": "Cliente v",
+    "tax_id": "",
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 38,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.049Z",
+    "updated_at": "2026-08-05T17:48:54.001Z",
+    "version": 13,
+    "code": "PP-001",
+    "description": "ANILLAS BLANCAS SM ST",
+    "color": "AZUL",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 39,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.050Z",
+    "updated_at": "2026-08-05T17:48:54.002Z",
+    "version": 13,
+    "code": "PP-002",
+    "description": "ANILLAS AMARILLAS SM ST",
+    "color": "AMARILLO",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 40,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.050Z",
+    "updated_at": "2026-08-05T17:48:54.002Z",
+    "version": 13,
+    "code": "PP-003",
+    "description": "ANILLAS BLANCAS SM ST MEDIANA",
+    "color": "NARANJA",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 41,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.051Z",
+    "updated_at": "2026-08-05T17:48:54.002Z",
+    "version": 13,
+    "code": "PP-004",
+    "description": "ALETA FRESCA CORTE CRUZ",
+    "color": "BLANCO",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 42,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.052Z",
+    "updated_at": "2026-08-05T17:48:54.003Z",
+    "version": 13,
+    "code": "PP-005",
+    "description": "ALETA ENTERA 100-500 g/pza",
+    "color": "CRISTAL",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 43,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.052Z",
+    "updated_at": "2026-08-05T17:48:54.003Z",
+    "version": 13,
+    "code": "PP-006",
+    "description": "ALETA ENTERA 500-1000 g/pza",
+    "color": "NARANJA",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 44,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.054Z",
+    "updated_at": "2026-08-05T17:48:54.004Z",
+    "version": 13,
+    "code": "PP-007",
+    "description": "ALETA ENTERA 1.0-2.0 kg/pza",
+    "color": "AZUL",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 45,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.054Z",
+    "updated_at": "2026-08-05T17:48:54.004Z",
+    "version": 13,
+    "code": "PP-008",
+    "description": "ALETA FRESCA PARTIDA 2.0-4.0 kg/pza",
+    "color": "VERDE",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 46,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.055Z",
+    "updated_at": "2026-08-05T17:48:54.005Z",
+    "version": 13,
+    "code": "PP-009",
+    "description": "ALETA PRECOCIDA ENTERA 300-UP g/pza",
+    "color": "NARANJA",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 47,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.056Z",
+    "updated_at": "2026-08-05T17:48:54.005Z",
+    "version": 13,
+    "code": "PP-010",
+    "description": "ALETA PRECOCIDA PARTIDA 300-UP g/pza",
+    "color": "CRISTAL",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 48,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.056Z",
+    "updated_at": "2026-08-05T17:48:54.006Z",
+    "version": 13,
+    "code": "PP-011",
+    "description": "BOTON BLANCO SM ST",
+    "color": "VERDE",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 49,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.057Z",
+    "updated_at": "2026-08-05T17:48:54.006Z",
+    "version": 13,
+    "code": "PP-012",
+    "description": "BOTON AMARILLO SM ST",
+    "color": "ROSADO",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 50,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.057Z",
+    "updated_at": "2026-08-05T17:48:54.007Z",
+    "version": 13,
+    "code": "PP-013",
+    "description": "CONOS DE POTA",
+    "color": "CRISTAL",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 51,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.058Z",
+    "updated_at": "2026-08-05T17:48:54.007Z",
+    "version": 13,
+    "code": "PP-014",
+    "description": "FILETE C/TT DARUMA",
+    "color": "LILA",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 52,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.058Z",
+    "updated_at": "2026-08-05T17:48:54.008Z",
+    "version": 13,
+    "code": "PP-015",
+    "description": "FILETE C/M C/T TRES PIELES 1.0-2.0 kg/pza",
+    "color": "ROJO",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 53,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.059Z",
+    "updated_at": "2026-08-05T17:48:54.008Z",
+    "version": 13,
+    "code": "PP-016",
+    "description": "FILETE C/M C/T TRES PIELES 2.0-4.0 kg/pza",
+    "color": "ROSADO",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 54,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.059Z",
+    "updated_at": "2026-08-05T17:48:54.009Z",
+    "version": 13,
+    "code": "PP-017",
+    "description": "FILETE C/M C/T ENTERO BLANCO 1.0-2.0 kg/pza",
+    "color": "ROJO",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 55,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.059Z",
+    "updated_at": "2026-08-05T17:48:54.009Z",
+    "version": 13,
+    "code": "PP-018",
+    "description": "FILETE C/M C/T ENTERO BLANCO 2.0-4.0 kg/pza",
+    "color": "ROSADO",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 56,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.060Z",
+    "updated_at": "2026-08-05T17:48:54.010Z",
+    "version": 13,
+    "code": "PP-019",
+    "description": "FILETE LP C/M C/T ENTERO 2.0-4.0 kg/pza",
+    "color": "BLANCO",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 57,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.060Z",
+    "updated_at": "2026-08-05T17:48:54.011Z",
+    "version": 13,
+    "code": "PP-020",
+    "description": "MANTO BLANCO C/M C/T 500-1000 g/pza",
+    "color": "NARANJA",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 58,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.061Z",
+    "updated_at": "2026-08-05T17:48:54.011Z",
+    "version": 13,
+    "code": "PP-021",
+    "description": "MANTO BLANCO C/M C/T 1.0-2.0 kg/pza",
+    "color": "LILA",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 59,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.061Z",
+    "updated_at": "2026-08-05T17:48:54.012Z",
+    "version": 13,
+    "code": "PP-022",
+    "description": "MANTO BLANCO C/M C/T 2.0-4.0 kg/pza",
+    "color": "AZUL",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 60,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.062Z",
+    "updated_at": "2026-08-05T17:48:54.012Z",
+    "version": 13,
+    "code": "PP-023",
+    "description": "MANTO LP C/M C/T 500-1000 g/pza",
+    "color": "NARANJA",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 61,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.062Z",
+    "updated_at": "2026-08-05T17:48:54.013Z",
+    "version": 13,
+    "code": "PP-024",
+    "description": "MANTO LP C/M C/T 1.0-2.0 Kg/pza",
+    "color": "LILA",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 62,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.062Z",
+    "updated_at": "2026-08-05T17:48:54.013Z",
+    "version": 13,
+    "code": "PP-025",
+    "description": "MANTO LP C/M C/T 2.0-4.0 Kg/pza",
+    "color": "AZUL",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 63,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.064Z",
+    "updated_at": "2026-08-05T17:48:54.014Z",
+    "version": 13,
+    "code": "PP-026",
+    "description": "NUCA C/C CERRADO 0-100 g/pza",
+    "color": "ROJO",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 64,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.064Z",
+    "updated_at": "2026-08-05T17:48:54.015Z",
+    "version": 13,
+    "code": "PP-027",
+    "description": "NUCA C/C ABIERTO 100-300 g/pza",
+    "color": "LILA",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 65,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.065Z",
+    "updated_at": "2026-08-05T17:48:54.016Z",
+    "version": 13,
+    "code": "PP-028",
+    "description": "NUCA C/C ABIERTO 300-500 g/pza",
+    "color": "CRISTAL",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 66,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.065Z",
+    "updated_at": "2026-08-05T17:48:54.016Z",
+    "version": 13,
+    "code": "PP-029",
+    "description": "NUCA C/C ABIERTO 500-1000 g/pza",
+    "color": "NARANJA",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 67,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.066Z",
+    "updated_at": "2026-08-05T17:48:54.017Z",
+    "version": 13,
+    "code": "PP-030",
+    "description": "NUCA C/C ABIERTO 1.0 - UP kg/pza",
+    "color": "ROSADO",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 68,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.066Z",
+    "updated_at": "2026-08-05T17:48:54.018Z",
+    "version": 13,
+    "code": "PP-031",
+    "description": "RECORTE BLANCO SM ST",
+    "color": "CRISTAL",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 69,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.067Z",
+    "updated_at": "2026-08-05T17:48:54.019Z",
+    "version": 13,
+    "code": "PP-032",
+    "description": "RECORTE AMARILLO SM ST",
+    "color": "ROJO",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 70,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.067Z",
+    "updated_at": "2026-08-05T17:48:54.020Z",
+    "version": 13,
+    "code": "PP-033",
+    "description": "RECORTE PRECOCIDO",
+    "color": "LILA",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 71,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.068Z",
+    "updated_at": "2026-08-05T17:48:54.020Z",
+    "version": 13,
+    "code": "PP-034",
+    "description": "REPRODUCTORES SV, PEQUEÑO",
+    "color": "CREMA",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 72,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.068Z",
+    "updated_at": "2026-08-05T17:48:54.021Z",
+    "version": 13,
+    "code": "PP-035",
+    "description": "REPRODUCTOR SV GRANDE",
+    "color": "AZUL",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 73,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.069Z",
+    "updated_at": "2026-08-05T17:48:54.022Z",
+    "version": 13,
+    "code": "PP-036",
+    "description": "TUBO ALETA 1.0-2.0 Kg/pza",
+    "color": "AMARILLO",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 74,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.069Z",
+    "updated_at": "2026-08-05T17:48:54.023Z",
+    "version": 13,
+    "code": "PP-037",
+    "description": "TENTACULO C/B C/V SR 100-300 g/pza (SUCIO)",
+    "color": "VERDE",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 75,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.070Z",
+    "updated_at": "2026-08-05T17:48:54.024Z",
+    "version": 13,
+    "code": "PP-038",
+    "description": "TENTACULO C/B C/V SR 300-500 g/pza (SUCIO)",
+    "color": "VERDE",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 76,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.070Z",
+    "updated_at": "2026-08-05T17:48:54.024Z",
+    "version": 13,
+    "code": "PP-039",
+    "description": "TENTACULO C/B S/V SR 100-300 g/pza",
+    "color": "VERDE",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 77,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.071Z",
+    "updated_at": "2026-08-05T17:48:54.025Z",
+    "version": 13,
+    "code": "PP-040",
+    "description": "TENTACULO C/B C/V SR 100-500 g/pza (SUCIO)",
+    "color": "VERDE",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 78,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.072Z",
+    "updated_at": "2026-08-05T17:48:54.025Z",
+    "version": 13,
+    "code": "PP-041",
+    "description": "TENTACULO C/B S/V SR 100-500 g/pza",
+    "color": "VERDE",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 79,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.073Z",
+    "updated_at": "2026-08-05T17:48:54.026Z",
+    "version": 13,
+    "code": "PP-042",
+    "description": "TENTACULO C/B S/V SR 300-500 g/pza",
+    "color": "VERDE",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 80,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.074Z",
+    "updated_at": "2026-08-05T17:48:54.026Z",
+    "version": 13,
+    "code": "PP-043",
+    "description": "TENTACULO C/B C/V SR 500-1000 g/pza (SUCIO)",
+    "color": "NARANJA",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 81,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.076Z",
+    "updated_at": "2026-08-05T17:48:54.027Z",
+    "version": 13,
+    "code": "PP-044",
+    "description": "TENTACULO C/B S/V SR 500-1000 g/pza",
+    "color": "NARANJA",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 82,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.077Z",
+    "updated_at": "2026-08-05T17:48:54.028Z",
+    "version": 13,
+    "code": "PP-045",
+    "description": "TENTACULO C/B C/V SR 1.0-2.0 Kg/pza (SUCIO)",
+    "color": "AMARILLO",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 83,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.078Z",
+    "updated_at": "2026-08-05T17:48:54.028Z",
+    "version": 13,
+    "code": "PP-046",
+    "description": "TENTACULO C/B S/V SR 1.0-2.0 Kg/pza",
+    "color": "AMARILLO",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 84,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.078Z",
+    "updated_at": "2026-08-05T17:48:54.029Z",
+    "version": 13,
+    "code": "PP-047",
+    "description": "TENTACULO C/B S/V SR 2 UP Kg/pza",
+    "color": "LILA",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 85,
+  "fields": {
+    "created_at": "2026-07-13T23:07:32.079Z",
+    "updated_at": "2026-08-05T17:48:54.030Z",
+    "version": 13,
+    "code": "PP-048",
+    "description": "TUBO ALETA 500-1000 g/pza",
+    "color": "AMARILLO",
+    "presentation": "Producto exacto de la plantilla",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 161,
+  "fields": {
+    "created_at": "2026-08-08T21:07:16.592Z",
+    "updated_at": "2026-08-08T21:07:16.592Z",
+    "version": 1,
+    "code": "POTA",
+    "description": "POTA",
+    "color": "",
+    "presentation": "",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 162,
+  "fields": {
+    "created_at": "2026-08-08T21:07:16.595Z",
+    "updated_at": "2026-08-08T21:07:16.595Z",
+    "version": 1,
+    "code": "PP-101",
+    "description": "ALETA ENTERA",
+    "color": "",
+    "presentation": "",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": false
+  }
+},
+{
+  "model": "productions.product",
+  "pk": 163,
+  "fields": {
+    "created_at": "2026-08-08T21:07:16.599Z",
+    "updated_at": "2026-08-08T21:07:16.599Z",
+    "version": 1,
+    "code": "PP-202",
+    "description": "ANILLAS BLANCAS",
+    "color": "",
+    "presentation": "",
+    "standard_weight_kg": null,
+    "plus_weight_kg": null,
+    "packaging_weight_kg": null,
+    "active": false
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 1,
+  "fields": {
+    "created_at": "2026-07-13T20:46:57.390Z",
+    "updated_at": "2026-07-15T18:44:55.636Z",
+    "version": 6,
+    "code": "C01",
+    "name": "Cuadrilla 1",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 2,
+  "fields": {
+    "created_at": "2026-07-13T20:46:57.395Z",
+    "updated_at": "2026-07-15T18:44:55.637Z",
+    "version": 6,
+    "code": "C02",
+    "name": "Cuadrilla 2",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 3,
+  "fields": {
+    "created_at": "2026-07-13T20:46:57.401Z",
+    "updated_at": "2026-07-15T18:44:55.637Z",
+    "version": 6,
+    "code": "C03",
+    "name": "Cuadrilla 3",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 4,
+  "fields": {
+    "created_at": "2026-07-13T20:46:57.409Z",
+    "updated_at": "2026-07-15T18:44:55.639Z",
+    "version": 6,
+    "code": "C04",
+    "name": "Cuadrilla 4",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 5,
+  "fields": {
+    "created_at": "2026-07-13T20:46:57.414Z",
+    "updated_at": "2026-07-15T18:44:55.639Z",
+    "version": 6,
+    "code": "C05",
+    "name": "Cuadrilla 5",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 6,
+  "fields": {
+    "created_at": "2026-07-13T20:46:57.421Z",
+    "updated_at": "2026-07-15T18:44:55.639Z",
+    "version": 6,
+    "code": "C06",
+    "name": "Cuadrilla 6",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 7,
+  "fields": {
+    "created_at": "2026-07-13T23:22:01.279Z",
+    "updated_at": "2026-08-05T17:48:54.037Z",
+    "version": 12,
+    "code": "CUAD-01",
+    "name": "ANDRES",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 8,
+  "fields": {
+    "created_at": "2026-07-13T23:22:01.280Z",
+    "updated_at": "2026-08-05T17:48:54.038Z",
+    "version": 12,
+    "code": "CUAD-02",
+    "name": "FLOR",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 9,
+  "fields": {
+    "created_at": "2026-07-13T23:22:01.281Z",
+    "updated_at": "2026-08-05T17:48:54.038Z",
+    "version": 12,
+    "code": "CUAD-03",
+    "name": "HANNOY",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 10,
+  "fields": {
+    "created_at": "2026-07-13T23:22:01.281Z",
+    "updated_at": "2026-08-05T17:48:54.039Z",
+    "version": 12,
+    "code": "CUAD-04",
+    "name": "CHERLITA",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 11,
+  "fields": {
+    "created_at": "2026-07-13T23:22:01.282Z",
+    "updated_at": "2026-08-05T17:48:54.039Z",
+    "version": 12,
+    "code": "CUAD-05",
+    "name": "CHARLY",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 12,
+  "fields": {
+    "created_at": "2026-07-13T23:22:01.282Z",
+    "updated_at": "2026-08-05T17:48:54.039Z",
+    "version": 12,
+    "code": "CUAD-06",
+    "name": "POLANCO",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 13,
+  "fields": {
+    "created_at": "2026-07-13T23:22:01.282Z",
+    "updated_at": "2026-08-05T17:48:54.040Z",
+    "version": 12,
+    "code": "CUAD-07",
+    "name": "ELIANA",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 14,
+  "fields": {
+    "created_at": "2026-07-13T23:22:01.283Z",
+    "updated_at": "2026-08-05T17:48:54.040Z",
+    "version": 12,
+    "code": "CUAD-08",
+    "name": "ALENET",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 15,
+  "fields": {
+    "created_at": "2026-07-13T23:22:01.283Z",
+    "updated_at": "2026-08-05T17:48:54.040Z",
+    "version": 12,
+    "code": "CUAD-09",
+    "name": "ERIKA",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 16,
+  "fields": {
+    "created_at": "2026-07-13T23:22:01.284Z",
+    "updated_at": "2026-08-05T17:48:54.040Z",
+    "version": 12,
+    "code": "CUAD-10",
+    "name": "MARILU",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 17,
+  "fields": {
+    "created_at": "2026-07-13T23:22:01.284Z",
+    "updated_at": "2026-08-05T17:48:54.042Z",
+    "version": 12,
+    "code": "CUAD-11",
+    "name": "WALLDO",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 18,
+  "fields": {
+    "created_at": "2026-07-13T23:28:29.616Z",
+    "updated_at": "2026-07-13T23:28:29.616Z",
+    "version": 1,
+    "code": "NUQ-02",
+    "name": "PERCY",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 19,
+  "fields": {
+    "created_at": "2026-07-13T23:48:36.536Z",
+    "updated_at": "2026-07-13T23:48:36.536Z",
+    "version": 1,
+    "code": "NUQ-03",
+    "name": "PAZ",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 20,
+  "fields": {
+    "created_at": "2026-07-14T18:10:05.742Z",
+    "updated_at": "2026-08-05T17:48:54.033Z",
+    "version": 5,
+    "code": "RM-CUAD-01",
+    "name": "LUIS",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 21,
+  "fields": {
+    "created_at": "2026-07-14T18:10:05.743Z",
+    "updated_at": "2026-08-05T17:48:54.034Z",
+    "version": 5,
+    "code": "RM-CUAD-02",
+    "name": "FELIX",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 22,
+  "fields": {
+    "created_at": "2026-07-14T18:10:05.743Z",
+    "updated_at": "2026-08-05T17:48:54.035Z",
+    "version": 5,
+    "code": "RM-CUAD-03",
+    "name": "CHARLES",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 23,
+  "fields": {
+    "created_at": "2026-07-23T19:01:56.123Z",
+    "updated_at": "2026-07-23T19:01:56.123Z",
+    "version": 1,
+    "code": "CR47904b",
+    "name": "ANDRES 47904b",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 25,
+  "fields": {
+    "created_at": "2026-08-04T23:06:15.758Z",
+    "updated_at": "2026-08-04T23:06:15.758Z",
+    "version": 1,
+    "code": "NUQ-P1",
+    "name": "CUADRILLA PRUEBA P1",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 26,
+  "fields": {
+    "created_at": "2026-08-05T17:48:54.157Z",
+    "updated_at": "2026-08-05T17:48:54.157Z",
+    "version": 1,
+    "code": "TROQ-01",
+    "name": "CHARLES TROQ",
+    "active": true
+  }
+},
+{
+  "model": "productions.crew",
+  "pk": 27,
+  "fields": {
+    "created_at": "2026-08-08T19:57:29.256Z",
+    "updated_at": "2026-08-08T19:57:29.256Z",
+    "version": 1,
+    "code": "NUQ-01",
+    "name": "A",
+    "active": true
+  }
+},
+{
+  "model": "productions.tunnel",
+  "pk": 1,
+  "fields": {
+    "code": "T1",
+    "name": "Túnel 1",
+    "active": true
+  }
+},
+{
+  "model": "productions.tunnel",
+  "pk": 2,
+  "fields": {
+    "code": "T2",
+    "name": "Túnel 2",
+    "active": true
+  }
+},
+{
+  "model": "productions.tunnel",
+  "pk": 3,
+  "fields": {
+    "code": "T3",
+    "name": "Túnel 3",
+    "active": true
+  }
+},
+{
+  "model": "productions.tunnel",
+  "pk": 4,
+  "fields": {
+    "code": "T4",
+    "name": "Túnel 4",
+    "active": true
+  }
+},
+{
+  "model": "productions.tunnel",
+  "pk": 5,
+  "fields": {
+    "code": "T5",
+    "name": "Túnel 5",
+    "active": true
+  }
+},
+{
+  "model": "productions.tunnel",
+  "pk": 6,
+  "fields": {
+    "code": "T6",
+    "name": "Túnel 6",
+    "active": true
+  }
+},
+{
+  "model": "productions.tunnel",
+  "pk": 7,
+  "fields": {
+    "code": "TX",
+    "name": "Tunel X",
+    "active": true
+  }
+},
+{
+  "model": "productions.tunnel",
+  "pk": 8,
+  "fields": {
+    "code": "X47",
+    "name": "Tunel 47904b",
+    "active": true
+  }
+},
+{
+  "model": "productions.role",
+  "pk": 1,
+  "fields": {
+    "code": "ADMIN",
+    "name": "Administrador",
+    "description": ""
+  }
+},
+{
+  "model": "productions.role",
+  "pk": 2,
+  "fields": {
+    "code": "JEFE_PROD",
+    "name": "Jefe de producción",
+    "description": ""
+  }
+},
+{
+  "model": "productions.role",
+  "pk": 3,
+  "fields": {
+    "code": "RECEPCION",
+    "name": "Responsable de recepción",
+    "description": ""
+  }
+},
+{
+  "model": "productions.role",
+  "pk": 4,
+  "fields": {
+    "code": "NUQUERAS",
+    "name": "Responsable de nuqueras o perfilado",
+    "description": ""
+  }
+},
+{
+  "model": "productions.role",
+  "pk": 5,
+  "fields": {
+    "code": "TUNEL",
+    "name": "Supervisor de túnel",
+    "description": ""
+  }
+},
+{
+  "model": "productions.role",
+  "pk": 6,
+  "fields": {
+    "code": "CUAD_TUNEL",
+    "name": "Responsable de bandejas por cuadrilla",
+    "description": ""
+  }
+},
+{
+  "model": "productions.role",
+  "pk": 7,
+  "fields": {
+    "code": "ENV_PLACAS",
+    "name": "Responsable de envasado en plaqueros",
+    "description": ""
+  }
+},
+{
+  "model": "productions.role",
+  "pk": 8,
+  "fields": {
+    "code": "CUAD_PLACAS",
+    "name": "Responsable de cuadrillas de placas",
+    "description": ""
+  }
+},
+{
+  "model": "productions.role",
+  "pk": 9,
+  "fields": {
+    "code": "EMP_TUNEL",
+    "name": "Responsable de empaque de túneles",
+    "description": ""
+  }
+},
+{
+  "model": "productions.role",
+  "pk": 10,
+  "fields": {
+    "code": "EMP_PLACAS",
+    "name": "Responsable de empaque de placas",
+    "description": ""
+  }
+},
+{
+  "model": "productions.role",
+  "pk": 11,
+  "fields": {
+    "code": "MATERIALES",
+    "name": "Responsable de materiales",
+    "description": ""
+  }
+},
+{
+  "model": "productions.role",
+  "pk": 12,
+  "fields": {
+    "code": "COSTOS",
+    "name": "Responsable de costos",
+    "description": ""
+  }
+},
+{
+  "model": "productions.role",
+  "pk": 13,
+  "fields": {
+    "code": "GERENCIA",
+    "name": "Gerencia o consulta",
+    "description": ""
+  }
+},
+{
+  "model": "productions.role",
+  "pk": 14,
+  "fields": {
+    "code": "AUDITOR",
+    "name": "Auditor",
+    "description": ""
+  }
+},
+{
+  "model": "productions.role",
+  "pk": 15,
+  "fields": {
+    "code": "TROQUELADO",
+    "name": "Responsable de troquelado",
+    "description": ""
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 1,
+  "fields": {
+    "created_at": "2026-07-13T22:34:43.851Z",
+    "updated_at": "2026-07-13T22:34:43.852Z",
+    "version": 1,
+    "process": "Proceso de demostración",
+    "amount": "1.0000",
+    "unit": "kg",
+    "effective_from": "2026-07-13",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 2,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.372Z",
+    "updated_at": "2026-08-05T17:48:54.052Z",
+    "version": 9,
+    "process": "RE-COS!F8 · 1º CARRO",
+    "amount": "25.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 3,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.375Z",
+    "updated_at": "2026-08-05T17:48:54.054Z",
+    "version": 9,
+    "process": "RE-COS!F9 · 2º CARRO",
+    "amount": "25.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 4,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.375Z",
+    "updated_at": "2026-08-05T17:48:54.054Z",
+    "version": 9,
+    "process": "RE-COS!F10 · 3º CARRO",
+    "amount": "25.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 5,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.376Z",
+    "updated_at": "2026-08-05T17:48:54.055Z",
+    "version": 9,
+    "process": "RE-COS!F11 · 4º CARRO",
+    "amount": "25.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 6,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.376Z",
+    "updated_at": "2026-08-05T17:48:54.055Z",
+    "version": 9,
+    "process": "RE-COS!F12 · 5º CARRO",
+    "amount": "25.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 7,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.377Z",
+    "updated_at": "2026-08-05T17:48:54.056Z",
+    "version": 9,
+    "process": "RE-COS!F13 · 6º CARRO",
+    "amount": "25.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 8,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.377Z",
+    "updated_at": "2026-08-05T17:48:54.056Z",
+    "version": 9,
+    "process": "RE-COS!F14 · 7º CARRO",
+    "amount": "25.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 9,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.378Z",
+    "updated_at": "2026-08-05T17:48:54.057Z",
+    "version": 9,
+    "process": "RE-COS!F15 · fila 15",
+    "amount": "25.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 10,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.378Z",
+    "updated_at": "2026-08-05T17:48:54.058Z",
+    "version": 9,
+    "process": "RE-COS!F16 · fila 16",
+    "amount": "25.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 11,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.379Z",
+    "updated_at": "2026-08-05T17:48:54.058Z",
+    "version": 9,
+    "process": "RE-COS!F17 · fila 17",
+    "amount": "25.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 12,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.379Z",
+    "updated_at": "2026-08-05T17:48:54.059Z",
+    "version": 9,
+    "process": "RE-COS!E24 · fila 24",
+    "amount": "25.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 13,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.380Z",
+    "updated_at": "2026-08-05T17:48:54.059Z",
+    "version": 9,
+    "process": "RE-COS!K24 · 25",
+    "amount": "25.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 14,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.380Z",
+    "updated_at": "2026-08-05T17:48:54.060Z",
+    "version": 9,
+    "process": "RE-COS!D31 · 1º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 15,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.381Z",
+    "updated_at": "2026-08-05T17:48:54.061Z",
+    "version": 9,
+    "process": "RE-COS!I31 · 1º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 16,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.382Z",
+    "updated_at": "2026-08-05T17:48:54.062Z",
+    "version": 9,
+    "process": "RE-COS!N31 · 1º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 17,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.383Z",
+    "updated_at": "2026-08-05T17:48:54.062Z",
+    "version": 9,
+    "process": "RE-COS!D32 · 2º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 18,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.384Z",
+    "updated_at": "2026-08-05T17:48:54.063Z",
+    "version": 9,
+    "process": "RE-COS!I32 · 2º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 19,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.386Z",
+    "updated_at": "2026-08-05T17:48:54.063Z",
+    "version": 9,
+    "process": "RE-COS!N32 · 2º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 20,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.386Z",
+    "updated_at": "2026-08-05T17:48:54.064Z",
+    "version": 9,
+    "process": "RE-COS!D33 · 3º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 21,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.387Z",
+    "updated_at": "2026-08-05T17:48:54.065Z",
+    "version": 9,
+    "process": "RE-COS!I33 · 3º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 22,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.387Z",
+    "updated_at": "2026-08-05T17:48:54.065Z",
+    "version": 9,
+    "process": "RE-COS!N33 · 3º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 23,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.388Z",
+    "updated_at": "2026-08-05T17:48:54.066Z",
+    "version": 9,
+    "process": "RE-COS!D34 · 4º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 24,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.388Z",
+    "updated_at": "2026-08-05T17:48:54.066Z",
+    "version": 9,
+    "process": "RE-COS!I34 · 4º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 25,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.389Z",
+    "updated_at": "2026-08-05T17:48:54.067Z",
+    "version": 9,
+    "process": "RE-COS!N34 · 4º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 26,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.389Z",
+    "updated_at": "2026-08-05T17:48:54.067Z",
+    "version": 9,
+    "process": "RE-COS!D35 · 5º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 27,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.390Z",
+    "updated_at": "2026-08-05T17:48:54.068Z",
+    "version": 9,
+    "process": "RE-COS!I35 · 5º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 28,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.390Z",
+    "updated_at": "2026-08-05T17:48:54.068Z",
+    "version": 9,
+    "process": "RE-COS!N35 · 5º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 29,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.391Z",
+    "updated_at": "2026-08-05T17:48:54.069Z",
+    "version": 9,
+    "process": "RE-COS!D36 · 6º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 30,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.391Z",
+    "updated_at": "2026-08-05T17:48:54.069Z",
+    "version": 9,
+    "process": "RE-COS!I36 · 6º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 31,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.392Z",
+    "updated_at": "2026-08-05T17:48:54.070Z",
+    "version": 9,
+    "process": "RE-COS!N36 · 6º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 32,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.392Z",
+    "updated_at": "2026-08-05T17:48:54.070Z",
+    "version": 9,
+    "process": "RE-COS!D37 · 7º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 33,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.392Z",
+    "updated_at": "2026-08-05T17:48:54.071Z",
+    "version": 9,
+    "process": "RE-COS!I37 · 7º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 34,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.394Z",
+    "updated_at": "2026-08-05T17:48:54.071Z",
+    "version": 9,
+    "process": "RE-COS!N37 · 7º CARRO",
+    "amount": "160.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 35,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.394Z",
+    "updated_at": "2026-08-05T17:48:54.072Z",
+    "version": 9,
+    "process": "RE-COS!D44 · fila 44",
+    "amount": "150.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 36,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.395Z",
+    "updated_at": "2026-08-05T17:48:54.072Z",
+    "version": 9,
+    "process": "RE-COS!D51 · fila 51",
+    "amount": "100.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 37,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.395Z",
+    "updated_at": "2026-08-05T17:48:54.073Z",
+    "version": 9,
+    "process": "RE-COS!D58 · fila 58",
+    "amount": "85.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 38,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.396Z",
+    "updated_at": "2026-08-05T17:48:54.073Z",
+    "version": 9,
+    "process": "RE-COS!I58 · 85",
+    "amount": "85.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 39,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.396Z",
+    "updated_at": "2026-08-05T17:48:54.074Z",
+    "version": 9,
+    "process": "RE-COS!N58 · 85",
+    "amount": "85.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 40,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.397Z",
+    "updated_at": "2026-08-05T17:48:54.074Z",
+    "version": 9,
+    "process": "RE-COS!D63 · fila 63",
+    "amount": "85.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 41,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.397Z",
+    "updated_at": "2026-08-05T17:48:54.075Z",
+    "version": 9,
+    "process": "RE-COS!I63 · 85",
+    "amount": "85.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 42,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.398Z",
+    "updated_at": "2026-08-05T17:48:54.075Z",
+    "version": 9,
+    "process": "RE-COS!N63 · 85",
+    "amount": "85.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 43,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.398Z",
+    "updated_at": "2026-08-05T17:48:54.076Z",
+    "version": 9,
+    "process": "RE-COS!D68 · fila 68",
+    "amount": "85.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 44,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.399Z",
+    "updated_at": "2026-08-05T17:48:54.076Z",
+    "version": 9,
+    "process": "RE-COS!D75 · fila 75",
+    "amount": "30.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 45,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.399Z",
+    "updated_at": "2026-08-05T17:48:54.076Z",
+    "version": 9,
+    "process": "RE-COS!D82 · fila 82",
+    "amount": "420.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 46,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.400Z",
+    "updated_at": "2026-08-05T17:48:54.077Z",
+    "version": 9,
+    "process": "RE-COS!I82 · 420",
+    "amount": "400.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 47,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.400Z",
+    "updated_at": "2026-08-05T17:48:54.078Z",
+    "version": 9,
+    "process": "RE-COS!N82 · 420",
+    "amount": "420.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 48,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.401Z",
+    "updated_at": "2026-08-05T17:48:54.078Z",
+    "version": 9,
+    "process": "RE-COS!D89 · fila 89",
+    "amount": "460.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 49,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.401Z",
+    "updated_at": "2026-08-05T17:48:54.079Z",
+    "version": 9,
+    "process": "RE-COS!I89 · 460",
+    "amount": "460.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 50,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.402Z",
+    "updated_at": "2026-08-05T17:48:54.079Z",
+    "version": 9,
+    "process": "RE-COS!D98 · 4067",
+    "amount": "50.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 51,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.402Z",
+    "updated_at": "2026-08-05T17:48:54.080Z",
+    "version": 9,
+    "process": "RE-COS!I98 · 4067",
+    "amount": "50.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 52,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.402Z",
+    "updated_at": "2026-08-05T17:48:54.080Z",
+    "version": 9,
+    "process": "RE-COS!D105 · fila 105",
+    "amount": "55.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 53,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.404Z",
+    "updated_at": "2026-08-05T17:48:54.081Z",
+    "version": 9,
+    "process": "RE-COS!D112 · fila 112",
+    "amount": "75.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 54,
+  "fields": {
+    "created_at": "2026-07-13T23:38:35.404Z",
+    "updated_at": "2026-08-05T17:48:54.081Z",
+    "version": 9,
+    "process": "RE-COS!I112 · 75",
+    "amount": "75.0000",
+    "unit": "por 1000 kg",
+    "effective_from": "2000-01-01",
+    "effective_to": null,
+    "active": true
+  }
+},
+{
+  "model": "productions.rate",
+  "pk": 55,
+  "fields": {
+    "created_at": "2026-08-05T17:48:54.183Z",
+    "updated_at": "2026-08-05T17:48:54.183Z",
+    "version": 1,
+    "process": "Proceso de demostración",
+    "amount": "1.0000",
+    "unit": "kg",
+    "effective_from": "2026-08-05",
+    "effective_to": null,
+    "active": true
+  }
+}
+]

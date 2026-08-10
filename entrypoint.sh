@@ -16,6 +16,12 @@ else:
 "
 fi
 
+if [ -f seed_data.json ] && [ "$SKIP_SEED" != "1" ]; then
+  echo "Loading seed data..."
+  python manage.py loaddata seed_data.json
+  echo "Seed data loaded"
+fi
+
 echo "Starting gunicorn..."
 exec gunicorn production_control.wsgi:application \
     --bind 0.0.0.0:${PORT:-8000} \
