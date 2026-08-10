@@ -60,11 +60,11 @@ if env("DB_ENGINE", "sqlite") == "postgresql":
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": env("POSTGRES_DB", "production_control"),
-            "USER": env("POSTGRES_USER", "production_user"),
-            "PASSWORD": env("POSTGRES_PASSWORD", ""),
-            "HOST": env("POSTGRES_HOST", "db"),
-            "PORT": env("POSTGRES_PORT", "5432"),
+            "NAME": env("POSTGRES_DB") or env("PGDATABASE", "production_control"),
+            "USER": env("POSTGRES_USER") or env("PGUSER", "production_user"),
+            "PASSWORD": env("POSTGRES_PASSWORD") or env("PGPASSWORD", ""),
+            "HOST": env("POSTGRES_HOST") or env("PGHOST", "db"),
+            "PORT": env("POSTGRES_PORT") or env("PGPORT", "5432"),
             "CONN_MAX_AGE": 60,
         }
     }
