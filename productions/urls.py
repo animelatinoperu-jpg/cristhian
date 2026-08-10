@@ -161,4 +161,5 @@ path("producciones/<int:pk>/troquelado/captura/", views.TroqueladoQuickCaptureVi
     path("producciones/<int:pk>/excel/<str:kind>/generar/", views.GenerateExcelView.as_view(), name="generate_excel"),
     path("producciones/<int:pk>/pdf/", views.ProductionPdfView.as_view(), name="production_pdf"),
     path("archivos/<int:pk>/descargar/", views.DownloadGeneratedFileView.as_view(), name="download_file"),
+    path("api/sync-data/", views.sync_data_api, name="sync_data_api"),
 ]

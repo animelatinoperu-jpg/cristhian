@@ -6390,6 +6390,20 @@ def csrf_failure(request, reason=""):
 def manifest(request):
     return HttpResponse('{"name":"Partes de Producción","short_name":"PP Planta","start_url":"/","display":"standalone","background_color":"#f3f5f4","theme_color":"#124b3b","lang":"es-PE","icons":[{"src":"/static/icons/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}', content_type="application/manifest+json")
 
+def sync_data_api(request):
+    """API que devuelve todas las producciones como JSON para sincronizacion."""
+    from django.http import JsonResponse
+    from django.core.serializers import serialize
+    from productions.models import ProductionOrder
+
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "auth required"}, status=401)
+
+    productions = ProductionOrder.objects.all()
+    data = serialize("json", productions)
+
+    return JsonResponse({"data": data}, safe=False)
+
 
 def service_worker(request):
     content = """const CACHE='pp-shell-v8';const ASSETS=['/','/manifest.webmanifest','/static/css/app.css','/static/js/app.js?v=20260810-seleccion-limpia','/static/icons/icon.svg'];self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});self.addEventListener('activate',e=>e.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))])));self.addEventListener('fetch',e=>{if(e.request.method==='GET')e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)))});"""
