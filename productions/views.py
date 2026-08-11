@@ -4008,11 +4008,7 @@ class NuqueraCreateView(OperationalCreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         crew = self._crew_param()
-        if (
-            crew is not None
-            and getattr(self, "object", None) is None
-            and not getattr(self, "operational_read_only", False)
-        ):
+        if crew is not None:
             context["nuquera_crew_mode"] = True
             context["nuquera_crew_id"] = crew.pk
             context["nuquera_crew_name"] = crew.name
