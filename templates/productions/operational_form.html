@@ -278,13 +278,49 @@
       </div>
     </section>
     {% endif %}
-    <ins class="adsbygoogle"
-         style="display:block"
-         data-ad-client="ca-pub-6854369524779470"
-         data-ad-slot="1234567890"
-         data-ad-format="auto"
-         data-full-width-responsive="true"></ins>
-    <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+    {% if nuquera_crew_mode %}
+    {{ nuquera_quick_workers|json_script:"nuquera-quick-data" }}
+    <section class="card border-0 shadow-sm troquelado-quick-panel" data-nuquera-quick data-quick-url="{% url 'productions:nuquera_quick_capture' production.pk %}" data-quick-crew="{{ nuquera_crew_name }}" data-quick-readonly="{{ operational_read_only|yesno:'1,0' }}">
+      <div class="card-body p-3 p-md-4">
+        <div class="troquelado-quick-head d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+          <div>
+            <p class="eyebrow mb-1">CAPTURA RÁPIDA</p>
+            <h2 class="h4 mb-0" data-quick-worker-name>Elija un trabajador de la cuadrilla</h2>
+            <span class="small text-secondary">{{ nuquera_crew_name }}</span>
+          </div>
+          <span class="status" data-quick-status role="status" aria-live="polite"></span>
+        </div>
+        <div class="troquelado-quick-calc-box d-none" data-quick-capture>
+          <label class="form-label fw-semibold d-block">Peso (kg)</label>
+          <div class="d-flex gap-2 align-items-center mb-3">
+            <input class="form-control form-control-lg" type="number" name="weight_kg" min="0" step="0.01" inputmode="decimal" autocomplete="off" placeholder="0.00" style="max-width:250px" required>
+            <button type="button" class="btn btn-outline-secondary" data-nuquera-add="5">+5</button>
+            <button type="button" class="btn btn-outline-secondary" data-nuquera-add="10">+10</button>
+            <strong class="ms-2 fs-5" data-nuquera-total aria-live="polite">0 kg</strong>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="nuq-process">Proceso</label>
+            <input class="form-control" type="text" id="nuq-process" name="process" maxlength="100" placeholder="Ej: perfilado, corte, limpieza" autocomplete="off">
+          </div>
+          <details class="border rounded-3 p-2 bg-light">
+            <summary class="fw-semibold">Turno y horas <span class="text-secondary fw-normal">(opcional)</span></summary>
+            <div class="row g-2 pt-2">
+              <div class="col-12 col-md-4"><label class="form-label fw-semibold" for="nuq-shift">Turno</label><select class="form-select" id="nuq-shift" name="shift"><option value="1">Día</option><option value="2">Noche</option></select></div>
+              <div class="col-6 col-md-4"><label class="form-label fw-semibold" for="nuq-start">Inicio</label><input class="form-control" type="time" id="nuq-start" name="start_time"></div>
+              <div class="col-6 col-md-4"><label class="form-label fw-semibold" for="nuq-end">Fin</label><input class="form-control" type="time" id="nuq-end" name="end_time"></div>
+              <div class="col-12"><label class="form-label fw-semibold" for="nuq-obs">Observación</label><textarea class="form-control" id="nuq-obs" name="observation" rows="2"></textarea></div>
+            </div>
+          </details>
+        </div>
+        <input type="hidden" name="worker" data-quick-worker-input value="{% if nuquera_selected_worker_id %}{{ nuquera_selected_worker_id }}{% endif %}">
+      </div>
+      <div class="card-footer bg-white border-0 p-3 p-md-4 pt-0 d-flex flex-wrap gap-2 troquelado-quick-actions">
+        <button type="button" class="btn btn-primary btn-lg px-4 flex-grow-1" data-quick-save>Guardar</button>
+        <button type="button" class="btn btn-outline-primary btn-lg" data-quick-save-next>Guardar y seguir</button>
+        <a class="btn btn-light btn-lg" href="{% url 'productions:detail' production.pk %}">Terminar</a>
+      </div>
+    </section>
+    {% endif %}
     {% elif module_key == 'tunnel-pack' and not editing %}
     <section class="card border-0 shadow-sm mb-3 plate-pack-intro">
       <div class="card-body p-3 p-md-4">
@@ -430,72 +466,9 @@
             {% endfor %}
           </div>
         </section>
-    {% endif %}
-    <!-- NQ-V2-20260810: captura rapida Nuqueras -->
-    {% if nuquera_crew_mode %}
-    {{ nuquera_quick_workers|json_script:"nuquera-quick-data" }}
-    <section class="card border-0 shadow-sm troquelado-quick-panel" data-nuquera-quick data-quick-url="{% url 'productions:nuquera_quick_capture' production.pk %}" data-quick-crew="{{ nuquera_crew_name }}" data-quick-readonly="{{ operational_read_only|yesno:'1,0' }}">
-      <div class="card-body p-3 p-md-4">
-        <div class="troquelado-quick-head d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
-          <div>
-            <p class="eyebrow mb-1">CAPTURA RÁPIDA</p>
-            <h2 class="h4 mb-0" data-quick-worker-name>Elija un trabajador de la cuadrilla</h2>
-            <span class="small text-secondary">{{ nuquera_crew_name }}</span>
-          </div>
-          <span class="status" data-quick-status role="status" aria-live="polite"></span>
-        </div>
-
-        <div class="troquelado-quick-calc-box d-none" data-quick-capture>
-          <label class="form-label fw-semibold d-block">Peso (kg)</label>
-          <div class="d-flex gap-2 align-items-center mb-3">
-            <input class="form-control form-control-lg" type="number" name="weight_kg" min="0" step="0.01" inputmode="decimal" autocomplete="off" placeholder="0.00" style="max-width:250px" required>
-            <button type="button" class="btn btn-outline-secondary" data-nuquera-add="5">+5</button>
-            <button type="button" class="btn btn-outline-secondary" data-nuquera-add="10">+10</button>
-            <strong class="ms-2 fs-5" data-nuquera-total aria-live="polite">0 kg</strong>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label fw-semibold" for="nuq-process">Proceso</label>
-            <input class="form-control" type="text" id="nuq-process" name="process" maxlength="100" placeholder="Ej: perfilado, corte, limpieza" autocomplete="off">
-          </div>
-
-          <details class="border rounded-3 p-2 bg-light">
-            <summary class="fw-semibold">Turno y horas <span class="text-secondary fw-normal">(opcional)</span></summary>
-            <div class="row g-2 pt-2">
-              <div class="col-12 col-md-4">
-                <label class="form-label fw-semibold" for="nuq-shift">Turno</label>
-                <select class="form-select" id="nuq-shift" name="shift">
-                  <option value="1">Día</option>
-                  <option value="2">Noche</option>
-                </select>
-              </div>
-              <div class="col-6 col-md-4">
-                <label class="form-label fw-semibold" for="nuq-start">Inicio</label>
-                <input class="form-control" type="time" id="nuq-start" name="start_time">
-              </div>
-              <div class="col-6 col-md-4">
-                <label class="form-label fw-semibold" for="nuq-end">Fin</label>
-                <input class="form-control" type="time" id="nuq-end" name="end_time">
-              </div>
-              <div class="col-12">
-                <label class="form-label fw-semibold" for="nuq-obs">Observación</label>
-                <textarea class="form-control" id="nuq-obs" name="observation" rows="2"></textarea>
-              </div>
-            </div>
-          </details>
-        </div>
-
-        <input type="hidden" name="worker" data-quick-worker-input value="{% if nuquera_selected_worker_id %}{{ nuquera_selected_worker_id }}{% endif %}">
+        {% endif %}
       </div>
-      <div class="card-footer bg-white border-0 p-3 p-md-4 pt-0 d-flex flex-wrap gap-2 troquelado-quick-actions">
-        <button type="button" class="btn btn-primary btn-lg px-4 flex-grow-1" data-quick-save>Guardar</button>
-        <button type="button" class="btn btn-outline-primary btn-lg" data-quick-save-next>Guardar y seguir</button>
-        <a class="btn btn-light btn-lg" href="{% url 'productions:detail' production.pk %}">Terminar</a>
-      </div>
-    </section>
-    {% endif %}
-      </div>
-    </section>
+    </form>
     {% endif %}
     {% if module_key == 'plate-pack' and not editing and not plate_pack_legacy_form_visible %}
     <details id="auto-pack-form" class="card border-0 shadow-sm auto-pack-form auto-pack-fold">
@@ -1880,194 +1853,6 @@
   });
   refreshRowLabels();
   if (workerInput.value) setSelected(workerInput.value);
-})();
-
-(function () {
-  var nqRoot = document.querySelector('[data-nuquera-quick]');
-  if (!nqRoot) return;
-  var nqDataScript = document.getElementById('nuquera-quick-data');
-  var nqWorkers = [];
-  try { nqWorkers = nqDataScript ? JSON.parse(nqDataScript.textContent) : []; } catch (_) {}
-  var nqById = new Map(nqWorkers.map(function (w) { return [String(w.pk), w]; }));
-  var nqRows = Array.from(document.querySelectorAll('#operational-entry-form').length ? [] : nqRoot.parentElement.querySelectorAll('[data-quick-worker-id]'));
-  if (!nqRows.length) nqRows = Array.from(document.querySelectorAll('[data-quick-worker-id]'));
-  var nqWorkerInput = nqRoot.querySelector('[data-quick-worker-input]');
-  var nqWorkerName = nqRoot.querySelector('[data-quick-worker-name]');
-  var nqStatus = nqRoot.querySelector('[data-quick-status]');
-  var nqCapture = nqRoot.querySelector('[data-quick-capture]');
-  var nqWeight = nqRoot.querySelector('input[name="weight_kg"]');
-  var nqProcess = nqRoot.querySelector('input[name="process"]');
-  var nqShift = nqRoot.querySelector('select[name="shift"]');
-  var nqStart = nqRoot.querySelector('input[name="start_time"]');
-  var nqEnd = nqRoot.querySelector('input[name="end_time"]');
-  var nqObs = nqRoot.querySelector('textarea[name="observation"]');
-  var nqTotal = nqRoot.querySelector('[data-nuquera-total]');
-  var nqSaveBtn = nqRoot.querySelector('[data-quick-save]');
-  var nqNextBtn = nqRoot.querySelector('[data-quick-save-next]');
-  var nqReadOnly = nqRoot.dataset.quickReadonly === '1';
-  var nqRecords = document.querySelector('.operational-records');
-  var nqCsrf = '';
-  var nqFmt = function (v) { return isFinite(v) ? v.toLocaleString('es-AR', {minimumFractionDigits:0,maximumFractionDigits:2}) : '0'; };
-  var nqCompact = function (v) { var n = parseFloat(v); return isFinite(n) ? String(n) : '0'; };
-  var nqEsc = function (v) { return String(v).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
-  var nqSetStatus = function (t, ok) { if (!nqStatus) return; nqStatus.textContent = t; nqStatus.className = 'status ' + (ok ? 'status-approved' : 'status-review'); };
-  var nqUpdateTotal = function () { var v = parseFloat(String(nqWeight ? nqWeight.value : '').replace(',','.')) || 0; if (nqTotal) nqTotal.textContent = nqFmt(v) + ' kg'; };
-
-  var nqRefreshLabels = function () {
-    nqRows.forEach(function (row) {
-      var d = nqById.get(String(row.dataset.quickWorkerId));
-      var label = row.querySelector('[data-quick-worker-kg-label]');
-      if (!label) return;
-      if (d && d.has_entries) { label.textContent = d.kg_display + ' kg'; row.classList.add('has-records'); }
-      else { label.textContent = 'pendiente'; row.classList.remove('has-records'); }
-    });
-  };
-
-  var nqSetSelected = function (id) {
-    var d = nqById.get(String(id));
-    if (!d) return;
-    nqWorkerInput.value = id;
-    nqRows.forEach(function (row) {
-      var is = String(row.dataset.quickWorkerId) === String(id);
-      row.classList.toggle('is-selected', is);
-      row.setAttribute('aria-selected', is ? 'true' : 'false');
-    });
-    if (nqWorkerName) nqWorkerName.textContent = d.name;
-    if (nqShift) nqShift.value = d.shift || (nqShift.options[0] ? nqShift.options[0].value : '');
-    if (nqStart) nqStart.value = d.start_time || '06:00';
-    if (nqEnd) nqEnd.value = d.end_time || '18:00';
-    if (nqProcess) nqProcess.value = d.process || '';
-    if (nqWeight) nqWeight.value = '';
-    if (nqObs) nqObs.value = '';
-    if (nqCapture) nqCapture.classList.remove('d-none');
-    if (nqTotal) nqTotal.textContent = '0 kg';
-    nqSetStatus('', false);
-    if (nqWeight) nqWeight.focus();
-  };
-
-  nqRows.forEach(function (row) {
-    row.addEventListener('click', function () { nqSetSelected(row.dataset.quickWorkerId); });
-  });
-
-  if (nqWeight) { nqWeight.addEventListener('input', nqUpdateTotal); }
-  nqRoot.querySelectorAll('[data-nuquera-add]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      if (!nqWeight) return;
-      var cur = parseFloat(String(nqWeight.value).replace(',','.')) || 0;
-      nqWeight.value = String(cur + (parseInt(btn.dataset.nuqueraAdd) || 0));
-      nqUpdateTotal();
-    });
-  });
-
-  var nqRefreshCsrf = async function () {
-    var r = await fetch('/sesion/csrf/', { credentials: 'same-origin', cache: 'no-store', headers: {'X-Requested-With':'XMLHttpRequest'} });
-    return (await r.json()).csrfToken || '';
-  };
-
-  var nqUpdateRow = function (id, p) {
-    var row = nqRows.find(function (r) { return String(r.dataset.quickWorkerId) === String(id); });
-    if (!row) return;
-    var label = row.querySelector('[data-quick-worker-kg-label]');
-    if (label) label.textContent = p.worker_kg_display + ' kg';
-    row.classList.add('has-records');
-  };
-
-  var nqAddRecord = function (p) {
-    var card = p.record_card;
-    var section = nqRecords;
-    if (!card || !section) return;
-    var list = section.querySelector('.operational-record-list');
-    if (!list) return;
-    var empty = list.querySelector('.empty-state');
-    if (empty) empty.remove();
-    if (list.querySelector('[data-nq-card="' + card.entry_id + '"]')) return;
-    var article = document.createElement('article');
-    article.className = 'operational-record';
-    article.setAttribute('data-nq-card', String(card.entry_id));
-    var inner = '<div><strong class="d-block">' + nqEsc(card.title) + '</strong>';
-    if (card.detail) inner += '<span class="small text-secondary">' + nqEsc(card.detail) + '</span>';
-    inner += '</div>';
-    if (!nqReadOnly) {
-      inner += '<div class="d-flex flex-wrap gap-2 mt-2">'
-        + '<a class="btn btn-sm btn-outline-primary" href="' + nqEsc(card.edit_url) + '">Corregir</a>'
-        + '<form method="post" action="' + nqEsc(card.delete_url) + '" data-nq-form="1" data-confirm-message="eliminar este registro: ' + nqEsc(card.title) + '?">'
-        + '<input type="hidden" name="csrfmiddlewaretoken" value="' + nqEsc(nqCsrf) + '">'
-        + '<button class="btn btn-sm btn-outline-danger">Eliminar</button></form></div>';
-    }
-    article.innerHTML = inner;
-    list.prepend(article);
-  };
-
-  var nqSetBusy = function (b) {
-    [nqSaveBtn, nqNextBtn].forEach(function (btn) {
-      if (!btn) return;
-      if (!btn.dataset.origLabel) btn.dataset.origLabel = btn.textContent;
-      btn.disabled = b;
-      btn.textContent = b ? 'Guardando...' : btn.dataset.origLabel;
-    });
-  };
-
-  var nqDoSave = async function (advance) {
-    var id = nqWorkerInput.value;
-    var d = nqById.get(String(id));
-    if (!d) { nqSetStatus('Elija un trabajador', false); return; }
-    var w = parseFloat(String(nqWeight ? nqWeight.value : '').replace(',','.'));
-    if (!isFinite(w) || w <= 0) { nqSetStatus('Ingrese el peso en kg', false); if (nqWeight) nqWeight.focus(); return; }
-    nqSetBusy(true);
-    var body = new FormData();
-    body.append('worker', id);
-    body.append('weight_kg', nqCompact(w));
-    body.append('process', nqProcess ? nqProcess.value : '');
-    body.append('shift', nqShift ? nqShift.value : '');
-    body.append('start_time', nqStart ? nqStart.value : '');
-    body.append('end_time', nqEnd ? nqEnd.value : '');
-    body.append('observation', nqObs ? nqObs.value : '');
-    try { nqCsrf = await nqRefreshCsrf(); body.append('csrfmiddlewaretoken', nqCsrf); }
-    catch (_) { nqSetBusy(false); nqSetStatus('Sesion caducada. Recargue.', false); return; }
-    try {
-      var response = await fetch(nqRoot.dataset.quickUrl, { method:'POST', body:body, credentials:'same-origin', headers:{'X-Requested-With':'XMLHttpRequest'} });
-      var payload = await response.json().catch(function () { return {ok:false, errors:{__all__:['Error']}}; });
-      if (!response.ok || !payload.ok) {
-        var msgs = Object.keys(payload.errors || {}).map(function (k) { var v = payload.errors[k]; return Array.isArray(v) ? v.join(' . ') : String(v); }).join(' . ');
-        nqSetStatus(msgs || 'No se pudo guardar', false); return;
-      }
-      nqUpdateRow(id, payload);
-      nqAddRecord(payload);
-      nqSetStatus('Guardado', true);
-      if (nqWeight) nqWeight.value = '';
-      if (nqTotal) nqTotal.textContent = '0 kg';
-      if (advance) {
-        var ids = nqRows.map(function (r) { return r.dataset.quickWorkerId; });
-        var idx = ids.indexOf(String(id));
-        var next = idx >= 0 ? ids[idx + 1] : null;
-        if (next) { nqSetSelected(next); } else { nqSetStatus('Fin de la cuadrilla', true); }
-      }
-    } catch (_) { nqSetStatus('Sin conexion', false); }
-    finally { nqSetBusy(false); }
-  };
-
-  if (nqSaveBtn) nqSaveBtn.addEventListener('click', function () { nqDoSave(false); });
-  if (nqNextBtn) nqNextBtn.addEventListener('click', function () { nqDoSave(true); });
-
-  document.addEventListener('submit', function (event) {
-    var form = event.target;
-    if (form.getAttribute('data-nq-form') !== '1') return;
-    event.preventDefault();
-    var msg = form.getAttribute('data-confirm-message') || '';
-    if (msg && !window.confirm(msg)) return;
-    if (form.dataset.nqSubmitting === '1') return;
-    form.dataset.nqSubmitting = '1';
-    var btn = form.querySelector('button');
-    if (btn) { btn.disabled = true; btn.textContent = 'Eliminando...'; }
-    var b = new FormData(form);
-    if (!b.get('csrfmiddlewaretoken') && nqCsrf) b.append('csrfmiddlewaretoken', nqCsrf);
-    fetch(form.action, { method:'POST', body:b, credentials:'same-origin', headers:{'X-Requested-With':'XMLHttpRequest'} })
-      .then(function (r) { if (r.redirected) window.location.href = r.url; else if (!r.ok) throw new Error('fail'); else window.location.reload(); })
-      .catch(function () { if (btn) { btn.disabled = false; btn.textContent = 'Eliminar'; } form.dataset.nqSubmitting = ''; window.alert('No se pudo eliminar.'); });
-  });
-
-  nqRefreshLabels();
-  if (nqWorkerInput.value) nqSetSelected(nqWorkerInput.value);
 })();
 </script>
 {% endif %}
