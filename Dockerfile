@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-# Build: 2026-08-10 NQ-V2 quick capture
+# Build: NQ-V3 2026-08-11-03
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     DJANGO_DEBUG=0
@@ -16,6 +16,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+
+ENV NQ_BUILD_ID=NQ-V3-20260811-03
 
 RUN python manage.py collectstatic --noinput
 

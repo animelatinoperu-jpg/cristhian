@@ -1,4 +1,5 @@
 #!/bin/sh
+# NQ-V3 build
 set -e
 
 echo "Running migrations..."
