@@ -5736,23 +5736,17 @@ class NuqueraQuickCaptureView(LoginRequiredMixin, View):
                 {"ok": False, "errors": {"worker": "El trabajador no tiene cuadrilla asignada."}},
                 status=400,
             )
+        post_data = request.POST.copy()
+        if post_data.get("shift") in ("1", "2"):
+            post_data["shift"] = {"1": "DAY", "2": "NIGHT"}[post_data["shift"]]
+        if not post_data.get("process", "").strip():
+            post_data["process"] = "NUQUERAS"
         form = NuqueraEntryForm(
-            request.POST,
+            post_data,
             crew_id=worker.crew_id,
             worker_queryset=_nuquera_crew_worker_queryset(production, worker.crew),
             initial={"crew": worker.crew_id},
         )
-        if not form.is_valid():
-            # El campo process es obligatorio en el form pero opcional en el panel rapido
-            if "process" in form.errors and not request.POST.get("process", "").strip():
-                post_data = request.POST.copy()
-                post_data["process"] = "NUQUERAS"
-                form = NuqueraEntryForm(
-                    post_data,
-                    crew_id=worker.crew_id,
-                    worker_queryset=_nuquera_crew_worker_queryset(production, worker.crew),
-                    initial={"crew": worker.crew_id},
-                )
         if not form.is_valid():
             return JsonResponse({"ok": False, "errors": dict(form.errors)}, status=400)
         try:
