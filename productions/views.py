@@ -3676,6 +3676,92 @@ def _nuquera_crew_worker_queryset(production, crew):
     )
 
 
+def _nuquera_quick_workers(production, crew):
+    """Filas para la captura rápida de nuqueras: por cada trabajador su
+    nombre, el kg acumulado en este parte y los valores de su último registro
+    (turno, proceso y horas) para precargar el panel sin recargar la página."""
+    queryset = _nuquera_crew_worker_queryset(production, crew)
+    entries = list(
+        NuqueraEntry.objects.filter(
+            production=production,
+            crew=crew,
+            is_active=True,
+        )
+        .order_by("worker_id", "-created_at", "-pk")
+    )
+    kg_by_worker = {}
+    defaults = {}
+    for entry in entries:
+        weight = Decimal(entry.weight_kg or 0)
+        kg_by_worker[entry.worker_id] = kg_by_worker.get(entry.worker_id, Decimal("0")) + weight
+        if entry.worker_id not in defaults:
+            defaults[entry.worker_id] = {
+                "shift": entry.shift,
+                "process": entry.process or "",
+                "start_time": entry.start_time.strftime("%H:%M") if entry.start_time else "06:00",
+                "end_time": entry.end_time.strftime("%H:%M") if entry.end_time else "18:00",
+            }
+    workers = []
+    for worker in queryset:
+        kg = kg_by_worker.get(worker.pk, Decimal("0"))
+        base = defaults.get(worker.pk, {})
+        workers.append(
+            {
+                "pk": worker.pk,
+                "name": worker.full_name,
+                "initial": worker.full_name.strip()[:1].upper(),
+                "kg_display": f"{kg:.2f}",
+                "has_entries": worker.pk in kg_by_worker,
+                "shift": base.get("shift") or production.shift,
+                "process": base.get("process", ""),
+                "start_time": base.get("start_time", "06:00"),
+                "end_time": base.get("end_time", "18:00"),
+            }
+        )
+    return workers
+
+
+def _nuquera_quick_stats(production, worker, crew):
+    """Totales del trabajador, su cuadrilla y el parte, para refrescar el
+    resumen por cuadrilla tras guardar un peso sin recargar la página."""
+    worker_kg = Decimal("0")
+    for entry in NuqueraEntry.objects.filter(
+        production=production,
+        worker=worker,
+        is_active=True,
+    ):
+        worker_kg += Decimal(entry.weight_kg or 0)
+    crew_kg = Decimal(
+        NuqueraEntry.objects.filter(
+            production=production,
+            crew=crew,
+            is_active=True,
+        ).aggregate(total=Coalesce(Sum("weight_kg"), Decimal("0")))["total"]
+        or 0
+    )
+    grand_totals = NuqueraEntry.objects.filter(
+        production=production,
+        is_active=True,
+    ).aggregate(
+        record_count=Count("pk"),
+        total=Coalesce(Sum("weight_kg"), Decimal("0")),
+    )
+    grand_total = Decimal(grand_totals["total"] or 0)
+    max_kg = grand_total or Decimal("1")
+    return {
+        "worker_name": worker.full_name if worker else "",
+        "crew_name": crew.name if crew else "Sin cuadrilla",
+        "worker_kg_display": f"{worker_kg:.2f}",
+        "percent": int((worker_kg / max_kg) * 100) if max_kg else 0,
+        "crew_kg_display": f"{crew_kg:.2f}",
+        "grand_total_display": f"{grand_total:.2f}",
+        "record_count": grand_totals["record_count"] or 0,
+        "stats_summary": f"{worker.full_name}: {worker_kg:.2f} kg"
+        if worker
+        else "Sin trabajador",
+    }
+
+
 def _troquelado_production_crews(production):
     """Cuadrillas relevantes a un parte de producción de troquelado: las que ya
     tienen pesos en este parte más las creadas o usadas desde su captura."""
@@ -3932,6 +4018,10 @@ class NuqueraCreateView(OperationalCreateView):
             context["nuquera_crew_name"] = crew.name
             context["nuquera_crew_workers"] = list(
                 _nuquera_crew_worker_queryset(self.production, crew).values_list("pk", "full_name")
+            )
+            context["nuquera_quick_workers"] = _nuquera_quick_workers(self.production, crew)
+            context["nuquera_quick_url"] = reverse(
+                "productions:nuquera_quick_capture", args=[self.production.pk]
             )
             context["nuquera_clear_url"] = reverse(
                 "productions:nuquera_create", args=[self.production.pk]
@@ -5616,6 +5706,95 @@ class TroqueladoWorkerQuickCreateView(LoginRequiredMixin, View):
                     f"{worker.full_name} ya existía en {worker_crew}; se usó el registro actual sin crear duplicados.",
                 )
         return redirect(reverse("productions:troquelado_create", args=[production.pk]))
+
+
+class NuqueraQuickCaptureView(LoginRequiredMixin, View):
+    """Guarda un peso de nuqueras desde el panel de captura rápida
+    (AJAX). Devuelve JSON con los totales actualizados del trabajador, su
+    cuadrilla y el parte para refrescar la pantalla sin recargar la página."""
+
+    def post(self, request, pk):
+        production = get_object_or_404(ProductionOrder, pk=pk)
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        if production.status in {
+            ProductionOrder.Status.APPROVED,
+            ProductionOrder.Status.CLOSED,
+        }:
+            raise PermissionDenied(
+                "El parte está aprobado o cerrado. Reábralo antes de registrar nuqueras."
+            )
+        if production.status == ProductionOrder.Status.VOID:
+            raise PermissionDenied("La producción no admite nuevos registros en su estado actual.")
+        require_area_assignment(request.user, production, AreaAssignment.Area.NUQUERAS)
+        worker_id = request.POST.get("worker")
+        try:
+            worker = Worker.objects.get(pk=worker_id, active=True, internal_code__startswith="NUQ-W")
+        except (Worker.DoesNotExist, ValueError, TypeError):
+            return JsonResponse(
+                {"ok": False, "errors": {"worker": "Trabajador no disponible."}},
+                status=400,
+            )
+        if not worker.crew_id:
+            return JsonResponse(
+                {"ok": False, "errors": {"worker": "El trabajador no tiene cuadrilla asignada."}},
+                status=400,
+            )
+        form = NuqueraEntryForm(
+            request.POST,
+            crew_id=worker.crew_id,
+            worker_queryset=_nuquera_crew_worker_queryset(production, worker.crew),
+            initial={"crew": worker.crew_id},
+        )
+        if not form.is_valid():
+            return JsonResponse({"ok": False, "errors": dict(form.errors)}, status=400)
+        try:
+            with transaction.atomic():
+                entry = form.save(commit=False)
+                entry.production = production
+                entry.responsible = request.user
+                entry.date = production.production_date or production.reception_date
+                entry.full_clean()
+                entry.save()
+                AuditLog.objects.create(
+                    user=request.user,
+                    production=production,
+                    module="nuqueras",
+                    model_name=entry._meta.label,
+                    record_pk=str(entry.pk),
+                    action=AuditLog.Action.CREATE,
+                    new_value=_operational_record_payload(entry),
+                    ip_address=request.META.get("REMOTE_ADDR"),
+                    user_agent=request.META.get("HTTP_USER_AGENT", ""),
+                )
+        except (ValidationError, IntegrityError) as exc:
+            messages_value = getattr(exc, "messages", None)
+            detail = list(messages_value) if messages_value else [str(exc)]
+            return JsonResponse(
+                {"ok": False, "errors": {"__all__": detail}},
+                status=400,
+            )
+        title, detail = _operational_record_text(entry)
+        return JsonResponse(
+            {
+                "ok": True,
+                "entry_id": entry.pk,
+                "record_card": {
+                    "entry_id": entry.pk,
+                    "title": title,
+                    "detail": detail,
+                    "edit_url": reverse(
+                        "productions:operational_entry_update",
+                        args=[production.pk, "nuqueras", entry.pk],
+                    ),
+                    "delete_url": reverse(
+                        "productions:operational_entry_delete",
+                        args=[production.pk, "nuqueras", entry.pk],
+                    ),
+                },
+                **_nuquera_quick_stats(production, worker, worker.crew),
+            }
+        )
 
 
 class TroqueladoQuickCaptureView(LoginRequiredMixin, View):

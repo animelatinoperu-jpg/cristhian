@@ -146,6 +146,7 @@ urlpatterns = [
     path("producciones/<int:pk>/troquelado/nuevo/", views.TroqueladoCreateView.as_view(), name="troquelado_create"),
     path("producciones/<int:pk>/troquelado/crear-trabajador/", views.TroqueladoWorkerQuickCreateView.as_view(), name="troquelado_worker_quick_create"),
 path("producciones/<int:pk>/troquelado/captura/", views.TroqueladoQuickCaptureView.as_view(), name="troquelado_quick_capture"),
+    path("producciones/<int:pk>/nuqueras/captura/", views.NuqueraQuickCaptureView.as_view(), name="nuquera_quick_capture"),
     path("producciones/<int:pk>/troquelado/reporte.xlsx", views.TroqueladoReportXlsxView.as_view(), name="troquelado_report_xlsx"),
     path("producciones/<int:pk>/troquelado/reporte.pdf", views.TroqueladoReportPdfView.as_view(), name="troquelado_report_pdf"),
     path(
