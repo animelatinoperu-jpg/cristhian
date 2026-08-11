@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{# NQ-FIX-20260811-SHIFT #}
 {% load static %}
 {% block title %}{{ module_title }} · Partes de Producción{% endblock %}
 {% block extra_css %}{% if module_key == 'troquelado' %}<link rel="stylesheet" href="{% static 'css/troquelado.css' %}?v=20260805-sin-linea-verde">{% endif %}{% endblock %}
