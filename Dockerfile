@@ -1,5 +1,6 @@
 FROM python:3.12-slim
 
+# Build: 2026-08-10 NQ-V2 quick capture
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     DJANGO_DEBUG=0
