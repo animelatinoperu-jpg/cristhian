@@ -1854,6 +1854,175 @@
   refreshRowLabels();
   if (workerInput.value) setSelected(workerInput.value);
 })();
+
+(function () {
+  var nq = document.querySelector('[data-nuquera-quick]');
+  if (!nq) return;
+  var dS = document.getElementById('nuquera-quick-data');
+  var workers = []; try { workers = dS ? JSON.parse(dS.textContent) : []; } catch (_) {}
+  var byId = new Map(workers.map(function (w) { return [String(w.pk), w]; }));
+  var rows = Array.from(document.querySelectorAll('[data-quick-worker-id]'));
+  var wIn = nq.querySelector('[data-quick-worker-input]');
+  var wNm = nq.querySelector('[data-quick-worker-name]');
+  var st = nq.querySelector('[data-quick-status]');
+  var cap = nq.querySelector('[data-quick-capture]');
+  var wt = nq.querySelector('input[name="weight_kg"]');
+  var pr = nq.querySelector('input[name="process"]');
+  var sh = nq.querySelector('select[name="shift"]');
+  var stt = nq.querySelector('input[name="start_time"]');
+  var en = nq.querySelector('input[name="end_time"]');
+  var ob = nq.querySelector('textarea[name="observation"]');
+  var tot = nq.querySelector('[data-nuquera-total]');
+  var sv = nq.querySelector('[data-quick-save]');
+  var nx = nq.querySelector('[data-quick-save-next]');
+  var ro = nq.dataset.quickReadonly === '1';
+  var recs = document.querySelector('.operational-records');
+  var csrf = '';
+  var fmt = function (v) { return isFinite(v) ? v.toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:2}) : '0'; };
+  var esc = function (v) { return String(v).replace(/[&<>\"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c]; }); };
+  var setSt = function (t, ok) { if (!st) return; st.textContent = t; st.className = 'status ' + (ok ? 'status-approved' : 'status-review'); };
+  var updT = function () { var v = parseFloat(String(wt ? wt.value : '').replace(',','.')) || 0; if (tot) tot.textContent = fmt(v) + ' kg'; };
+
+  var refL = function () {
+    rows.forEach(function (row) {
+      var d = byId.get(String(row.dataset.quickWorkerId));
+      var lb = row.querySelector('[data-quick-worker-kg-label]');
+      if (!lb) return;
+      if (d && d.has_entries) { lb.textContent = d.kg_display + ' kg'; row.classList.add('has-records'); }
+      else { lb.textContent = 'pendiente'; row.classList.remove('has-records'); }
+    });
+  };
+
+  var setS = function (id) {
+    var d = byId.get(String(id));
+    if (!d) return;
+    wIn.value = id;
+    rows.forEach(function (row) {
+      var is = String(row.dataset.quickWorkerId) === String(id);
+      row.classList.toggle('is-selected', is);
+      row.setAttribute('aria-selected', is ? 'true' : 'false');
+    });
+    if (wNm) wNm.textContent = d.name;
+    if (sh) sh.value = d.shift || (sh.options[0] ? sh.options[0].value : '');
+    if (stt) stt.value = d.start_time || '06:00';
+    if (en) en.value = d.end_time || '18:00';
+    if (pr) pr.value = d.process || '';
+    if (wt) wt.value = '';
+    if (ob) ob.value = '';
+    if (cap) cap.classList.remove('d-none');
+    if (tot) tot.textContent = '0 kg';
+    setSt('', false);
+    if (wt) wt.focus();
+  };
+
+  rows.forEach(function (row) { row.addEventListener('click', function () { setS(row.dataset.quickWorkerId); }); });
+  if (wt) wt.addEventListener('input', updT);
+  nq.querySelectorAll('[data-nuquera-add]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!wt) return;
+      var cur = parseFloat(String(wt.value).replace(',','.')) || 0;
+      wt.value = String(cur + (parseInt(btn.dataset.nuqueraAdd) || 0));
+      updT();
+    });
+  });
+
+  var rCs = async function () { var r = await fetch('/sesion/csrf/', {credentials:'same-origin',cache:'no-store',headers:{'X-Requested-With':'XMLHttpRequest'}}); return (await r.json()).csrfToken || ''; };
+
+  var upR = function (id, p) {
+    var row = rows.find(function (r) { return String(r.dataset.quickWorkerId) === String(id); });
+    if (!row) return;
+    var lb = row.querySelector('[data-quick-worker-kg-label]');
+    if (lb) lb.textContent = p.worker_kg_display + ' kg';
+    row.classList.add('has-records');
+  };
+
+  var addR = function (p) {
+    var card = p.record_card, sec = recs;
+    if (!card || !sec) return;
+    var list = sec.querySelector('.operational-record-list');
+    if (!list) return;
+    var empty = list.querySelector('.empty-state');
+    if (empty) empty.remove();
+    if (list.querySelector('[data-nq-card="' + card.entry_id + '"]')) return;
+    var a = document.createElement('article');
+    a.className = 'operational-record';
+    a.setAttribute('data-nq-card', String(card.entry_id));
+    var h = '<div><strong class=\"d-block\">' + esc(card.title) + '</strong>';
+    if (card.detail) h += '<span class=\"small text-secondary\">' + esc(card.detail) + '</span>';
+    h += '</div>';
+    if (!ro) h += '<div class=\"d-flex flex-wrap gap-2 mt-2\"><a class=\"btn btn-sm btn-outline-primary\" href=\"' + esc(card.edit_url) + '\">Corregir</a><form method=\"post\" action=\"' + esc(card.delete_url) + '\" data-nq-form=\"1\" data-confirm-message=\"eliminar ' + esc(card.title) + '?\"><input type=\"hidden\" name=\"csrfmiddlewaretoken\" value=\"' + esc(csrf) + '\"><button class=\"btn btn-sm btn-outline-danger\">Eliminar</button></form></div>';
+    a.innerHTML = h;
+    list.prepend(a);
+  };
+
+  var bus = function (b) {
+    [sv, nx].forEach(function (btn) {
+      if (!btn) return;
+      if (!btn.dataset.orig) btn.dataset.orig = btn.textContent;
+      btn.disabled = b;
+      btn.textContent = b ? 'Guardando...' : btn.dataset.orig;
+    });
+  };
+
+  var save = async function (adv) {
+    var id = wIn.value, d = byId.get(String(id));
+    if (!d) { setSt('Elija un trabajador', false); return; }
+    var w = parseFloat(String(wt ? wt.value : '').replace(',','.'));
+    if (!isFinite(w) || w <= 0) { setSt('Ingrese el peso en kg', false); if (wt) wt.focus(); return; }
+    bus(true);
+    var body = new FormData();
+    body.append('worker', id);
+    body.append('weight_kg', String(w));
+    body.append('process', pr ? pr.value : '');
+    body.append('shift', sh ? sh.value : '');
+    body.append('start_time', stt ? stt.value : '');
+    body.append('end_time', en ? en.value : '');
+    body.append('observation', ob ? ob.value : '');
+    try { csrf = await rCs(); body.append('csrfmiddlewaretoken', csrf); }
+    catch (_) { bus(false); setSt('Sesion caducada. Recargue.', false); return; }
+    try {
+      var resp = await fetch(nq.dataset.quickUrl, {method:'POST',body:body,credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest'}});
+      var p = await resp.json().catch(function () { return {ok:false,errors:{__all__:['Error']}}; });
+      if (!resp.ok || !p.ok) {
+        var ms = Object.keys(p.errors||{}).map(function (k) { var v = p.errors[k]; return Array.isArray(v) ? v.join(' . ') : String(v); }).join(' . ');
+        setSt(ms || 'No se pudo guardar', false); return;
+      }
+      upR(id, p); addR(p); setSt('Guardado', true);
+      if (wt) wt.value = '';
+      if (tot) tot.textContent = '0 kg';
+      if (adv) {
+        var ids = rows.map(function (r) { return r.dataset.quickWorkerId; });
+        var idx = ids.indexOf(String(id));
+        var nxt = idx >= 0 ? ids[idx + 1] : null;
+        if (nxt) setS(nxt); else setSt('Fin de la cuadrilla', true);
+      }
+    } catch (_) { setSt('Sin conexion', false); }
+    finally { bus(false); }
+  };
+
+  if (sv) sv.addEventListener('click', function () { save(false); });
+  if (nx) nx.addEventListener('click', function () { save(true); });
+
+  document.addEventListener('submit', function (ev) {
+    var f = ev.target;
+    if (f.getAttribute('data-nq-form') !== '1') return;
+    ev.preventDefault();
+    var msg = f.getAttribute('data-confirm-message') || '';
+    if (msg && !window.confirm(msg)) return;
+    if (f.dataset.nqSub === '1') return;
+    f.dataset.nqSub = '1';
+    var btn = f.querySelector('button');
+    if (btn) { btn.disabled = true; btn.textContent = 'Eliminando...'; }
+    var b = new FormData(f);
+    if (!b.get('csrfmiddlewaretoken') && csrf) b.append('csrfmiddlewaretoken', csrf);
+    fetch(f.action, {method:'POST',body:b,credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest'}})
+      .then(function (r) { if (r.redirected) window.location.href = r.url; else if (!r.ok) throw new Error('fail'); else window.location.reload(); })
+      .catch(function () { if (btn) { btn.disabled = false; btn.textContent = 'Eliminar'; } f.dataset.nqSub = ''; window.alert('No se pudo eliminar.'); });
+  });
+
+  refL();
+  if (wIn.value) setS(wIn.value);
+})();
 </script>
 {% endif %}
 {% endblock %}
