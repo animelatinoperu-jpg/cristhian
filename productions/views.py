@@ -5704,10 +5704,146 @@ class TroqueladoWorkerQuickCreateView(LoginRequiredMixin, View):
         return redirect(reverse("productions:troquelado_create", args=[production.pk]))
 
 
+def _nuquera_quick_page(production, crew, workers, pk):
+    """Genera el HTML del panel de captura rapida de nuqueras."""
+    from django.utils.html import escape, format_html
+    from django.urls import reverse
+
+    quick_url = reverse("productions:nuquera_quick_capture", args=[pk])
+    detail_url = reverse("productions:detail", args=[pk])
+    crew_name = escape(crew.name if crew else "")
+    csrf_tag = ""
+
+    worker_rows = ""
+    worker_json = "[]"
+    if workers:
+        import json
+        worker_json = json.dumps(workers, default=str)
+        for w in workers:
+            sel = ''
+            worker_rows += format_html(
+                '<button type="button" class="troquelado-quick-worker{}" '
+                'data-quick-worker-id="{}" onclick="selectWorker(this)">'
+                '<span class="troquelado-worker-avatar">{}</span>'
+                '<span class="troquelado-quick-worker-name"><strong>{}</strong></span>'
+                '<span class="troquelado-quick-worker-kg" data-quick-worker-kg-label>{}</span>'
+                '<span class="troquelado-quick-worker-check">&#10004;</span>'
+                '</button>',
+                sel, w['pk'], escape(w['initial']), escape(w['name']),
+                escape(w['kg_display'] + ' kg') if w.get('has_entries') else 'pendiente'
+            )
+
+    return format_html("""<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nuqueras Captura Rapida | PP Planta</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="/static/css/app.css?v=20260808-tunel-cards-v9">
+<style>
+body{{background:#f3f5f4;padding:16px;max-width:680px;margin:0 auto}}
+.troquelado-quick-panel{{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}}
+.troquelado-quick-workers{{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}}
+.troquelado-quick-worker{{display:flex;align-items:center;gap:8px;padding:10px 14px;border:1.5px solid #dde;border-radius:10px;background:#fff;cursor:pointer;width:100%}}
+.troquelado-quick-worker.is-selected{{border-color:#124b3b;background:#e8f5ee}}
+.troquelado-worker-avatar{{width:36px;height:36px;border-radius:50%;background:#124b3b;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}}
+.troquelado-quick-worker-name{{flex:1;text-align:left}}
+.troquelado-quick-worker-kg{{font-size:13px;color:#666;background:#eee;padding:2px 8px;border-radius:20px}}
+.has-records .troquelado-quick-worker-kg{{color:#124b3b;background:#d4ece1}}
+.eyebrow{{text-transform:uppercase;font-size:11px;letter-spacing:.8px;color:#888;margin:0}}
+.btn-primary{{background:#124b3b;border-color:#124b3b}}
+</style></head><body>
+<div class="troquelado-quick-panel"><div class="card-body p-3 p-md-4">
+<div class="troquelado-quick-head d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+<div><p class="eyebrow mb-1">CAPTURA RAPIDA</p>
+<h2 class="h4 mb-0" id="worker-name">Elija un trabajador</h2>
+<span class="small text-secondary">{crew}</span></div>
+<span class="status" id="status-msg" role="status" aria-live="polite"></span></div>
+<form method="post" action="{quick_url}" id="nq-form">
+<input type="hidden" id="worker-id" name="worker" value="">
+<div class="troquelado-quick-calc-box" id="capture-box">
+<label class="form-label fw-semibold d-block">Peso (kg)</label>
+<div class="d-flex gap-2 align-items-center mb-3">
+<input class="form-control form-control-lg" type="number" id="weight-kg" name="weight_kg" min="0" step="0.01" inputmode="decimal" autocomplete="off" placeholder="0.00" style="max-width:250px" required>
+<button type="button" class="btn btn-outline-secondary" onclick="addWeight(5)">+5</button>
+<button type="button" class="btn btn-outline-secondary" onclick="addWeight(10)">+10</button>
+<strong class="ms-2 fs-5" id="total-kg">0 kg</strong></div>
+<details class="border rounded-3 p-2 bg-light"><summary class="fw-semibold">Turno y horas (opcional)</summary>
+<div class="row g-2 pt-2">
+<div class="col-12 col-md-4"><label class="form-label fw-semibold">Turno</label><select class="form-select" name="shift"><option value="DAY">Dia</option><option value="NIGHT">Noche</option></select></div>
+<div class="col-6 col-md-4"><label class="form-label fw-semibold">Inicio</label><input class="form-control" type="time" name="start_time"></div>
+<div class="col-6 col-md-4"><label class="form-label fw-semibold">Fin</label><input class="form-control" type="time" name="end_time"></div>
+<div class="col-12"><label class="form-label fw-semibold">Observacion</label><textarea class="form-control" name="observation" rows="2"></textarea></div></div>
+</details></div></form>
+<div class="p-3 pt-0 d-flex flex-wrap gap-2">
+<button type="button" class="btn btn-primary btn-lg px-4 flex-grow-1" onclick="doSave()">Guardar</button>
+<a class="btn btn-light btn-lg" href="{detail_url}">Terminar</a></div></div></div>
+{worker_rows}
+<script id="nq-json" type="application/json">{worker_json}</script>
+<script>
+var nqWorkers=JSON.parse(document.getElementById('nq-json').textContent||'[]');
+var byId=new Map(nqWorkers.map(function(w){{return[String(w.pk),w]}}));
+function selectWorker(btn){{
+document.querySelectorAll('.troquelado-quick-worker').forEach(function(b){{b.classList.remove('is-selected')}});
+btn.classList.add('is-selected');
+document.getElementById('worker-id').value=btn.dataset.quickWorkerId;
+document.getElementById('worker-name').textContent=byId.get(String(btn.dataset.quickWorkerId)).name;
+document.getElementById('capture-box').style.display='';
+document.getElementById('weight-kg').focus();
+}}
+function addWeight(n){{
+var w=document.getElementById('weight-kg');
+w.value=String((parseFloat(w.value.replace(',','.'))||0)+n);
+var t=parseFloat(w.value.replace(',','.'))||0;
+document.getElementById('total-kg').textContent=t.toLocaleString('es-AR',{{minimumFractionDigits:0,maximumFractionDigits:2}})+' kg';
+}}
+function setStatus(t,ok){{
+var s=document.getElementById('status-msg');
+s.textContent=t;s.style.color=ok?'#124b3b':'#c00';
+}}
+async function doSave(){{
+var id=document.getElementById('worker-id').value;
+if(!id){{setStatus('Elija un trabajador',false);return}}
+var w=parseFloat(String(document.getElementById('weight-kg').value).replace(',','.'));
+if(!isFinite(w)||w<=0){{setStatus('Ingrese el peso',false);return}}
+var btn=document.querySelector('.btn-primary');
+btn.disabled=true;btn.textContent='Guardando...';
+var fd=new FormData(document.getElementById('nq-form'));
+try{{
+var resp=await fetch('{quick_url}',{{method:'POST',body:fd,credentials:'same-origin',headers:{{'X-Requested-With':'XMLHttpRequest'}}}});
+var p=await resp.json();
+if(!resp.ok||!p.ok){{var ms=Object.values(p.errors||{{}}).flat().join(' . ');setStatus(ms||'Error',false)}}
+else{{setStatus('Guardado '+w+' kg',true);document.getElementById('weight-kg').value='';document.getElementById('total-kg').textContent='0 kg';
+var row=document.querySelector('[data-quick-worker-id=\\"'+id+'\\"]');
+if(row){{row.classList.add('has-records');var lb=row.querySelector('[data-quick-worker-kg-label]');if(lb)lb.textContent=p.worker_kg_display+' kg'}}
+}}
+}}catch(e){{setStatus('Sin conexion',false)}}
+finally{{btn.disabled=false;btn.textContent='Guardar'}}
+}}
+</script></body></html>""",
+        crew=crew_name, quick_url=quick_url, detail_url=detail_url,
+        worker_rows=format_html("""<div class="troquelado-quick-workers">{}</div>""", worker_rows) if worker_rows else "",
+        worker_json=worker_json,
+    )
+
+
 class NuqueraQuickCaptureView(LoginRequiredMixin, View):
-    """Guarda un peso de nuqueras desde el panel de captura rápida
-    (AJAX). Devuelve JSON con los totales actualizados del trabajador, su
-    cuadrilla y el parte para refrescar la pantalla sin recargar la página."""
+    """Guarda un peso de nuqueras desde el panel de captura rapida
+    (AJAX o POST normal). Devuelve JSON para AJAX o redirige."""
+
+    def get(self, request, pk):
+        production = get_object_or_404(ProductionOrder, pk=pk)
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        crew_id = request.GET.get("crew")
+        crew = None
+        workers = []
+        if crew_id:
+            try:
+                crew = Crew.objects.get(pk=crew_id, active=True)
+                workers = _nuquera_quick_workers(production, crew)
+            except Crew.DoesNotExist:
+                crew = None
+        html = _nuquera_quick_page(production, crew, workers, pk)
+        return HttpResponse(html)
 
     def post(self, request, pk):
         production = get_object_or_404(ProductionOrder, pk=pk)
