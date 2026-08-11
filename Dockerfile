@@ -16,6 +16,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+RUN echo "NQ-FIX-SHIFT-20260811-0300" > /dev/null
 
 ENV NQ_BUILD_ID=NQ-V3-20260811-03
 
