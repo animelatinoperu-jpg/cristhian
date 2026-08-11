@@ -113,6 +113,7 @@ if _railway_env:
         "HOST": _railway_env.get("POSTGRES_HOST", "localhost"),
         "PORT": _railway_env.get("POSTGRES_PORT", "5432"),
         "CONN_MAX_AGE": 0,
+        "OPTIONS": {"sslmode": "require"},
     }
 
 AUTH_PASSWORD_VALIDATORS = [
