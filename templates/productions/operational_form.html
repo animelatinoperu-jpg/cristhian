@@ -431,6 +431,7 @@
           </div>
         </section>
     {% endif %}
+    <!-- NQ-V2-20260810: captura rapida Nuqueras -->
     {% if nuquera_crew_mode and not editing %}
     {{ nuquera_quick_workers|json_script:"nuquera-quick-data" }}
     <section class="card border-0 shadow-sm troquelado-quick-panel" data-nuquera-quick data-quick-url="{% url 'productions:nuquera_quick_capture' production.pk %}" data-quick-crew="{{ nuquera_crew_name }}" data-quick-readonly="{{ operational_read_only|yesno:'1,0' }}">
