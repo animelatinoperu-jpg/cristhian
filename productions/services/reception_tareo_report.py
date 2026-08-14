@@ -28,6 +28,16 @@ TEMPLATE_PATH = (
     / "report_templates"
     / "FILETEROS-POTA_TAREO.xlsx"
 )
+
+
+def _first_reception_plate(production):
+    entries = (
+        ReceptionEntry.objects.filter(production=production, is_active=True)
+        .select_related("vehicle")
+        .order_by("created_at", "pk")
+    )
+    first = entries.filter(car_number="1").first() or entries.first()
+    return first.vehicle.plate.upper() if first else "SIN REGISTRO"
 CAR_COLUMNS = {
     1: ("C", "D"),
     2: ("E", "F"),
@@ -376,6 +386,7 @@ def _fill_crew_sheets(wb, production, entries):
     start_time = min(time_values) if time_values else None
     end_time = max(time_values) if time_values else None
     supervisor = _responsible_name(entries)
+    first_plate = _first_reception_plate(production)
 
     for index, sheet_name in enumerate(("CUADRILLA 1", "CUADRILLA 2")):
         ws = wb[sheet_name]
@@ -391,6 +402,7 @@ def _fill_crew_sheets(wb, production, entries):
         ws["M8"] = production.get_shift_display().upper()
         _combine_hours(ws, sheet_name, start_time, end_time)
         ws["D10"] = supervisor
+        ws["C16"] = first_plate
         # The cone of pota cleaning weight: the total envasado across all
         # tunnels and plates is shared equally between the tareo crews.
         ws["M32"] = float(cone_share)

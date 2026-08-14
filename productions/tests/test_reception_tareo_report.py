@@ -109,7 +109,7 @@ class ReceptionTareoReportTests(TestCase):
         self.assertEqual(tareo["C17"].font.name, "Arial")
         self.assertEqual(tareo["C17"].font.sz, 13)
         self.assertEqual(tareo["K17"].alignment.horizontal, "center")
-        self.assertEqual(tareo["C16"].value, "=+'POTA ENTERA'!D81")
+        self.assertEqual(tareo["C16"].value, "ABC-123")
         self.assertEqual(tareo["M16"].value, "=+'POTA ENTERA'!F81")
         self.assertEqual(tareo["M32"].value, 0)
         self.assertGreaterEqual(len(tareo._images), 1)
