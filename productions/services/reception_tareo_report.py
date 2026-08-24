@@ -391,6 +391,8 @@ def _fill_crew_sheets(wb, production, entries):
 
     for index, sheet_name in enumerate(("CUADRILLA 1", "CUADRILLA 2")):
         ws = wb[sheet_name]
+        # Set plate before normalization so _style_crew_sheet_top picks it up
+        ws["L10"] = first_plate
         _style_crew_sheet_top(ws)
         crew_name = selected_crews[index]
 
@@ -403,8 +405,6 @@ def _fill_crew_sheets(wb, production, entries):
         ws["M8"] = production.get_shift_display().upper()
         _combine_hours(ws, sheet_name, start_time, end_time)
         ws["D10"] = supervisor
-        ws["L10"] = first_plate
-        ws["L10"].alignment = Alignment(horizontal="center", vertical="center")
         # The cone of pota cleaning weight: the total envasado across all
         # tunnels and plates is shared equally between the tareo crews.
         ws["M32"] = float(cone_share)
