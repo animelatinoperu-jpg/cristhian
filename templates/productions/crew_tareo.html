@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Tareo{% if tareo %} · {{ tareo.crew_name }}{% endif %} · PP {{ production.number }}{% endblock %}
+{% block body_class %}crew-tareo-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/crew-control.css' %}?v=20260812-3d">{% endblock %}
+{% block content %}
+<section class="crew-control-shell" aria-labelledby="tareo-title">
+  <a class="crew-control-back" href="{{ back_url|default:'/' }}">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+    <span>Volver al consolidado</span>
+  </a>
+
+  {% if tareo %}
+  <header class="crew-control-hero">
+    <div>
+      <p>TAREO DEL PERSONAL</p>
+      <h1 id="tareo-title">{{ tareo.crew_name }}</h1>
+      <span>PP {{ production.number }} · {{ production.plant_lot }} · {{ production.production_date|date:"d/m/Y" }}</span>
+    </div>
+    <div class="crew-control-status">
+      <strong>{{ tareo.worker_count }} trabajador{{ tareo.worker_count|pluralize:"es" }}</strong>
+      <span>{{ tareo.total_kg }} kg · {{ tareo.total_trays }} bandejas</span>
+    </div>
+  </header>
+
+  <section class="crew-control-overview" aria-label="Resumen de la cuadrilla">
+    <article>
+      <small>Trabajo en túneles</small>
+      <strong>{{ tareo.tunnel_kg }} kg</strong>
+      <span>{{ tareo.tunnel_trays }} bandejas</span>
+    </article>
+    <article>
+      <small>Trabajo en plaqueros</small>
+      <strong>{{ tareo.plate_kg }} kg</strong>
+      <span>{{ tareo.plate_trays }} bandejas</span>
+    </article>
+    <article class="is-total">
+      <small>Total de la cuadrilla</small>
+      <strong>{{ tareo.total_kg }} kg</strong>
+      <span>{{ tareo.total_trays }} bandejas × {{ tareo.tray_kg }} kg</span>
+    </article>
+  </section>
+
+  <section class="crew-control-results">
+    <div class="crew-control-heading">
+      <div>
+        <p>DATOS PARA EL REPORTE</p>
+        <h2>Hora y supervisor del tareo</h2>
+      </div>
+    </div>
+    <form id="tareo-download-form" class="crew-tareo-report-fields" method="get" action="#">
+      <div class="crew-tareo-field-row">
+        <div class="crew-tareo-field">
+          <label for="tareo-hora-inicio">Hora inicio</label>
+          <input id="tareo-hora-inicio" name="hora_inicio" type="text" class="form-control" placeholder="Ej. 07:00 AM" maxlength="20">
+        </div>
+        <div class="crew-tareo-field">
+          <label for="tareo-hora-termino">Hora término</label>
+          <input id="tareo-hora-termino" name="hora_termino" type="text" class="form-control" placeholder="Ej. 04:00 PM" maxlength="20">
+        </div>
+        <div class="crew-tareo-field crew-tareo-field--wide">
+          <label for="tareo-supervisor">Supervisor</label>
+          <input id="tareo-supervisor" name="supervisor" type="text" class="form-control" placeholder="Nombre completo" maxlength="120">
+        </div>
+      </div>
+      <div class="d-flex gap-2 flex-wrap mt-3">
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="downloadTareo('xlsx')">Descargar Excel</button>
+        <button type="button" class="btn btn-outline-danger btn-sm" onclick="downloadTareo('pdf')">Descargar PDF</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="crew-control-results">
+    <div class="crew-control-heading">
+      <div>
+        <p>PLANTEL DE TRABAJADORES</p>
+        <h2>Personal asignado a {{ tareo.crew_name }}</h2>
+      </div>
+    </div>
+
+    {% if tareo.crew %}
+    <button class="crew-tareo-add-worker-btn crew-tareo-add-worker-trigger" type="button" onclick="openWorkerDialog()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+      Agregar trabajador
+    </button>
+
+    <div class="crew-worker-overlay" id="addWorkerOverlay" onclick="if(event.target===this)closeWorkerDialog()">
+      <div class="crew-worker-dialog" role="dialog" aria-modal="true" aria-labelledby="addWorkerDialogLabel">
+        <form method="post" action="{% url 'productions:crew_worker_quick_create' production.pk tareo.crew.pk %}" data-prevent-double-submit>
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <header class="crew-worker-dialog-header">
+            <div>
+              <p class="modal-eyebrow">PLANTEL · {{ tareo.crew_name }}</p>
+              <h2 id="addWorkerDialogLabel">Agregar trabajador</h2>
+            </div>
+            <button type="button" class="crew-worker-dialog-close" onclick="closeWorkerDialog()" aria-label="Cerrar">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+            </button>
+          </header>
+          <div class="crew-worker-dialog-body">
+            <label class="form-label fw-semibold" for="crew-worker-name">Nombre completo</label>
+            <input class="form-control" id="crew-worker-name" name="name" type="text" placeholder="Ej. Juan Pérez García" maxlength="180" required>
+            <div class="form-text mt-2">Se registrará de inmediato en la cuadrilla y aparecerá en el listado.</div>
+          </div>
+          <footer class="crew-worker-dialog-footer">
+            <button type="button" class="btn btn-outline-secondary" onclick="closeWorkerDialog()">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar trabajador</button>
+          </footer>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if tareo.workers %}
+      <div class="crew-tareo-worker-count">
+        <strong>{{ tareo.worker_count }}</strong>
+        <span>trabajador{{ tareo.worker_count|pluralize:"es" }} en el plantel</span>
+      </div>
+      <ol class="crew-tareo-worker-list">
+        {% for worker in tareo.workers %}
+          <li class="crew-tareo-worker-card">
+            <span class="crew-tareo-worker-avatar" aria-hidden="true">{{ worker.full_name|make_list|slice:":2"|join:"" }}</span>
+            <div class="crew-tareo-worker-info">
+              <strong>{{ worker.full_name }}</strong>
+              <span class="crew-tareo-worker-meta">
+                {% if worker.internal_code %}<em>{{ worker.internal_code }}</em>{% endif %}
+                {% if worker.document %}<span>DNI {{ worker.document }}</span>{% endif %}
+                {% if worker.position %}<span>{{ worker.position }}</span>{% endif %}
+              </span>
+            </div>
+            {% if tareo.crew %}
+            <form method="post" action="{% url 'productions:crew_worker_delete' production.pk tareo.crew.pk worker.pk %}" data-prevent-double-submit data-confirm-message="¿Quitar a {{ worker.full_name }} de {{ tareo.crew_name }}?">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <button class="crew-tareo-worker-remove" type="submit" title="Quitar de la cuadrilla" aria-label="Quitar a {{ worker.full_name }}">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                <span>Quitar</span>
+              </button>
+            </form>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <div class="crew-control-empty">
+        <h3>Esta cuadrilla no tiene trabajadores registrados</h3>
+        <p>Escriba el nombre arriba y presione Agregar.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="crew-control-results">
+    <div class="crew-control-heading">
+      <div>
+        <p>DETALLE DE TRABAJO</p>
+        <h2>Bandejas registradas por {{ tareo.crew_name }}</h2>
+      </div>
+    </div>
+
+    <article class="crew-summary-card">
+      <header>
+        <div>
+          <small>TÚNELES</small>
+          <h3>{{ tareo.tunnel_trays }} bandejas · {{ tareo.tunnel_kg }} kg</h3>
+        </div>
+      </header>
+      {% if tareo.tunnel_details %}
+        <div class="crew-audit">
+          <div class="crew-audit-columns">
+            <section>
+              {% for detail in tareo.tunnel_details %}
+                <div class="crew-audit-row">
+                  <div>
+                    <strong>{{ detail.tunnel|default:"—" }} · Llenada {{ detail.fill_number|default:"—" }} · {{ detail.location|default:"—" }}</strong>
+                    {% if detail.product %}<small>{{ detail.product }}</small>{% endif %}
+                    <small>{{ detail.responsible|default:"—" }} · {{ detail.date|date:"d/m/Y"|default:"—" }}</small>
+                  </div>
+                  <span>{{ detail.trays|default:0 }} bdj · {{ detail.kg|default:"0.00" }} kg</span>
+                </div>
+              {% endfor %}
+            </section>
+          </div>
+        </div>
+      {% else %}
+        <p class="text-secondary p-3 mb-0">Sin bandejas en túneles.</p>
+      {% endif %}
+    </article>
+
+    <article class="crew-summary-card mt-3">
+      <header>
+        <div>
+          <small>PLAQUEROS</small>
+          <h3>{{ tareo.plate_trays }} bandejas · {{ tareo.plate_kg }} kg</h3>
+        </div>
+      </header>
+      {% if tareo.plate_details %}
+        <div class="crew-audit">
+          <div class="crew-audit-columns">
+            <section>
+              {% for detail in tareo.plate_details %}
+                <div class="crew-audit-row">
+                  <div>
+                    <strong>{{ detail.position|default:"—" }}</strong>
+                    <small>{{ detail.page|default:"—" }} · {{ detail.responsible|default:"—" }} · {{ detail.date|date:"d/m/Y"|default:"—" }}</small>
+                  </div>
+                  <span>{{ detail.trays|default:0 }} bdj · {{ detail.kg|default:"0.00" }} kg</span>
+                </div>
+              {% endfor %}
+            </section>
+          </div>
+        </div>
+      {% else %}
+        <p class="text-secondary p-3 mb-0">Sin bandejas en plaqueros.</p>
+      {% endif %}
+    </article>
+  </section>
+
+  {% else %}
+  <div class="crew-control-empty">
+    <h1>Cuadrilla no encontrada</h1>
+    <p>La cuadrilla solicitada no existe o fue desactivada.</p>
+    <a class="crew-control-back" href="{{ back_url|default:'/' }}">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+      <span>Volver al consolidado</span>
+    </a>
+  </div>
+  {% endif %}
+</section>
+<script>
+var TAREO_XLSX_URL = "{% url 'productions:crew_tareo_xlsx' production.pk tareo.crew.pk %}";
+var TAREO_PDF_URL  = "{% url 'productions:crew_tareo_pdf'  production.pk tareo.crew.pk %}";
+
+function downloadTareo(format) {
+  var base = format === 'pdf' ? TAREO_PDF_URL : TAREO_XLSX_URL;
+  var params = new URLSearchParams({
+    hora_inicio:  document.getElementById('tareo-hora-inicio').value,
+    hora_termino: document.getElementById('tareo-hora-termino').value,
+    supervisor:   document.getElementById('tareo-supervisor').value,
+  });
+  window.location.href = base + '?' + params.toString();
+}
+
+function openWorkerDialog() {
+  var overlay = document.getElementById("addWorkerOverlay");
+  if (overlay) {
+    overlay.style.display = "flex";
+    var input = document.getElementById("crew-worker-name");
+    if (input) input.focus();
+  }
+}
+function closeWorkerDialog() {
+  var overlay = document.getElementById("addWorkerOverlay");
+  if (overlay) overlay.style.display = "none";
+}
+document.addEventListener("keydown", function (event) {
+  if (event.key === "Escape") closeWorkerDialog();
+});
+</script>
+{% endblock %}

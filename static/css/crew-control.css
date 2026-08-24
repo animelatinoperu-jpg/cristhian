@@ -8,7 +8,8 @@
   --crew-danger: #b83e36;
 }
 
-body.crew-control-page {
+body.crew-control-page,
+body.crew-tareo-page {
   min-height: 100vh;
   background:
     radial-gradient(circle at 90% 0, rgba(74, 180, 149, 0.13), transparent 28rem),
@@ -16,7 +17,8 @@ body.crew-control-page {
   color: var(--crew-ink);
 }
 
-.crew-control-page main.container-lg {
+.crew-control-page main.container-lg,
+.crew-tareo-page main.container-lg {
   max-width: 1480px;
 }
 
@@ -26,15 +28,42 @@ body.crew-control-page {
 }
 
 .crew-control-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   width: max-content;
+  padding: 0.55rem 1.05rem;
+  border: 1px solid #d7e7e1;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffffff, #edf5f1);
   color: var(--crew-green);
   font-weight: 750;
   text-decoration: none;
+  box-shadow: 0 3px 0 #c3d8d0, 0 9px 20px rgba(21, 64, 51, 0.12);
+  transition: transform 0.12s, box-shadow 0.12s, background 0.12s, color 0.12s;
 }
 
 .crew-control-back:hover,
 .crew-control-back:focus-visible {
-  text-decoration: underline;
+  color: var(--crew-green);
+  text-decoration: none;
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, #ffffff, #e6f2ed);
+  box-shadow: 0 4px 0 #bcd3ca, 0 13px 26px rgba(21, 64, 51, 0.18);
+}
+
+.crew-control-back:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #bcd3ca, 0 5px 10px rgba(21, 64, 51, 0.12);
+}
+
+.crew-control-back svg {
+  flex: 0 0 auto;
+  transition: transform 0.12s;
+}
+
+.crew-control-back:hover svg {
+  transform: translateX(-3px);
 }
 
 .crew-control-hero {
@@ -231,11 +260,37 @@ body.crew-control-page {
   gap: 1rem;
 }
 
+.crew-control-list .crew-summary-card {
+  --accent: #0d7a5f;
+  --accent-dark: #075544;
+  --accent-soft: #e7f4ef;
+}
+
+.crew-control-list .crew-summary-card:nth-child(4n+2) {
+  --accent: #2563eb;
+  --accent-dark: #1d4ed8;
+  --accent-soft: #eaf1fe;
+}
+
+.crew-control-list .crew-summary-card:nth-child(4n+3) {
+  --accent: #d97706;
+  --accent-dark: #b45309;
+  --accent-soft: #fdf2e3;
+}
+
+.crew-control-list .crew-summary-card:nth-child(4n) {
+  --accent: #7c3aed;
+  --accent-dark: #6d28d9;
+  --accent-soft: #f1ebfd;
+}
+
 .crew-summary-card {
   overflow: hidden;
   border: 1px solid var(--crew-line);
+  border-top: 4px solid var(--accent, var(--crew-green));
   border-radius: 1rem;
   background: #fbfdfc;
+  box-shadow: 0 8px 22px rgba(21, 64, 51, 0.07);
 }
 
 .crew-summary-card>header {
@@ -245,11 +300,11 @@ body.crew-control-page {
   gap: 1rem;
   padding: 1rem;
   border-bottom: 1px solid var(--crew-line);
-  background: linear-gradient(135deg, #e8f5f0, #d8ede5);
+  background: linear-gradient(135deg, var(--accent-soft, #e8f5f0), #ffffff);
 }
 
 .crew-summary-card>header small {
-  color: var(--crew-green);
+  color: var(--accent, var(--crew-green));
   font-size: 0.65rem;
   font-weight: 850;
   letter-spacing: 0.12em;
@@ -266,7 +321,7 @@ body.crew-control-page {
 }
 
 .crew-summary-total strong {
-  color: var(--crew-green);
+  color: var(--accent, var(--crew-green));
   font-size: 1.35rem;
 }
 
@@ -612,4 +667,431 @@ body.crew-control-page {
     border-radius: 999px;
     background: #e7f4ef;
   }
+}
+
+/* ===== Tareo · plantel de trabajadores ===== */
+
+.crew-tareo-add-worker {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0.4rem 0 1.25rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--crew-line);
+  border-radius: 1rem;
+  background: linear-gradient(135deg, #f2faf7, #e7f4ef);
+}
+
+.crew-tareo-add-worker-label {
+  margin: 0;
+  color: var(--crew-green);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.crew-tareo-add-worker-row {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.crew-tareo-add-worker-row .form-control {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--crew-line);
+  border-radius: 0.65rem;
+  padding: 0.65rem 0.9rem;
+  font-size: 0.95rem;
+}
+
+.crew-tareo-add-worker-row .form-control:focus {
+  border-color: var(--crew-mint);
+  box-shadow: 0 0 0 0.2rem rgba(105, 210, 179, 0.22);
+}
+
+.crew-tareo-add-worker-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.65rem 1.1rem;
+  border: none;
+  border-radius: 0.65rem;
+  background: var(--crew-green);
+  color: #fff;
+  font-weight: 750;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.crew-tareo-add-worker-btn:hover {
+  background: #0b3f30;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.crew-tareo-add-worker-trigger {
+  margin: 0.5rem 0 1.25rem;
+  background: linear-gradient(180deg, #1a8f70, #0f5c4b);
+  box-shadow: 0 3px 0 #0a4034, 0 10px 22px rgba(16, 84, 64, 0.24);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.crew-tareo-add-worker-trigger:hover,
+.crew-tareo-add-worker-trigger:focus-visible {
+  background: linear-gradient(180deg, #1c9c7a, #11634f);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #0a4034, 0 13px 26px rgba(16, 84, 64, 0.3);
+}
+
+.crew-tareo-add-worker-trigger:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #0a4034, 0 5px 10px rgba(16, 84, 64, 0.18);
+}
+
+.crew-worker-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(9, 24, 20, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.crew-worker-dialog {
+  width: min(92vw, 460px);
+  border-radius: 1.1rem;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(13, 40, 32, 0.35);
+}
+
+.crew-worker-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid var(--crew-line);
+  background: linear-gradient(135deg, #eef7f3, #e2efe9);
+}
+
+.crew-worker-dialog-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--crew-ink);
+}
+
+.crew-worker-dialog-close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(18, 75, 59, 0.08);
+  color: var(--crew-green);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.crew-worker-dialog-close:hover {
+  background: var(--crew-green);
+  color: #fff;
+}
+
+.crew-worker-dialog-body {
+  padding: 1.25rem;
+}
+
+.crew-worker-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--crew-line);
+}
+
+.crew-worker-dialog .modal-eyebrow {
+  margin: 0 0 0.25rem;
+  color: var(--crew-green);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.crew-tareo-worker-count {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  margin: 0 0 0.65rem;
+  color: var(--crew-muted);
+  font-size: 0.8rem;
+}
+
+.crew-tareo-worker-count strong {
+  color: var(--crew-ink);
+  font-size: 1.15rem;
+  font-weight: 850;
+}
+
+.crew-tareo-worker-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crew-tareo-worker-card {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--crew-line);
+  border-radius: 0.95rem;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(21, 64, 51, 0.05);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.crew-tareo-worker-card:hover {
+  border-color: #bcd8ce;
+  box-shadow: 0 9px 24px rgba(21, 64, 51, 0.09);
+}
+
+.crew-tareo-worker-avatar {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #d7eee5, #bfe3d6);
+  color: var(--crew-green);
+  font-size: 0.95rem;
+  font-weight: 850;
+  letter-spacing: 0.02em;
+  flex: 0 0 auto;
+}
+
+.crew-tareo-worker-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.crew-tareo-worker-info strong {
+  font-size: 0.98rem;
+  color: var(--crew-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crew-tareo-worker-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.45rem;
+  color: var(--crew-muted);
+  font-size: 0.76rem;
+}
+
+.crew-tareo-worker-meta em {
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: var(--crew-soft);
+  color: var(--crew-green);
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 750;
+}
+
+.crew-tareo-worker-remove {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid #f0b9b3;
+  border-radius: 0.65rem;
+  background: #fff;
+  color: var(--crew-danger);
+  font-size: 0.78rem;
+  font-weight: 750;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.crew-tareo-worker-remove:hover,
+.crew-tareo-worker-remove:focus {
+  background: var(--crew-danger);
+  border-color: var(--crew-danger);
+  color: #fff;
+}
+
+/* ===== Botón CTA · Tareo del personal ===== */
+
+.crew-tareo-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.55rem 0.9rem;
+  border: none;
+  border-radius: 0.8rem;
+  background: linear-gradient(180deg, var(--accent, var(--crew-green)), var(--accent-dark, #0a4b3a));
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 750;
+  line-height: 1;
+  box-shadow: 0 4px 0 var(--accent-dark, #0a4b3a), 0 10px 22px rgba(16, 84, 64, 0.28);
+  transition: transform 0.12s, box-shadow 0.12s, filter 0.12s;
+}
+
+.crew-tareo-cta:hover,
+.crew-tareo-cta:focus {
+  color: #fff;
+  text-decoration: none;
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 5px 0 var(--accent-dark, #0a4b3a), 0 14px 28px rgba(16, 84, 64, 0.36);
+}
+
+.crew-tareo-cta:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--accent-dark, #0a4b3a), 0 6px 12px rgba(16, 84, 64, 0.24);
+}
+
+.crew-tareo-cta svg {
+  flex: 0 0 auto;
+}
+
+.crew-tareo-cta-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.55rem;
+  height: 1.55rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.crew-tareo-cta-arrow {
+  font-size: 1.05rem;
+  font-weight: 850;
+  opacity: 0.9;
+  transition: transform 0.16s;
+}
+
+.crew-tareo-cta:hover .crew-tareo-cta-arrow {
+  transform: translateX(3px);
+}
+
+/* Botones de descarga · estilo 3D */
+
+.crew-control-heading .btn {
+  border: none;
+  font-weight: 750;
+  transition: transform 0.12s, box-shadow 0.12s, background 0.12s;
+}
+
+.crew-control-heading .btn:active {
+  transform: translateY(2px);
+}
+
+.crew-control-heading .btn-outline-primary {
+  background: linear-gradient(180deg, #0d7a5f, #075544);
+  color: #fff;
+  box-shadow: 0 3px 0 #06422f, 0 8px 16px rgba(16, 84, 64, 0.22);
+}
+
+.crew-control-heading .btn-outline-primary:hover {
+  background: linear-gradient(180deg, #0c7258, #075544);
+  color: #fff;
+}
+
+.crew-control-heading .btn-outline-primary:active {
+  box-shadow: 0 1px 0 #06422f, 0 4px 8px rgba(16, 84, 64, 0.16);
+}
+
+.crew-control-heading .btn-outline-danger {
+  background: linear-gradient(180deg, #dc3545, #a71d2a);
+  color: #fff;
+  box-shadow: 0 3px 0 #7f1620, 0 8px 16px rgba(183, 28, 28, 0.22);
+}
+
+.crew-control-heading .btn-outline-danger:hover {
+  background: linear-gradient(180deg, #e03546, #a71d2a);
+  color: #fff;
+}
+
+.crew-control-heading .btn-outline-danger:active {
+  box-shadow: 0 1px 0 #7f1620, 0 4px 8px rgba(183, 28, 28, 0.16);
+}
+
+@media (max-width: 767.98px) {
+  .crew-tareo-worker-list {
+    grid-template-columns: 1fr;
+  }
+
+  .crew-tareo-add-worker-row {
+    flex-direction: column;
+  }
+
+  .crew-tareo-add-worker-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .crew-tareo-worker-remove {
+    padding: 0.5rem 0.65rem;
+  }
+
+  .crew-tareo-worker-remove span {
+    display: none;
+  }
+}
+
+/* ── Sección de datos para el reporte (hora inicio/termino, supervisor) ── */
+.crew-tareo-report-fields {
+  padding: 1rem 1.25rem 1.25rem;
+  background: var(--surface-2, #f8f9fa);
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-color, #dee2e6);
+}
+
+.crew-tareo-field-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.crew-tareo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1 1 140px;
+}
+
+.crew-tareo-field--wide {
+  flex: 2 1 220px;
+}
+
+.crew-tareo-field label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #6c757d);
 }

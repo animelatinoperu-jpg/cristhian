@@ -41,7 +41,13 @@ def _fill_cell(ws, coord, value):
     ws[coord] = value
 
 
-def build_crew_tareo_xlsx(production, crew_pk) -> bytes:
+def build_crew_tareo_xlsx(
+    production,
+    crew_pk,
+    hora_inicio: str = "",
+    hora_termino: str = "",
+    supervisor: str = "",
+) -> bytes:
     tareo = crew_tareo_summary(production, crew_pk)
     if tareo is None:
         raise CrewTareoReportError("La cuadrilla solicitada no existe.")
@@ -56,9 +62,9 @@ def build_crew_tareo_xlsx(production, crew_pk) -> bytes:
     _fill_cell(ws, "L11", tareo["crew_name"])
     _fill_cell(ws, "E12", production.production_date.strftime("%d/%m/%Y"))
     _fill_cell(ws, "L12", _shift_label(production))
-    _fill_cell(ws, "E13", "")
-    _fill_cell(ws, "L13", "")
-    _fill_cell(ws, "E14", "")
+    _fill_cell(ws, "E13", hora_inicio.strip())
+    _fill_cell(ws, "L13", hora_termino.strip())
+    _fill_cell(ws, "E14", supervisor.strip())
     _fill_cell(ws, "L14", production.plant_lot or "")
 
     # TABLA DE PERSONAL
@@ -102,8 +108,14 @@ def build_crew_tareo_xlsx(production, crew_pk) -> bytes:
     return payload.getvalue()
 
 
-def build_crew_tareo_pdf(production, crew_pk) -> bytes:
-    xlsx_payload = build_crew_tareo_xlsx(production, crew_pk)
+def build_crew_tareo_pdf(
+    production,
+    crew_pk,
+    hora_inicio: str = "",
+    hora_termino: str = "",
+    supervisor: str = "",
+) -> bytes:
+    xlsx_payload = build_crew_tareo_xlsx(production, crew_pk, hora_inicio, hora_termino, supervisor)
 
     binary = shutil.which("soffice") or shutil.which("libreoffice")
     if not binary:

@@ -50,9 +50,16 @@ from .forms import (
     VehicleForm,
     WorkerForm,
 )
-from .models import AreaAssignment, AuditLog, Crew, Customer, GeneratedFile, PlatePosition, PlatePositionTiming, PlateEntry, PlateCrewEntry, PlatePackagingAllocation, PlateCarryoverBalance, PlatePallet, PlatePalletConsumption, PlatePalletLine, Product, ProductionOrder, Rate, Role, TemplateVersion, Tunnel, TunnelFill, TunnelRack, TunnelEntry, TunnelCrewEntry, ReceptionEntry, ReceptionCarTiming, NuqueraEntry, TunnelPackagingEntry, PlatePackagingEntry, MaterialUsage, CostEntry, TroqueladoEntry, User, Vehicle, Worker
+from .models import AreaAssignment, AuditLog, Crew, Customer, GeneratedFile, PlatePosition, PlatePositionTiming, PlateEntry, PlateCrewEntry, PlatePackagingAllocation, PlateCarryoverBalance, PlatePallet, PlatePalletConsumption, PlatePalletLine, Product, ProductionOrder, Rate, Role, TemplateVersion, Tunnel, TunnelFill, TunnelRack, TunnelEntry, TunnelCrewEntry, ReceptionEntry, ReceptionCarTiming, NuqueraEntry, TunnelPackagingEntry, TunnelManualBalance, TunnelPackWorker, PlatePackagingEntry, PlatePackWorker, MaterialUsage, CostEntry, TroqueladoEntry, User, Vehicle, Worker
 from .services.excel import GenerationError, generate_production_workbook, mapping_capabilities
-from .services.permissions import can_view_crew_control, can_view_production, require_area_assignment, require_roles
+from .services.permissions import (
+    ROLE_AREA_MAP,
+    can_view_crew_control,
+    can_view_production,
+    has_operational_role,
+    require_area_assignment,
+    require_roles,
+)
 from .services.pdf_report import build_production_pdf
 from .services.plate_report import PlateReportError, build_plate_report_xlsx
 from .services.plate_report_pdf import build_plate_report_pdf
@@ -75,13 +82,35 @@ from .services.nuquera_tareo_report import NuqueraTareoReportError, build_nuquer
 from .services.nuquera_tareo_report_pdf import build_nuquera_tareo_pdf
 from .services.troquelado_report import TroqueladoReportError, build_troquelado_xlsx
 from .services.troquelado_report_pdf import build_troquelado_pdf
+
+
+def _safe_back_url(request, fallback):
+    candidate = request.GET.get("next") or request.POST.get("next") or request.META.get("HTTP_REFERER")
+    if candidate and url_has_allowed_host_and_scheme(
+        candidate,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return candidate
+    return fallback
+from .services.crew_tareo_report import CrewTareoReportError, build_crew_tareo_xlsx, build_crew_tareo_pdf
+from .services.tunnel_pack_tareo_report import (
+    TunnelPackTareoReportError,
+    build_tunnel_pack_tareo_xlsx,
+    build_tunnel_pack_tareo_pdf,
+)
+from .services.plate_pack_tareo_report import (
+    PlatePackTareoReportError,
+    build_plate_pack_tareo_xlsx,
+    build_plate_pack_tareo_pdf,
+)
 from .services.reconciliation import plate_reconciliation, tunnel_reconciliation
 from .services.layout import ensure_tunnel_racks
 from .services.permanent_delete import permanently_delete_production
 from .services.tunnel_transfer import transfer_tunnel_fill
-from .services.crew_control import crew_control_summary, reception_cone_pota_summary
+from .services.crew_control import crew_control_summary, crew_tareo_summary, reception_cone_pota_summary
 from .services.plate_balances import (
-    auto_pack_product,
+    manual_pack_product,
     plate_balance_dashboard,
     plate_pallet_dashboard,
     plate_product_availability,
@@ -161,6 +190,11 @@ class UserRegistrationView(FormView):
             return redirect("productions:list")
         return super().dispatch(request, *args, **kwargs)
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["back_url"] = _safe_back_url(self.request, reverse("login"))
+        return context
+
     def form_valid(self, form):
         with transaction.atomic():
             user = form.save()
@@ -173,7 +207,6 @@ class UserRegistrationView(FormView):
                 new_value={
                     "username": user.username,
                     "registration_status": user.registration_status,
-                    "requested_role": user.requested_role,
                 },
                 ip_address=self.request.META.get("REMOTE_ADDR"),
                 user_agent=self.request.META.get("HTTP_USER_AGENT", ""),
@@ -218,6 +251,7 @@ class UserListView(UserAdminRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context["pending_count"] = User.objects.filter(registration_status=User.RegistrationStatus.PENDING).count()
         context["active_count"] = User.objects.filter(registration_status=User.RegistrationStatus.ACTIVE, is_superuser=False).count()
+        context["back_url"] = _safe_back_url(self.request, reverse("productions:user_list"))
         return context
 
 
@@ -274,6 +308,49 @@ class UserAccessUpdateView(UserAdminRequiredMixin, UpdateView):
         return redirect("productions:user_list")
 
 
+class UserDeleteView(UserAdminRequiredMixin, View):
+    def post(self, request, pk):
+        managed_user = get_object_or_404(
+            User.objects.filter(is_superuser=False).exclude(pk=request.user.pk),
+            pk=pk,
+        )
+        display_name = managed_user.get_full_name() or managed_user.username
+        try:
+            with transaction.atomic():
+                AuditLog.objects.create(
+                    user=request.user,
+                    module="users",
+                    model_name=managed_user._meta.label,
+                    record_pk=str(managed_user.pk),
+                    action=AuditLog.Action.VOID,
+                    old_value={
+                        "username": managed_user.username,
+                        "email": managed_user.email,
+                        "registration_status": managed_user.registration_status,
+                        "roles": list(managed_user.roles.values_list("code", flat=True)),
+                    },
+                    reason="Eliminación de cuenta de usuario",
+                    ip_address=request.META.get("REMOTE_ADDR"),
+                    user_agent=request.META.get("HTTP_USER_AGENT", ""),
+                )
+                # Elimina la huella del registro público y conserva solo trazas operativas ajenas.
+                AuditLog.objects.filter(user=managed_user, module="auth").delete()
+                AuditLog.objects.filter(user=managed_user).update(user=None)
+                managed_user.delete()
+        except ProtectedError:
+            messages.error(
+                request,
+                (
+                    f"No se puede eliminar la cuenta de {display_name} porque ya tiene "
+                    "registros vinculados en la aplicación."
+                ),
+            )
+            return redirect("productions:user_access", pk=managed_user.pk)
+
+        messages.success(request, f"La cuenta de {display_name} fue eliminada.")
+        return redirect("productions:user_list")
+
+
 class ProductionListView(LoginRequiredMixin, ListView):
     model = ProductionOrder
     template_name = "productions/production_list.html"
@@ -291,7 +368,7 @@ class ProductionListView(LoginRequiredMixin, ListView):
                 Role.Codes.AUDITOR,
             ]
         ).exists()
-        if not self.can_review_void:
+        if not self.can_review_void and not has_operational_role(user):
             queryset = queryset.filter(assignments__user=user, assignments__shift=F("shift"), assignments__active=True).distinct()
         requested_view = self.request.GET.get("view", "active")
         self.current_view = "void" if requested_view == "void" and self.can_review_void else "active"
@@ -336,6 +413,11 @@ class ProductionCreateView(FormTitleMixin, LoginRequiredMixin, CreateView):
         messages.success(self.request, "Parte de producción creado.")
         return super().form_valid(form)
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["back_url"] = _safe_back_url(self.request, reverse("productions:list"))
+        return context
+
     def get_success_url(self):
         return reverse("productions:detail", args=[self.object.pk])
 
@@ -363,6 +445,7 @@ class ProductionUpdateView(FormTitleMixin, LoginRequiredMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         context["editing_production"] = True
         context["submit_label"] = "Guardar cambios"
+        context["back_url"] = _safe_back_url(self.request, reverse("productions:detail", args=[self.object.pk]))
         return context
 
     def form_valid(self, form):
@@ -434,7 +517,19 @@ class ProductionDetailView(LoginRequiredMixin, DetailView):
         context["can_delete"] = context["is_manager"] and ProductionOrder.Status.VOID in context["allowed_transitions"]
         context["can_hard_delete"] = context["is_manager"] and production.status == ProductionOrder.Status.VOID
         context["can_restore"] = context["is_manager"] and production.status == ProductionOrder.Status.VOID and ProductionOrder.Status.DRAFT in context["allowed_transitions"]
-        context["user_areas"] = set(production.assignments.filter(user=self.request.user, shift=production.shift, active=True).values_list("area", flat=True))
+        assigned_areas = set(
+            production.assignments.filter(
+                user=self.request.user,
+                shift=production.shift,
+                active=True,
+            ).values_list("area", flat=True)
+        )
+        role_areas = {
+            area
+            for code, area in ROLE_AREA_MAP.items()
+            if self.request.user.roles.filter(code=code).exists()
+        }
+        context["user_areas"] = assigned_areas | role_areas
         context["areas"] = AreaAssignment.Area
         context["can_view_crew_control"] = can_view_crew_control(self.request.user, production)
         if context["can_view_crew_control"]:
@@ -461,7 +556,464 @@ class CrewControlView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["summary"] = crew_control_summary(self.object)
+        context["back_url"] = _safe_back_url(self.request, reverse("productions:detail", args=[self.object.pk]))
         return context
+
+
+class CrewTareoView(LoginRequiredMixin, DetailView):
+    model = ProductionOrder
+    template_name = "productions/crew_tareo.html"
+    context_object_name = "production"
+
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset)
+        if not can_view_crew_control(self.request.user, obj):
+            raise PermissionDenied
+        return obj
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        crew_pk = self.kwargs.get("crew_pk")
+        tareo = None
+        try:
+            tareo = crew_tareo_summary(self.object, crew_pk)
+        except Crew.DoesNotExist:
+            messages.error(self.request, "La cuadrilla solicitada no existe.")
+        except Exception:
+            messages.error(self.request, "Error al cargar el tareo de esta cuadrilla.")
+        context["tareo"] = tareo
+        context["back_url"] = _safe_back_url(self.request, reverse("productions:crew_control", args=[self.object.pk]))
+        return context
+
+
+def _next_crew_worker_code(crew):
+    base = (crew.code or "CW").strip()
+    prefix = f"{base}-W"[:27]
+    existing = Worker.objects.filter(internal_code__startswith=prefix).values_list("internal_code", flat=True)
+    nums = []
+    for code in existing:
+        suffix = code[len(prefix):]
+        if suffix.isdigit():
+            nums.append(int(suffix))
+    return f"{prefix}{max(nums, default=0) + 1}"
+
+
+class CrewWorkerQuickCreateView(LoginRequiredMixin, View):
+    def post(self, request, pk, crew_pk):
+        production = get_object_or_404(ProductionOrder, pk=pk)
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        if production.status not in PRODUCTION_EDITABLE_STATUSES:
+            raise PermissionDenied("El PP no admite cambios en su estado actual.")
+        crew = get_object_or_404(Crew, pk=crew_pk)
+
+        name = " ".join((request.POST.get("name") or "").strip().split())
+        if not name:
+            messages.error(request, "Escriba el nombre del trabajador.")
+        elif len(name) > 180:
+            messages.error(request, "El nombre es demasiado largo.")
+        else:
+            worker = _find_existing_worker_by_name(name)
+            if worker is None:
+                with transaction.atomic():
+                    worker = Worker.objects.create(
+                        internal_code=_next_crew_worker_code(crew),
+                        full_name=name,
+                        crew=crew,
+                        active=True,
+                    )
+                messages.success(request, f"{worker.full_name} agregado a {crew.name}.")
+            elif not worker.active:
+                worker.active = True
+                worker.crew = crew
+                worker.save(update_fields=["active", "crew", "updated_at"])
+                messages.success(request, f"{worker.full_name} reactivado y asignado a {crew.name}.")
+            elif worker.crew_id != crew.pk:
+                worker.crew = crew
+                worker.save(update_fields=["crew", "updated_at"])
+                messages.info(request, f"{worker.full_name} ahora pertenece a {crew.name}.")
+            else:
+                messages.info(request, f"{worker.full_name} ya está en {crew.name}.")
+
+        next_url = request.POST.get("next")
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            return redirect(next_url)
+        return redirect("productions:crew_tareo", pk=pk, crew_pk=crew_pk)
+
+
+class CrewWorkerDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk, crew_pk, worker_pk):
+        production = get_object_or_404(ProductionOrder, pk=pk)
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        if production.status not in PRODUCTION_EDITABLE_STATUSES:
+            raise PermissionDenied("El PP no admite cambios en su estado actual.")
+        crew = get_object_or_404(Crew, pk=crew_pk)
+        worker = get_object_or_404(Worker, pk=worker_pk)
+        if worker.crew_id != crew.pk:
+            messages.error(request, f"{worker.full_name} no pertenece a {crew.name}.")
+        else:
+            worker.crew = None
+            worker.save(update_fields=["crew", "updated_at"])
+            messages.success(request, f"{worker.full_name} quitado de {crew.name}.")
+
+        next_url = request.POST.get("next")
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            return redirect(next_url)
+        return redirect("productions:crew_tareo", pk=pk, crew_pk=crew_pk)
+
+
+class TunnelPackTareoView(LoginRequiredMixin, DetailView):
+    model = ProductionOrder
+    template_name = "productions/tunnel_pack_tareo.html"
+    context_object_name = "production"
+
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset)
+        if not can_view_production(self.request.user, obj):
+            raise PermissionDenied
+        return obj
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        workers = self.object.tunnel_pack_workers.filter(active=True)
+        context["workers"] = workers
+        context["worker_count"] = workers.count()
+        context["back_url"] = _safe_back_url(self.request, reverse("productions:tunnel_pack_create", args=[self.object.pk]))
+        return context
+
+
+class TunnelPackWorkerQuickCreateView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        production = get_object_or_404(ProductionOrder, pk=pk)
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        if production.status not in PRODUCTION_EDITABLE_STATUSES:
+            raise PermissionDenied("El PP no admite cambios en su estado actual.")
+
+        name = " ".join((request.POST.get("name") or "").strip().split())
+        if not name:
+            messages.error(request, "Escriba el nombre del trabajador.")
+        elif len(name) > 180:
+            messages.error(request, "El nombre es demasiado largo.")
+        else:
+            existing = TunnelPackWorker.objects.filter(production=production, full_name__iexact=name).first()
+            if existing is None:
+                TunnelPackWorker.objects.create(production=production, full_name=name, active=True)
+                messages.success(request, f"{name} agregado al tareo del empaque.")
+            elif not existing.active:
+                existing.active = True
+                existing.save(update_fields=["active", "updated_at"])
+                messages.success(request, f"{existing.full_name} reactivado en el tareo.")
+            else:
+                messages.info(request, f"{existing.full_name} ya está en el tareo.")
+
+        next_url = request.POST.get("next")
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            return redirect(next_url)
+        return redirect("productions:tunnel_pack_tareo", pk=pk)
+
+
+class TunnelPackWorkerDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk, worker_pk):
+        production = get_object_or_404(ProductionOrder, pk=pk)
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        if production.status not in PRODUCTION_EDITABLE_STATUSES:
+            raise PermissionDenied("El PP no admite cambios en su estado actual.")
+
+        worker = get_object_or_404(TunnelPackWorker, pk=worker_pk, production=production)
+        worker.active = False
+        worker.save(update_fields=["active", "updated_at"])
+        messages.success(request, f"{worker.full_name} quitado del tareo.")
+
+        next_url = request.POST.get("next")
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            return redirect(next_url)
+        return redirect("productions:tunnel_pack_tareo", pk=pk)
+
+
+class PlatePackTareoView(LoginRequiredMixin, DetailView):
+    model = ProductionOrder
+    template_name = "productions/plate_pack_tareo.html"
+    context_object_name = "production"
+
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset)
+        if not can_view_production(self.request.user, obj):
+            raise PermissionDenied
+        return obj
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        workers = self.object.plate_pack_workers.filter(active=True)
+        context["workers"] = workers
+        context["worker_count"] = workers.count()
+        context["back_url"] = _safe_back_url(self.request, reverse("productions:plate_pack_create", args=[self.object.pk]))
+        return context
+
+
+class PlatePackWorkerQuickCreateView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        production = get_object_or_404(ProductionOrder, pk=pk)
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        if production.status not in PRODUCTION_EDITABLE_STATUSES:
+            raise PermissionDenied("El PP no admite cambios en su estado actual.")
+
+        name = " ".join((request.POST.get("name") or "").strip().split())
+        if not name:
+            messages.error(request, "Escriba el nombre del trabajador.")
+        elif len(name) > 180:
+            messages.error(request, "El nombre es demasiado largo.")
+        else:
+            existing = PlatePackWorker.objects.filter(production=production, full_name__iexact=name).first()
+            if existing is None:
+                PlatePackWorker.objects.create(production=production, full_name=name, active=True)
+                messages.success(request, f"{name} agregado al tareo del empaque.")
+            elif not existing.active:
+                existing.active = True
+                existing.save(update_fields=["active", "updated_at"])
+                messages.success(request, f"{existing.full_name} reactivado en el tareo.")
+            else:
+                messages.info(request, f"{existing.full_name} ya está en el tareo.")
+
+        next_url = request.POST.get("next")
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            return redirect(next_url)
+        return redirect("productions:plate_pack_tareo", pk=pk)
+
+
+class PlatePackWorkerDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk, worker_pk):
+        production = get_object_or_404(ProductionOrder, pk=pk)
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        if production.status not in PRODUCTION_EDITABLE_STATUSES:
+            raise PermissionDenied("El PP no admite cambios en su estado actual.")
+
+        worker = get_object_or_404(PlatePackWorker, pk=worker_pk, production=production)
+        worker.active = False
+        worker.save(update_fields=["active", "updated_at"])
+        messages.success(request, f"{worker.full_name} quitado del tareo.")
+
+        next_url = request.POST.get("next")
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            return redirect(next_url)
+        return redirect("productions:plate_pack_tareo", pk=pk)
+
+
+class PlatePackTareoXlsxView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        production = get_object_or_404(
+            ProductionOrder.objects.select_related("customer", "main_product", "template_version"),
+            pk=pk,
+        )
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        try:
+            payload = build_plate_pack_tareo_xlsx(production)
+        except PlatePackTareoReportError as exc:
+            messages.error(request, str(exc))
+            return redirect("productions:plate_pack_tareo", pk=pk)
+
+        filename = f"EMPAQUE_PLAQUEROS_TAREO_PP_{production.number}_{production.reception_date:%d%m%Y}.xlsx"
+        AuditLog.objects.create(
+            user=request.user,
+            production=production,
+            module="plate-pack-tareo-report",
+            model_name=production._meta.label,
+            record_pk=str(production.pk),
+            action=AuditLog.Action.DOWNLOAD,
+            new_value={"filename": filename},
+            ip_address=request.META.get("REMOTE_ADDR"),
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+        )
+        response = HttpResponse(
+            payload,
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
+
+
+class PlatePackTareoPdfView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        production = get_object_or_404(
+            ProductionOrder.objects.select_related("customer", "main_product", "template_version"),
+            pk=pk,
+        )
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        try:
+            payload = build_plate_pack_tareo_pdf(production)
+        except PlatePackTareoReportError as exc:
+            messages.error(request, str(exc))
+            return redirect("productions:plate_pack_tareo", pk=pk)
+
+        filename = f"EMPAQUE_PLAQUEROS_TAREO_PP_{production.number}_{production.reception_date:%d%m%Y}.pdf"
+        AuditLog.objects.create(
+            user=request.user,
+            production=production,
+            module="plate-pack-tareo-report-pdf",
+            model_name=production._meta.label,
+            record_pk=str(production.pk),
+            action=AuditLog.Action.DOWNLOAD,
+            new_value={"filename": filename},
+            ip_address=request.META.get("REMOTE_ADDR"),
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+        )
+        response = HttpResponse(payload, content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
+
+
+class TunnelPackTareoXlsxView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        production = get_object_or_404(
+            ProductionOrder.objects.select_related("customer", "main_product", "template_version"),
+            pk=pk,
+        )
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        try:
+            payload = build_tunnel_pack_tareo_xlsx(production)
+        except TunnelPackTareoReportError as exc:
+            messages.error(request, str(exc))
+            return redirect("productions:tunnel_pack_tareo", pk=pk)
+
+        filename = f"EMPAQUE_TUNEL_TAREO_PP_{production.number}_{production.reception_date:%d%m%Y}.xlsx"
+        AuditLog.objects.create(
+            user=request.user,
+            production=production,
+            module="tunnel-pack-tareo-report",
+            model_name=production._meta.label,
+            record_pk=str(production.pk),
+            action=AuditLog.Action.DOWNLOAD,
+            new_value={"filename": filename},
+            ip_address=request.META.get("REMOTE_ADDR"),
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+        )
+        response = HttpResponse(
+            payload,
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
+
+
+class TunnelPackTareoPdfView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        production = get_object_or_404(
+            ProductionOrder.objects.select_related("customer", "main_product", "template_version"),
+            pk=pk,
+        )
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        try:
+            payload = build_tunnel_pack_tareo_pdf(production)
+        except TunnelPackTareoReportError as exc:
+            messages.error(request, str(exc))
+            return redirect("productions:tunnel_pack_tareo", pk=pk)
+
+        filename = f"EMPAQUE_TUNEL_TAREO_PP_{production.number}_{production.reception_date:%d%m%Y}.pdf"
+        AuditLog.objects.create(
+            user=request.user,
+            production=production,
+            module="tunnel-pack-tareo-report-pdf",
+            model_name=production._meta.label,
+            record_pk=str(production.pk),
+            action=AuditLog.Action.DOWNLOAD,
+            new_value={"filename": filename},
+            ip_address=request.META.get("REMOTE_ADDR"),
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+        )
+        response = HttpResponse(payload, content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
+
+
+class CrewTareoXlsxView(LoginRequiredMixin, View):
+    def get(self, request, pk, crew_pk):
+        production = get_object_or_404(
+            ProductionOrder.objects.select_related("customer", "main_product", "template_version"),
+            pk=pk,
+        )
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        hora_inicio = request.GET.get("hora_inicio", "")
+        hora_termino = request.GET.get("hora_termino", "")
+        supervisor = request.GET.get("supervisor", "")
+        try:
+            payload = build_crew_tareo_xlsx(production, crew_pk, hora_inicio, hora_termino, supervisor)
+        except CrewTareoReportError as exc:
+            messages.error(request, str(exc))
+            return redirect("productions:crew_tareo", pk=pk, crew_pk=crew_pk)
+
+        filename = f"CUADRILLA_TAREO_PP_{production.number}_{production.reception_date:%d%m%Y}.xlsx"
+        AuditLog.objects.create(
+            user=request.user,
+            production=production,
+            module="crew-tareo-report",
+            model_name=production._meta.label,
+            record_pk=str(production.pk),
+            action=AuditLog.Action.DOWNLOAD,
+            new_value={"filename": filename},
+            ip_address=request.META.get("REMOTE_ADDR"),
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+        )
+        response = HttpResponse(
+            payload,
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
+
+
+class CrewTareoPdfView(LoginRequiredMixin, View):
+    def get(self, request, pk, crew_pk):
+        production = get_object_or_404(
+            ProductionOrder.objects.select_related("customer", "main_product", "template_version"),
+            pk=pk,
+        )
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        hora_inicio = request.GET.get("hora_inicio", "")
+        hora_termino = request.GET.get("hora_termino", "")
+        supervisor = request.GET.get("supervisor", "")
+        try:
+            payload = build_crew_tareo_pdf(production, crew_pk, hora_inicio, hora_termino, supervisor)
+        except CrewTareoReportError as exc:
+            messages.error(request, str(exc))
+            return redirect("productions:crew_tareo", pk=pk, crew_pk=crew_pk)
+
+        filename = f"CUADRILLA_TAREO_PP_{production.number}_{production.reception_date:%d%m%Y}.pdf"
+        AuditLog.objects.create(
+            user=request.user,
+            production=production,
+            module="crew-tareo-report-pdf",
+            model_name=production._meta.label,
+            record_pk=str(production.pk),
+            action=AuditLog.Action.DOWNLOAD,
+            new_value={"filename": filename},
+            ip_address=request.META.get("REMOTE_ADDR"),
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+        )
+        response = HttpResponse(payload, content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
 
 
 class ProductionTransitionView(LoginRequiredMixin, View):
@@ -606,7 +1158,12 @@ class TunnelEntryCreateView(LoginRequiredMixin, View):
             is_active=True,
             status__in=[TunnelFill.Status.OPEN, TunnelFill.Status.REOPENED]
         ).select_related("tunnel")
-        if not (request.user.is_superuser or request.user.has_role(Role.Codes.ADMIN, Role.Codes.PRODUCTION_MANAGER)):
+        if request.user.is_superuser or request.user.has_role(Role.Codes.ADMIN, Role.Codes.PRODUCTION_MANAGER):
+            pass
+        elif request.user.has_role(Role.Codes.TUNNEL):
+            if request.user.tunnels.exists():
+                fills = fills.filter(tunnel__in=request.user.tunnels.all())
+        else:
             fills = fills.filter(
                 tunnel__assignments__production=production,
                 tunnel__assignments__user=request.user,
@@ -620,7 +1177,16 @@ class TunnelEntryCreateView(LoginRequiredMixin, View):
             return redirect("productions:tunnel_fill_create", pk=production.pk)
         if len(fills) == 1:
             return redirect("productions:tunnel_batch", pk=production.pk, fill_pk=fills[0].pk)
-        return render(request, "productions/tunnel_fill_select.html", {"production": production, "fills": fills})
+        return render(
+            request,
+            "productions/tunnel_fill_select.html",
+            {
+                "production": production,
+                "fills": fills,
+                "next_url": _safe_back_url(request, reverse("productions:detail", args=[production.pk])),
+                "back_url": _safe_back_url(request, reverse("productions:detail", args=[production.pk])),
+            },
+        )
 
 
 class TunnelBatchEntryView(LoginRequiredMixin, View):
@@ -742,6 +1308,7 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
                 "unmatched_total": max(assigned_total - physical_total, 0),
                 "pending_racks": pending_racks,
             },
+            "back_url": _safe_back_url(self.request, reverse("productions:detail", args=[self.production.pk])),
         }
 
     def get(self, request, *args, **kwargs):
@@ -1903,7 +2470,7 @@ def _tunnel_crew_rack_groups(fill):
         fill.racks.prefetch_related(
             Prefetch("entries", queryset=physical_entries, to_attr="active_physical_entries"),
             Prefetch("crew_entries", queryset=crew_entries, to_attr="active_crew_entries"),
-        )
+        ).select_related("closed_by")
     )
     groups = []
     totals_by_crew = {}
@@ -1944,6 +2511,7 @@ def _tunnel_crew_rack_groups(fill):
                 "physical_total": rack_physical,
                 "assigned_total": rack_assigned,
                 "pending_total": max(rack_physical - rack_assigned, 0),
+                "closed_by": rack.closed_by,
             }
         )
     return {
@@ -2288,12 +2856,46 @@ def _plate_pack_product_totals(pallet_dashboard):
                     "tray_count": 0,
                     "kg": Decimal("0.00"),
                     "pallet_numbers": set(),
+                    "packed_records": [],
                 },
             )
             item["package_count"] += int(product_row["package_count"] or 0)
             item["tray_count"] += int(product_row["tray_count"] or 0)
             item["kg"] += Decimal(product_row["kg"] or 0)
             item["pallet_numbers"].add(pallet_data["pallet_number"])
+            for movement in product_row.get("movements") or []:
+                item["packed_records"].append(
+                    {
+                        "kind": "automatic",
+                        "object": movement,
+                        "pallet_number": pallet_data["pallet_number"],
+                        "pallet": pallet_data["pallet"],
+                        "package_count": movement.package_count,
+                        "can_delete": pallet_data["status"] == PlatePallet.Status.OPEN,
+                    }
+                )
+            for allocation in product_row.get("allocations") or []:
+                item["packed_records"].append(
+                    {
+                        "kind": "allocation",
+                        "object": allocation,
+                        "pallet_number": pallet_data["pallet_number"],
+                        "pallet": pallet_data["pallet"],
+                        "package_count": allocation.package_count,
+                        "can_delete": pallet_data["status"] == PlatePallet.Status.OPEN,
+                    }
+                )
+            for legacy_entry in product_row.get("legacy_entries") or []:
+                item["packed_records"].append(
+                    {
+                        "kind": "legacy",
+                        "object": legacy_entry,
+                        "pallet_number": pallet_data["pallet_number"],
+                        "pallet": pallet_data["pallet"],
+                        "package_count": legacy_entry.package_count,
+                        "can_delete": pallet_data["status"] == PlatePallet.Status.OPEN,
+                    }
+                )
     rows = []
     for item in totals.values():
         item["pallet_count"] = len(item["pallet_numbers"])
@@ -2322,7 +2924,31 @@ def _tunnel_pallet_capacity(production):
     )
 
 
-def _tunnel_product_availability(production, tunnel_code=None):
+def _tunnel_manual_balance_rows(production):
+    """Devuelve los saldos manuales con su remanente real para mostrarlos."""
+    balances = list(
+        TunnelManualBalance.objects.filter(production=production, is_active=True)
+        .select_related("product")
+        .order_by("date", "pk")
+    )
+    if not balances:
+        return []
+    remaining_by_balance = {}
+    for item in _tunnel_product_availability(production):
+        for source in item["sources"]:
+            balance_id = source.get("balance_id")
+            if balance_id:
+                remaining_by_balance[balance_id] = source["pending_trays"]
+    for balance in balances:
+        balance.available_trays = remaining_by_balance.get(balance.pk, 0)
+        balance.can_delete = (
+            not balance.source_tunnel
+            and balance.available_trays == balance.tray_count
+        )
+    return balances
+
+
+def _tunnel_product_availability(production, tunnel_code=None, balance_ids=None):
     package_trays = _tunnel_package_trays(production)
     package_kg = _tunnel_package_kg(production)
     physical_rows = list(
@@ -2333,7 +2959,7 @@ def _tunnel_product_availability(production, tunnel_code=None):
             "rack__fill__fill_number",
             "rack__code",
         )
-        .annotate(total=Sum("tray_count"))
+        .annotate(total=Sum(F("tray_count") - F("carryover_trays")))
         .order_by(
             "product",
             "rack__fill__tunnel__code",
@@ -2341,45 +2967,92 @@ def _tunnel_product_availability(production, tunnel_code=None):
             "rack__code",
         )
     )
-    physical_by_product = {
-        product_id: sum(int(row["total"] or 0) for row in rows)
-        for product_id, rows in itertools.groupby(
-            physical_rows,
-            key=lambda row: row["product"],
-        )
-    }
-    if not physical_by_product:
+    all_manual_balances = list(
+        TunnelManualBalance.objects.filter(production=production, is_active=True)
+        .select_related("product")
+        .order_by("date", "pk")
+    )
+    selected_balance_ids = set(balance_ids) if balance_ids is not None else None
+    packaging_entries = list(
+        TunnelPackagingEntry.objects.filter(production=production, is_active=True)
+        .only("product_id", "package_count", "source_breakdown")
+        .order_by("pk")
+    )
+    packed_by_product = defaultdict(int)
+    explicit_packages = defaultdict(lambda: defaultdict(int))
+    legacy_packages = defaultdict(int)
+    for entry in packaging_entries:
+        remaining_packages = int(entry.package_count or 0)
+        packed_by_product[entry.product_id] += remaining_packages
+        breakdown = entry.source_breakdown if isinstance(entry.source_breakdown, dict) else {}
+        for raw_code, raw_count in breakdown.items():
+            code = str(raw_code or "").strip().upper()
+            try:
+                count = max(int(raw_count or 0), 0)
+            except (TypeError, ValueError):
+                count = 0
+            used = min(count, remaining_packages)
+            if code and used:
+                explicit_packages[entry.product_id][code] += used
+                remaining_packages -= used
+            if not remaining_packages:
+                break
+        legacy_packages[entry.product_id] += remaining_packages
+
+    physical_by_product = defaultdict(int)
+    for row in physical_rows:
+        physical_by_product[row["product"]] += int(row["total"] or 0)
+    product_ids = (
+        set(physical_by_product)
+        | {balance.product_id for balance in all_manual_balances}
+        | set(packed_by_product)
+    )
+    if not product_ids:
         return []
-    packed_by_product = {
-        row["product"]: int(row["total"] or 0)
-        for row in (
-            TunnelPackagingEntry.objects.filter(production=production, is_active=True)
-            .values("product")
-            .annotate(total=Sum("package_count"))
-        )
-    }
     products = {
         product.pk: product
-        for product in Product.objects.filter(pk__in=physical_by_product)
+        for product in Product.objects.filter(pk__in=product_ids)
     }
     rows = []
-    for product_id, physical_trays in physical_by_product.items():
+    for product_id in product_ids:
         product = products.get(product_id)
         if product is None:
             continue
+        physical_trays = physical_by_product.get(product_id, 0)
         packed_packages = packed_by_product.get(product_id, 0)
         packed_trays = packed_packages * package_trays
-        pending_trays = max(physical_trays - packed_trays, 0)
-        possible_packages = pending_trays // package_trays
-        consumed_trays = packed_trays
+        product_physical_rows = [
+            {
+                **row,
+                "remaining": int(row["total"] or 0),
+            }
+            for row in physical_rows
+            if row["product"] == product_id
+        ]
+
+        manual_used = 0
+        for code, package_count in sorted(explicit_packages[product_id].items()):
+            demand = package_count * package_trays
+            for row in product_physical_rows:
+                if row["rack__fill__tunnel__code"] != code or demand <= 0:
+                    continue
+                used = min(row["remaining"], demand)
+                row["remaining"] -= used
+                demand -= used
+            manual_used += demand
+
+        legacy_demand = legacy_packages[product_id] * package_trays
+        for row in product_physical_rows:
+            if legacy_demand <= 0:
+                break
+            used = min(row["remaining"], legacy_demand)
+            row["remaining"] -= used
+            legacy_demand -= used
+        manual_used += legacy_demand
+
         source_rows = []
-        for row in [item for item in physical_rows if item["product"] == product_id]:
-            row_trays = int(row["total"] or 0)
-            if consumed_trays >= row_trays:
-                consumed_trays -= row_trays
-                continue
-            pending_from_source = row_trays - consumed_trays
-            consumed_trays = 0
+        for row in product_physical_rows:
+            pending_from_source = row["remaining"]
             if pending_from_source <= 0:
                 continue
             source_rows.append(
@@ -2392,13 +3065,50 @@ def _tunnel_product_availability(production, tunnel_code=None):
                     "balance_trays": pending_from_source % package_trays,
                 }
             )
+        manual_trays = 0
+        manual_pending_trays = 0
+        for balance in (
+            item for item in all_manual_balances if item.product_id == product_id
+        ):
+            used = min(balance.tray_count, manual_used)
+            available = balance.tray_count - used
+            manual_used = max(manual_used - used, 0)
+            if selected_balance_ids is not None and balance.pk not in selected_balance_ids:
+                continue
+            manual_trays += balance.tray_count
+            if available <= 0:
+                continue
+            manual_pending_trays += available
+            source_rows.append(
+                {
+                    "source_type": "manual",
+                    "balance_id": balance.pk,
+                    "source_tunnel": balance.source_tunnel,
+                    "observation": balance.observation,
+                    "pending_trays": available,
+                    "possible_packages": available // package_trays,
+                    "balance_trays": available % package_trays,
+                }
+            )
+        physical_pending_trays = sum(
+            source["pending_trays"]
+            for source in source_rows
+            if source.get("source_type") != "manual"
+        )
+        pending_trays = physical_pending_trays + manual_pending_trays
+        if not physical_trays and not source_rows:
+            continue
+        possible_packages = pending_trays // package_trays
         rows.append(
             {
                 "product": product,
                 "physical_trays": physical_trays,
+                "manual_trays": manual_trays,
+                "manual_pending_trays": manual_pending_trays,
                 "packed_packages": packed_packages,
                 "packed_trays": packed_trays,
                 "pending_trays": pending_trays,
+                "base_pending_trays": physical_pending_trays,
                 "possible_packages": possible_packages,
                 "possible_kg": Decimal(possible_packages) * package_kg,
                 "balance_trays": pending_trays % package_trays,
@@ -2416,15 +3126,24 @@ def _tunnel_product_availability(production, tunnel_code=None):
             sources = [
                 source
                 for source in item["sources"]
-                if source["tunnel"] == tunnel_code
+                if source.get("source_type") == "manual"
+                or source.get("tunnel") == tunnel_code
             ]
             pending_trays = sum(source["pending_trays"] for source in sources)
+            base_pending_trays = sum(
+                source["pending_trays"]
+                for source in sources
+                if source.get("source_type") != "manual"
+            )
             possible_packages = pending_trays // package_trays
+            manual_pending_trays = pending_trays - base_pending_trays
             item.update(
                 {
                     "physical_trays": physical_trays,
-                    "packed_trays": physical_trays - pending_trays,
+                    "manual_pending_trays": manual_pending_trays,
+                    "packed_trays": max(physical_trays - base_pending_trays, 0),
                     "pending_trays": pending_trays,
+                    "base_pending_trays": base_pending_trays,
                     "possible_packages": possible_packages,
                     "possible_kg": Decimal(possible_packages) * package_kg,
                     "balance_trays": pending_trays % package_trays,
@@ -2502,7 +3221,14 @@ def _tunnel_pack_cards(production, availability=None):
     rows = (
         TunnelEntry.objects.filter(production=production, is_active=True)
         .values("rack__fill__tunnel__code", "rack__fill__fill_number")
-        .annotate(total=Sum("tray_count"))
+        .annotate(total=Sum(F("tray_count") - F("carryover_trays")))
+    )
+    active_tunnel_codes = set(
+        TunnelFill.objects.filter(
+            production=production,
+            is_active=True,
+            status__in=[TunnelFill.Status.OPEN, TunnelFill.Status.REOPENED],
+        ).values_list("tunnel__code", flat=True)
     )
     by_tunnel = {}
     for row in rows:
@@ -2516,12 +3242,15 @@ def _tunnel_pack_cards(production, availability=None):
                 "physical": 0,
                 "pending": 0,
                 "possible": 0,
+                "is_closed": code not in active_tunnel_codes,
             },
         )
         card["fills"].add(row["rack__fill__fill_number"])
         card["physical"] += int(row["total"] or 0)
     for item in availability:
         for source in item["sources"]:
+            if source.get("source_type") == "manual":
+                continue
             card = by_tunnel.get(source["tunnel"])
             if card is None:
                 continue
@@ -2553,9 +3282,12 @@ def _tunnel_packaging_data(production, tunnel_code=None, availability=None, tunn
         "availability": availability,
         "pallets": pallets,
         "physical_total": sum(item["physical_trays"] for item in availability),
+        "manual_total": sum(item["manual_pending_trays"] for item in availability),
         "packed_total": sum(item["packed_trays"] for item in availability),
         "pending_total": sum(item["pending_trays"] for item in availability),
         "possible_total": sum(item["possible_packages"] for item in availability),
+        "package_trays": _tunnel_package_trays(production),
+        "package_kg": _tunnel_package_kg(production),
         "pallet_capacity": _tunnel_pallet_capacity(production),
         "pallet_max": production.template_version.rules.get("tunnel_pallet_max", 50),
         "tunnels": tunnels,
@@ -2704,6 +3436,7 @@ def _reception_record_groups(production):
     return sorted(
         groups,
         key=lambda group: (
+            group["closed_at"] is not None,
             int(group["car_number"]) if group["car_number"].isdigit() else 9999,
             group["car_number"],
             group["vehicle"].plate,
@@ -2750,8 +3483,13 @@ class OperationalContextMixin:
                 "areas": AreaAssignment.Area,
                 "editing": bool(getattr(self, "object", None)),
                 "operational_read_only": getattr(self, "operational_read_only", False),
+                "back_url": _safe_back_url(self.request, reverse("productions:detail", args=[self.production.pk])),
             }
         )
+        if self.module_key == "reception":
+            total_weight_kg = sum((group["total_weight"] for group in context["reception_record_groups"]), Decimal("0.00"))
+            context["reception_total_weight_kg"] = total_weight_kg
+            context["reception_total_weight_tons"] = total_weight_kg / Decimal("1000") if total_weight_kg else Decimal("0.00")
         if self.module_key == "tunnel-crews" and getattr(self, "object", None) is not None:
             context["module_create_url"] = (
                 f"{reverse('productions:tunnel_crew_create', args=[self.production.pk])}"
@@ -2804,9 +3542,13 @@ class OperationalContextMixin:
                 "plate_pallet_max",
                 50,
             )
+            plate_template_product_codes = [
+                f"PP-{number:03d}" for number in range(1, 49)
+            ]
             context["plate_balance_product_options"] = Product.objects.filter(
-                active=True
-            ).order_by("description", "code")
+                active=True,
+                code__in=plate_template_product_codes,
+            ).order_by("code")
             selected_product = self.request.GET.get("product")
             selected_product_id = (
                 int(selected_product) if str(selected_product).isdigit() else None
@@ -2832,10 +3574,11 @@ class OperationalContextMixin:
                 if item["status"] != PlatePallet.Status.CLOSED
                 and item["available_packages"] > 0
             ]
-            open_pallet_numbers = {
-                item["pallet_number"] for item in open_pallets
-            }
-            if selected_pallet_number not in open_pallet_numbers:
+            if (
+                selected_pallet_number is None
+                or selected_pallet_number < 1
+                or selected_pallet_number > context["plate_pallet_max"]
+            ):
                 selected_pallet_number = (
                     open_pallets[0]["pallet_number"] if open_pallets else None
                 )
@@ -2871,6 +3614,24 @@ class OperationalContextMixin:
             selected_tunnel_code = (
                 requested_tunnel if requested_tunnel in available_tunnel_codes else None
             )
+            all_tunnel_manual_balances = _tunnel_manual_balance_rows(self.production)
+            tunnel_manual_balances = [
+                balance for balance in all_tunnel_manual_balances
+                if balance.available_trays > 0
+            ]
+            tunnel_carryover_balances = list(tunnel_manual_balances)
+            requested_balance_values = (
+                self.request.GET.get("balances") or self.request.GET.get("balance") or ""
+            )
+            requested_balance_ids = {
+                int(value)
+                for value in requested_balance_values.split(",")
+                if value.isdigit()
+            }
+            valid_balance_ids = {
+                balance.pk for balance in tunnel_carryover_balances
+            }
+            selected_tunnel_balance_ids = requested_balance_ids & valid_balance_ids
             tunnel_packaging_data = _tunnel_packaging_data(
                 self.production,
                 tunnel_code=selected_tunnel_code,
@@ -2880,12 +3641,48 @@ class OperationalContextMixin:
                     else _tunnel_product_availability(
                         self.production,
                         tunnel_code=selected_tunnel_code,
+                        balance_ids=selected_tunnel_balance_ids,
                     )
                 ),
                 tunnels=tunnel_cards,
             )
             context["tunnel_packaging_data"] = tunnel_packaging_data
             context["selected_tunnel_code"] = selected_tunnel_code
+            selected_tunnel_card = next(
+                (
+                    card for card in tunnel_cards
+                    if card["code"] == selected_tunnel_code
+                ),
+                None,
+            )
+            context["selected_tunnel_is_closed"] = bool(
+                selected_tunnel_card and selected_tunnel_card["is_closed"]
+            )
+            context["selected_tunnel_can_close"] = bool(
+                selected_tunnel_card
+                and not selected_tunnel_card["is_closed"]
+            )
+            context["selected_tunnel_can_reopen"] = bool(
+                selected_tunnel_card
+                and selected_tunnel_card["is_closed"]
+                and context["is_manager"]
+            )
+            context["tunnel_join_candidates"] = [
+                card
+                for card in tunnel_cards
+                if selected_tunnel_code
+                and card["code"] != selected_tunnel_code
+                and card["physical"] > 0
+            ]
+            context["tunnel_manual_balances"] = tunnel_manual_balances
+            context["tunnel_carryover_balances"] = tunnel_carryover_balances
+            context["selected_tunnel_balance_ids"] = selected_tunnel_balance_ids
+            context["selected_tunnel_balance_count"] = len(selected_tunnel_balance_ids)
+            context["clear_tunnel_balance_selection"] = self.request.GET.get("clear_balances") == "1"
+            context["tunnel_balance_product_options"] = Product.objects.filter(
+                active=True,
+                code__in=[f"PP-{number:03d}" for number in range(1, 49)],
+            ).order_by("code")
             available_product_ids = [
                 item["product"].pk
                 for item in tunnel_packaging_data["availability"]
@@ -2904,7 +3701,6 @@ class OperationalContextMixin:
             selected_pallet_number = (
                 int(selected_pallet) if str(selected_pallet).isdigit() else None
             )
-            pallet_capacity = int(tunnel_packaging_data["pallet_capacity"])
             pallets_by_number = {
                 item["pallet_number"]: item for item in tunnel_packaging_data["pallets"]
             }
@@ -2913,13 +3709,11 @@ class OperationalContextMixin:
                 selected_pallet_number is None
                 or selected_pallet_number < 1
                 or selected_pallet_number > int(tunnel_packaging_data["pallet_max"])
-                or (
-                    selected_pallet is not None
-                    and selected_pallet["package_count"] >= pallet_capacity
-                )
             ):
                 selected_pallet_number = _next_tunnel_pallet_number(self.production)
+                selected_pallet = pallets_by_number.get(selected_pallet_number)
             context["selected_tunnel_pallet_number"] = selected_pallet_number
+            context["selected_tunnel_pallet"] = selected_pallet
         if self.module_key == "plate-crews":
             context["crew_suggestions"] = getattr(context.get("form"), "crew_suggestions", [])
             if getattr(self, "object", None) is not None:
@@ -2956,6 +3750,8 @@ class OperationalCreateView(OperationalContextMixin, FormTitleMixin, LoginRequir
     area = None
 
     def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
         self.production = get_object_or_404(ProductionOrder, pk=kwargs["pk"])
         if not can_view_production(request.user, self.production):
             raise PermissionDenied
@@ -3056,6 +3852,9 @@ class OperationalCreateView(OperationalContextMixin, FormTitleMixin, LoginRequir
             return self.form_invalid(form)
         messages.success(self.request, "Registro guardado. Ahora puede corregirlo o eliminarlo desde esta misma pantalla.")
         config = _operational_config(self.module_key)
+        next_url = self.request.POST.get("next")
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={self.request.get_host()}):
+            return redirect(next_url)
         if self.request.POST.get("volver"):
             return redirect("productions:detail", pk=self.production.pk)
         return redirect(config["create_url_name"], pk=self.production.pk)
@@ -3147,6 +3946,9 @@ class OperationalEntryUpdateView(OperationalContextMixin, FormTitleMixin, LoginR
             return self.form_invalid(form)
         messages.success(self.request, "Corrección guardada correctamente.")
         config = _operational_config(self.module_key)
+        next_url = self.request.POST.get("next")
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={self.request.get_host()}):
+            return redirect(next_url)
         if isinstance(self.object, TunnelCrewEntry):
             return redirect(
                 f"{reverse(config['create_url_name'], args=[self.production.pk])}"
@@ -4015,7 +4817,8 @@ class NuqueraCreateView(OperationalCreateView):
             context["nuquera_crew_workers"] = list(
                 _nuquera_crew_worker_queryset(self.production, crew).values_list("pk", "full_name")
             )
-            context["nuquera_quick_workers"] = _nuquera_quick_workers(self.production, crew)
+            quick_workers = _nuquera_quick_workers(self.production, crew)
+            context["nuquera_quick_workers"] = quick_workers
             context["nuquera_quick_url"] = reverse(
                 "productions:nuquera_quick_capture", args=[self.production.pk]
             )
@@ -4023,8 +4826,11 @@ class NuqueraCreateView(OperationalCreateView):
                 "productions:nuquera_create", args=[self.production.pk]
             )
             worker = self._worker_param(crew)
+            if worker is None and len(quick_workers) == 1:
+                worker = Worker.objects.filter(pk=quick_workers[0]["pk"], active=True).first()
             if worker is not None:
                 context["nuquera_selected_worker_id"] = worker.pk
+                context["nuquera_selected_worker_name"] = worker.full_name
                 context["nuquera_repeat_worker_name"] = worker.full_name
                 context["nuquera_focused_worker"] = True
                 context["nuquera_repeat_shift_label"] = dict(
@@ -4955,7 +5761,7 @@ class TunnelPackagingCreateView(OperationalCreateView):
     form_title = "Registrar empaque de túneles"
 
 
-class TunnelAutoPackagingView(LoginRequiredMixin, View):
+class TunnelManualPackagingView(LoginRequiredMixin, View):
     def post(self, request, pk):
         production = get_object_or_404(ProductionOrder, pk=pk)
         if not can_view_production(request.user, production):
@@ -4972,6 +5778,11 @@ class TunnelAutoPackagingView(LoginRequiredMixin, View):
             messages.error(request, "Seleccione producto para empacar túneles.")
             return redirect("productions:tunnel_pack_create", pk=production.pk)
         requested_tunnel = (request.POST.get("tunnel") or "").strip().upper()
+        selected_balance_ids = {
+            int(value)
+            for value in (request.POST.get("balances") or "").split(",")
+            if value.isdigit()
+        }
         tunnel_code = (
             requested_tunnel
             if requested_tunnel
@@ -4982,12 +5793,23 @@ class TunnelAutoPackagingView(LoginRequiredMixin, View):
             )
             else None
         )
-        pallet_number = _next_tunnel_pallet_number(production)
-        maximum_pallet = production.template_version.rules.get("tunnel_pallet_max", 50)
+        selected_balance_filter = selected_balance_ids if tunnel_code else None
+        requested_pallet = request.POST.get("pallet_number")
+        requested_packages = request.POST.get("package_count")
+        maximum_pallet = int(production.template_version.rules.get("tunnel_pallet_max", 50) or 50)
+        if not str(requested_pallet).isdigit() or int(requested_pallet) < 1:
+            messages.error(request, "Ingrese el número de pallet.")
+            return redirect("productions:tunnel_pack_create", pk=production.pk)
+        if not str(requested_packages).isdigit() or int(requested_packages) < 1:
+            messages.error(request, "Ingrese la cantidad de bultos a registrar.")
+            return redirect("productions:tunnel_pack_create", pk=production.pk)
+        pallet_number = int(requested_pallet)
+        package_count = int(requested_packages)
         if pallet_number < 1 or (maximum_pallet and pallet_number > maximum_pallet):
             messages.error(request, f"No hay pallets disponibles entre P1 y P{maximum_pallet}.")
             return redirect("productions:tunnel_pack_create", pk=production.pk)
 
+        saved = False
         try:
             with transaction.atomic():
                 product = Product.objects.select_for_update().get(pk=int(product_id), active=True)
@@ -4995,7 +5817,9 @@ class TunnelAutoPackagingView(LoginRequiredMixin, View):
                     (
                         item
                         for item in _tunnel_product_availability(
-                            production, tunnel_code=tunnel_code
+                            production,
+                            tunnel_code=tunnel_code,
+                            balance_ids=selected_balance_filter,
                         )
                         if item["product"].pk == product.pk
                     ),
@@ -5004,6 +5828,10 @@ class TunnelAutoPackagingView(LoginRequiredMixin, View):
                 if availability is None or availability["possible_packages"] <= 0:
                     raise ValidationError(
                         f"{product.code} todavía no reúne bandejas pendientes para formar un bulto completo."
+                    )
+                if package_count > availability["possible_packages"]:
+                    raise ValidationError(
+                        f"Solo hay {availability['possible_packages']} bulto(s) disponible(s) de {product.code}."
                     )
                 capacity = _tunnel_pallet_capacity(production)
                 used_packages = (
@@ -5015,7 +5843,10 @@ class TunnelAutoPackagingView(LoginRequiredMixin, View):
                 available_capacity = max(capacity - int(used_packages), 0)
                 if available_capacity <= 0:
                     raise ValidationError(f"El pallet P{pallet_number} ya alcanzó {capacity} bultos.")
-                package_count = min(availability["possible_packages"], available_capacity)
+                if package_count > available_capacity:
+                    raise ValidationError(
+                        f"En P{pallet_number} solo quedan {available_capacity} espacio(s) de {capacity}."
+                    )
                 entry = (
                     TunnelPackagingEntry.objects.select_for_update()
                     .filter(
@@ -5029,6 +5860,9 @@ class TunnelAutoPackagingView(LoginRequiredMixin, View):
                 action = AuditLog.Action.UPDATE if entry else AuditLog.Action.CREATE
                 old_value = _operational_record_payload(entry) if entry else None
                 if entry is None:
+                    source_breakdown = (
+                        {tunnel_code: package_count} if tunnel_code else {}
+                    )
                     entry = TunnelPackagingEntry(
                         production=production,
                         responsible=request.user,
@@ -5038,18 +5872,26 @@ class TunnelAutoPackagingView(LoginRequiredMixin, View):
                         pallet_number=pallet_number,
                         product=product,
                         package_count=package_count,
-                        observation="Cálculo automático desde envasado en túneles",
+                        source_breakdown=source_breakdown,
+                        observation="Formación manual de pallet desde envasado en túneles",
                     )
                 else:
                     entry.package_count += package_count
-                    entry.observation = "Cálculo automático desde envasado en túneles"
+                    source_breakdown = dict(entry.source_breakdown or {})
+                    if tunnel_code:
+                        source_breakdown[tunnel_code] = (
+                            int(source_breakdown.get(tunnel_code, 0) or 0)
+                            + package_count
+                        )
+                    entry.source_breakdown = source_breakdown
+                    entry.observation = "Formación manual de pallet desde envasado en túneles"
                 entry.full_clean()
                 with suppress_automatic_audit():
                     entry.save()
                 AuditLog.objects.create(
                     user=request.user,
                     production=production,
-                    module="tunnel-pack-auto",
+                    module="tunnel-pack-manual",
                     model_name=entry._meta.label,
                     record_pk=str(entry.pk),
                     action=action,
@@ -5062,10 +5904,11 @@ class TunnelAutoPackagingView(LoginRequiredMixin, View):
             detail = (
                 "; ".join(exc.messages)
                 if hasattr(exc, "messages")
-                else "No se pudo registrar el empaque automático de túneles."
+                else "No se pudo registrar el empaque manual de túneles."
             )
             messages.error(request, detail)
         else:
+            saved = True
             messages.success(
                 request,
                 (
@@ -5078,7 +5921,516 @@ class TunnelAutoPackagingView(LoginRequiredMixin, View):
             url = f"{url}?product={product_id}&pallet={pallet_number}"
             if tunnel_code:
                 url = f"{url}&tunnel={tunnel_code}"
-        return redirect(f"{url}#tunnel-auto-pack-form")
+            if saved:
+                url = f"{url}&clear_balances=1"
+        return redirect(f"{url}#tunnel-manual-pack-form")
+
+
+def _move_tunnel_pending_to_balance(*, production, tunnel_code, user):
+    """Convierte el pendiente actual de un túnel en saldo trazable para otro."""
+    source_fills = list(
+        TunnelFill.objects.select_for_update()
+        .filter(
+            production=production,
+            tunnel__code=tunnel_code,
+            is_active=True,
+        )
+        .select_related("tunnel")
+    )
+    if not source_fills:
+        raise ValidationError(f"No se encontró el túnel {tunnel_code}.")
+    carryovers = defaultdict(int)
+    source_carryovers = []
+    for item in _tunnel_product_availability(
+        production,
+        tunnel_code=tunnel_code,
+        balance_ids=set(),
+    ):
+        for source in item["sources"]:
+            if source.get("source_type") == "manual":
+                continue
+            if source.get("tunnel") != tunnel_code or not source["pending_trays"]:
+                continue
+            source_carryovers.append((item["product"], source))
+            carryovers[item["product"].pk] += source["pending_trays"]
+    for product, source in source_carryovers:
+        remaining = source["pending_trays"]
+        entries = list(
+            TunnelEntry.objects.select_for_update()
+            .filter(
+                production=production, is_active=True, product=product,
+                rack__fill__tunnel__code=tunnel_code,
+                rack__fill__fill_number=source["fill_number"],
+                rack__code=source["rack"],
+            ).order_by("pk")
+        )
+        for entry in entries:
+            available = entry.tray_count - entry.carryover_trays
+            moved = min(available, remaining)
+            if moved:
+                entry.carryover_trays += moved
+                with suppress_automatic_audit():
+                    entry.save(update_fields=["carryover_trays"])
+                remaining -= moved
+            if not remaining:
+                break
+        if remaining:
+            raise ValidationError(f"No se pudo separar el saldo pendiente de {product.code}.")
+    created_balances = []
+    for product_id, tray_count in carryovers.items():
+        product = Product.objects.get(pk=product_id)
+        balance = TunnelManualBalance(
+            production=production, responsible=user,
+            date=production.packaging_date or production.production_date or production.reception_date,
+            product=product, tray_count=tray_count, source_tunnel=tunnel_code,
+            observation=f"Saldo automático al cerrar {tunnel_code}",
+        )
+        balance.full_clean()
+        balance.save()
+        created_balances.append(balance)
+    now = timezone.now()
+    for fill in source_fills:
+        old_status = fill.status
+        if fill.status == TunnelFill.Status.CLOSED:
+            continue
+        fill.status = TunnelFill.Status.CLOSED
+        fill.closed_at = now
+        if fill.end_time is None:
+            fill.end_time = timezone.localtime(now).time().replace(microsecond=0)
+        with suppress_automatic_audit():
+            fill.save(update_fields=["status", "closed_at", "end_time"])
+        AuditLog.objects.create(
+            user=user, production=production, module="tunnel-pack-close",
+            model_name=fill._meta.label, record_pk=str(fill.pk),
+            action=AuditLog.Action.TRANSITION, old_value={"status": old_status},
+            new_value={"status": fill.status}, reason="Cierre de túnel desde empaque",
+        )
+    return created_balances
+
+
+class TunnelPackagingCloseView(LoginRequiredMixin, View):
+    """Cierra un túnel y deja todo su pendiente disponible como saldo."""
+
+    def post(self, request, pk):
+        production = get_object_or_404(ProductionOrder, pk=pk)
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        if production.status not in PRODUCTION_EDITABLE_STATUSES:
+            raise PermissionDenied("El PP no admite cierres de túnel en su estado actual.")
+        require_area_assignment(
+            request.user,
+            production,
+            AreaAssignment.Area.TUNNEL_PACK,
+        )
+        tunnel_code = (request.POST.get("tunnel") or "").strip().upper()
+        valid_codes = set(
+            TunnelEntry.objects.filter(production=production, is_active=True)
+            .values_list("rack__fill__tunnel__code", flat=True)
+            .distinct()
+        )
+        if tunnel_code not in valid_codes:
+            messages.error(request, "Seleccione un túnel válido para cerrar.")
+            return redirect("productions:tunnel_pack_create", pk=production.pk)
+
+        try:
+            with transaction.atomic():
+                active_fills = list(
+                    TunnelFill.objects.select_for_update()
+                    .filter(
+                        production=production,
+                        tunnel__code=tunnel_code,
+                        is_active=True,
+                        status__in=[TunnelFill.Status.OPEN, TunnelFill.Status.REOPENED],
+                    )
+                    .select_related("tunnel")
+                )
+                if not active_fills:
+                    raise ValidationError(f"El túnel {tunnel_code} ya está cerrado.")
+
+                availability = _tunnel_product_availability(
+                    production, tunnel_code=tunnel_code
+                )
+                carryovers = defaultdict(int)
+                source_carryovers = []
+                for item in availability:
+                    physical_sources = [
+                        source for source in item["sources"]
+                        if source.get("tunnel") == tunnel_code
+                    ]
+                    for source in physical_sources:
+                        if source["pending_trays"]:
+                            source_carryovers.append((item["product"], source))
+                            carryovers[item["product"].pk] += source["pending_trays"]
+
+                for product, source in source_carryovers:
+                    remaining = source["pending_trays"]
+                    entries = list(
+                        TunnelEntry.objects.select_for_update()
+                        .filter(
+                            production=production,
+                            is_active=True,
+                            product=product,
+                            rack__fill__tunnel__code=tunnel_code,
+                            rack__fill__fill_number=source["fill_number"],
+                            rack__code=source["rack"],
+                        )
+                        .order_by("pk")
+                    )
+                    for entry in entries:
+                        available = entry.tray_count - entry.carryover_trays
+                        moved = min(available, remaining)
+                        if not moved:
+                            continue
+                        entry.carryover_trays += moved
+                        with suppress_automatic_audit():
+                            entry.save(update_fields=["carryover_trays"])
+                        remaining -= moved
+                        if not remaining:
+                            break
+                    if remaining:
+                        raise ValidationError(
+                            f"No se pudo separar el saldo pendiente de {product.code}. Recargue e intente otra vez."
+                        )
+
+                created_balances = []
+                for product_id, tray_count in carryovers.items():
+                    if not tray_count:
+                        continue
+                    product = Product.objects.get(pk=product_id)
+                    balance = TunnelManualBalance(
+                        production=production,
+                        responsible=request.user,
+                        date=(
+                            production.packaging_date
+                            or production.production_date
+                            or production.reception_date
+                        ),
+                        product=product,
+                        tray_count=tray_count,
+                        source_tunnel=tunnel_code,
+                        observation=f"Saldo automático al cerrar {tunnel_code}",
+                    )
+                    balance.full_clean()
+                    balance.save()
+                    created_balances.append(balance)
+                    AuditLog.objects.create(
+                        user=request.user,
+                        production=production,
+                        module="tunnel-pack-close",
+                        model_name=balance._meta.label,
+                        record_pk=str(balance.pk),
+                        action=AuditLog.Action.CREATE,
+                        new_value={
+                            "product": product.code,
+                            "trays": tray_count,
+                            "source_tunnel": tunnel_code,
+                        },
+                        reason=f"Saldo automático de {tunnel_code} al cerrar el túnel",
+                    )
+
+                now = timezone.now()
+                for fill in active_fills:
+                    old_status = fill.status
+                    fill.status = TunnelFill.Status.CLOSED
+                    fill.launch_time = timezone.localtime(now).time().replace(microsecond=0)
+                    fill.closed_at = now
+                    fill.end_time = timezone.localtime(now + timedelta(hours=12)).time().replace(microsecond=0)
+                    with suppress_automatic_audit():
+                        fill.save(update_fields=["status", "launch_time", "closed_at", "end_time"])
+                    AuditLog.objects.create(
+                        user=request.user,
+                        production=production,
+                        module="tunnel-pack-close",
+                        model_name=fill._meta.label,
+                        record_pk=str(fill.pk),
+                        action=AuditLog.Action.TRANSITION,
+                        old_value={"status": old_status},
+                        new_value={"status": fill.status},
+                        reason="Cierre de túnel desde empaque",
+                    )
+        except ValidationError as exc:
+            messages.error(request, "; ".join(exc.messages))
+        else:
+            balance_text = (
+                f" Se separaron {sum(balance.tray_count for balance in created_balances)} bandeja(s) como saldo de {tunnel_code}."
+                if created_balances
+                else " No quedaron saldos incompletos."
+            )
+            messages.success(request, f"Túnel {tunnel_code} cerrado correctamente.{balance_text}")
+        url = reverse("productions:tunnel_pack_create", args=[production.pk])
+        return redirect(f"{url}?tunnel={tunnel_code}#tunnel-selection")
+
+
+class TunnelPackagingJoinView(LoginRequiredMixin, View):
+    """Traslada el pendiente de un túnel abierto al túnel que se está empacando."""
+
+    def post(self, request, pk):
+        production = get_object_or_404(ProductionOrder, pk=pk)
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        if production.status not in PRODUCTION_EDITABLE_STATUSES:
+            raise PermissionDenied("El PP no admite unir túneles en su estado actual.")
+        require_area_assignment(request.user, production, AreaAssignment.Area.TUNNEL_PACK)
+        source_code = (request.POST.get("source_tunnel") or "").strip().upper()
+        target_code = (request.POST.get("target_tunnel") or "").strip().upper()
+        if not source_code or not target_code or source_code == target_code:
+            messages.error(request, "Seleccione dos túneles distintos para unir.")
+            return redirect("productions:tunnel_pack_create", pk=production.pk)
+        try:
+            with transaction.atomic():
+                balances = _move_tunnel_pending_to_balance(
+                    production=production, tunnel_code=source_code, user=request.user
+                )
+        except ValidationError as exc:
+            messages.error(request, "; ".join(exc.messages))
+        else:
+            messages.success(
+                request,
+                f"Saldo de {source_code} unido a {target_code}: "
+                f"{sum(balance.tray_count for balance in balances)} bandeja(s) disponibles.",
+            )
+        url = reverse("productions:tunnel_pack_create", args=[production.pk])
+        return redirect(f"{url}?tunnel={target_code}#tunnel-manual-pack-form")
+
+
+class TunnelPackagingReopenView(LoginRequiredMixin, View):
+    """Revierte un cierre de empaque solo si su saldo aún no fue utilizado."""
+
+    def post(self, request, pk):
+        production = get_object_or_404(ProductionOrder, pk=pk)
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        if production.status not in PRODUCTION_EDITABLE_STATUSES:
+            raise PermissionDenied("El PP no admite reaperturas de túnel en su estado actual.")
+        require_roles(
+            request.user,
+            Role.Codes.ADMIN,
+            Role.Codes.PRODUCTION_MANAGER,
+        )
+        tunnel_code = (request.POST.get("tunnel") or "").strip().upper()
+        url = reverse("productions:tunnel_pack_create", args=[production.pk])
+        try:
+            with transaction.atomic():
+                fills = list(
+                    TunnelFill.objects.select_for_update().filter(
+                        production=production,
+                        tunnel__code=tunnel_code,
+                        is_active=True,
+                        status=TunnelFill.Status.CLOSED,
+                    )
+                )
+                if not fills:
+                    raise ValidationError(f"El túnel {tunnel_code} no está cerrado.")
+                balances = list(
+                    TunnelManualBalance.objects.select_for_update().filter(
+                        production=production,
+                        source_tunnel=tunnel_code,
+                        is_active=True,
+                    ).select_related("product")
+                )
+                available_by_pk = {
+                    balance.pk: balance.available_trays
+                    for balance in _tunnel_manual_balance_rows(production)
+                }
+                used_balances = [
+                    balance for balance in balances
+                    if available_by_pk.get(balance.pk, 0) != balance.tray_count
+                ]
+                if used_balances:
+                    raise ValidationError(
+                        "No se puede reabrir: parte del saldo de este túnel ya fue usado en otro empaque."
+                    )
+                for balance in balances:
+                    remaining = balance.tray_count
+                    entries = list(
+                        TunnelEntry.objects.select_for_update().filter(
+                            production=production,
+                            is_active=True,
+                            product=balance.product,
+                            rack__fill__tunnel__code=tunnel_code,
+                            carryover_trays__gt=0,
+                        ).order_by("rack__fill__fill_number", "rack__code", "pk")
+                    )
+                    for entry in entries:
+                        restored = min(entry.carryover_trays, remaining)
+                        entry.carryover_trays -= restored
+                        with suppress_automatic_audit():
+                            entry.save(update_fields=["carryover_trays"])
+                        remaining -= restored
+                        if not remaining:
+                            break
+                    if remaining:
+                        raise ValidationError(
+                            f"No se pudo restaurar el saldo de {balance.product.code}."
+                        )
+                    balance.delete(user=request.user, reason="Reapertura del túnel")
+                for fill in fills:
+                    old_status = fill.status
+                    fill.status = TunnelFill.Status.REOPENED
+                    fill.closed_at = None
+                    with suppress_automatic_audit():
+                        fill.save(update_fields=["status", "closed_at"])
+                    AuditLog.objects.create(
+                        user=request.user,
+                        production=production,
+                        module="tunnel-pack-reopen",
+                        model_name=fill._meta.label,
+                        record_pk=str(fill.pk),
+                        action=AuditLog.Action.TRANSITION,
+                        old_value={"status": old_status},
+                        new_value={"status": fill.status},
+                        reason="Reapertura de túnel desde empaque",
+                    )
+        except ValidationError as exc:
+            messages.error(request, "; ".join(exc.messages))
+        else:
+            messages.success(request, f"Túnel {tunnel_code} reabierto correctamente.")
+        return redirect(f"{url}?tunnel={tunnel_code}#tunnel-selection")
+
+
+class TunnelManualBalanceCreateView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        production = get_object_or_404(ProductionOrder, pk=pk)
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        if production.status not in PRODUCTION_EDITABLE_STATUSES:
+            raise PermissionDenied("El PP no admite nuevos saldos en su estado actual.")
+        require_area_assignment(
+            request.user,
+            production,
+            AreaAssignment.Area.TUNNEL_PACK,
+        )
+        product_id = request.POST.get("product")
+        tray_count = request.POST.get("tray_count")
+        try:
+            product = Product.objects.get(pk=int(product_id), active=True)
+            balance = TunnelManualBalance(
+                production=production,
+                responsible=request.user,
+                date=(
+                    production.packaging_date
+                    or production.production_date
+                    or production.reception_date
+                ),
+                product=product,
+                tray_count=int(tray_count),
+                observation=(request.POST.get("observation") or "").strip(),
+            )
+            balance.full_clean()
+            balance.save()
+        except (TypeError, ValueError, Product.DoesNotExist, ValidationError) as exc:
+            detail = (
+                "; ".join(exc.messages)
+                if hasattr(exc, "messages")
+                else "Seleccione producto e ingrese bandejas válidas para el saldo manual."
+            )
+            messages.error(request, detail)
+        else:
+            AuditLog.objects.create(
+                user=request.user,
+                production=production,
+                module="tunnel-pack-manual-balance",
+                model_name=balance._meta.label,
+                record_pk=str(balance.pk),
+                action=AuditLog.Action.CREATE,
+                new_value={
+                    "product": product.code,
+                    "trays": balance.tray_count,
+                    "observation": balance.observation,
+                },
+                reason="Saldo inicial manual para empaque de túneles",
+                ip_address=request.META.get("REMOTE_ADDR"),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+            messages.success(
+                request,
+                f"Saldo manual guardado: {product.code} · {balance.tray_count} bandeja(s).",
+            )
+        return redirect(
+            f"{reverse('productions:tunnel_pack_create', args=[production.pk])}"
+            "#tunnel-initial-balance-form"
+        )
+
+
+class TunnelManualBalanceDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk, balance_pk):
+        production = get_object_or_404(ProductionOrder, pk=pk)
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        if production.status not in PRODUCTION_EDITABLE_STATUSES:
+            raise PermissionDenied("El PP no admite correcciones de saldos en su estado actual.")
+        require_area_assignment(
+            request.user,
+            production,
+            AreaAssignment.Area.TUNNEL_PACK,
+        )
+
+        with transaction.atomic():
+            # Bloquea también los empaques porque determinan si el saldo ya fue
+            # consumido. Así dos personas no pueden empacar y eliminarlo a la vez.
+            list(
+                TunnelPackagingEntry.objects.select_for_update().filter(
+                    production=production,
+                    is_active=True,
+                )
+            )
+            balance = get_object_or_404(
+                TunnelManualBalance.objects.select_for_update().select_related("product"),
+                pk=balance_pk,
+                production=production,
+                is_active=True,
+            )
+            if balance.source_tunnel:
+                messages.error(
+                    request,
+                    "Ese saldo proviene de un túnel y conserva su trazabilidad; no es un saldo ingresado manualmente.",
+                )
+            else:
+                current = next(
+                    (
+                        row
+                        for row in _tunnel_manual_balance_rows(production)
+                        if row.pk == balance.pk
+                    ),
+                    None,
+                )
+                if current is None or current.available_trays != balance.tray_count:
+                    messages.error(
+                        request,
+                        "No se puede eliminar este saldo porque ya fue utilizado total o parcialmente en un pallet.",
+                    )
+                else:
+                    old_value = {
+                        "product": balance.product.code,
+                        "trays": balance.tray_count,
+                        "observation": balance.observation,
+                    }
+                    with suppress_automatic_audit():
+                        balance.delete(
+                            user=request.user,
+                            reason="Corrección de saldo manual de empaque de túneles",
+                        )
+                    AuditLog.objects.create(
+                        user=request.user,
+                        production=production,
+                        module="tunnel-pack-manual-balance",
+                        model_name=balance._meta.label,
+                        record_pk=str(balance.pk),
+                        action=AuditLog.Action.VOID,
+                        old_value=old_value,
+                        new_value={"is_active": False},
+                        reason="Saldo manual eliminado desde empaque de túneles",
+                        ip_address=request.META.get("REMOTE_ADDR"),
+                        user_agent=request.META.get("HTTP_USER_AGENT", ""),
+                    )
+                    messages.success(
+                        request,
+                        f"Saldo manual eliminado: {balance.product.code} · {balance.tray_count} bandeja(s).",
+                    )
+        return redirect(
+            f"{reverse('productions:tunnel_pack_create', args=[production.pk])}"
+            "#tunnel-manual-balances-title"
+        )
 
 
 class PlatePackagingCreateView(OperationalCreateView):
@@ -5166,7 +6518,7 @@ class PlatePackagingCreateView(OperationalCreateView):
         return response
 
 
-class PlateAutoPackagingView(LoginRequiredMixin, View):
+class PlateManualPackagingView(LoginRequiredMixin, View):
     def post(self, request, pk):
         production = get_object_or_404(ProductionOrder, pk=pk)
         if not can_view_production(request.user, production):
@@ -5182,17 +6534,19 @@ class PlateAutoPackagingView(LoginRequiredMixin, View):
         )
         product_id = request.POST.get("product")
         pallet_number = request.POST.get("pallet_number")
+        package_count = request.POST.get("package_count")
         try:
-            result = auto_pack_product(
+            result = manual_pack_product(
                 production=production,
                 product_id=int(product_id),
                 pallet_number=int(pallet_number),
+                package_count=int(package_count),
                 user=request.user,
             )
         except (TypeError, ValueError):
             messages.error(
                 request,
-                "Seleccione el producto e ingrese un número de pallet válido.",
+                "Seleccione el producto e ingrese el pallet y los bultos.",
             )
         except (ValidationError, Product.DoesNotExist) as exc:
             detail = (
@@ -5206,7 +6560,7 @@ class PlateAutoPackagingView(LoginRequiredMixin, View):
             AuditLog.objects.create(
                 user=request.user,
                 production=production,
-                module="plate-pack-auto",
+                module="plate-pack-manual",
                 model_name=line._meta.label,
                 record_pk=str(line.pk),
                 action=AuditLog.Action.CREATE,
@@ -5218,14 +6572,14 @@ class PlateAutoPackagingView(LoginRequiredMixin, View):
                     "carryover_trays": result["carryover_used"],
                     "current_trays": result["current_used"],
                 },
-                reason="Cálculo automático de bultos y consumo de saldos compatibles",
+                reason="Formación manual de bultos y consumo de saldos compatibles",
                 ip_address=request.META.get("REMOTE_ADDR"),
                 user_agent=request.META.get("HTTP_USER_AGENT", ""),
             )
             messages.success(
                 request,
                 (
-                    f"P{result['pallet'].pallet_number}: se formaron "
+                    f"P{result['pallet'].pallet_number}: se registraron "
                     f"{result['package_count']} bultos de {result['product'].code} "
                     f"({result['tray_count']} bandejas · {result['kg']:.2f} kg). "
                     f"El pallet tiene {result['pallet_total']} de "
@@ -5243,9 +6597,9 @@ class PlateAutoPackagingView(LoginRequiredMixin, View):
         url = reverse("productions:plate_pack_create", args=[production.pk])
         if str(product_id).isdigit():
             url = f"{url}?product={product_id}"
-            if "result" not in locals() and str(pallet_number).isdigit():
+            if str(pallet_number).isdigit():
                 url = f"{url}&pallet={pallet_number}"
-        return redirect(f"{url}#auto-pack-form")
+        return redirect(f"{url}#manual-pack-form")
 
 
 class PlateManualBalanceCreateView(LoginRequiredMixin, View):
@@ -5455,9 +6809,81 @@ class PlatePalletLineDeleteView(LoginRequiredMixin, View):
                     f"P{line.pallet.pallet_number}; los saldos fueron devueltos."
                 ),
             )
+        next_url = request.POST.get("next")
+        if next_url and url_has_allowed_host_and_scheme(
+            next_url,
+            allowed_hosts={request.get_host()},
+        ):
+            return redirect(next_url)
         return redirect(
             f"{reverse('productions:plate_pack_create', args=[production.pk])}"
             "#pallet-control"
+        )
+
+
+class PlateLegacyPackagingDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk, entry_pk):
+        production = get_object_or_404(ProductionOrder, pk=pk)
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        if production.status not in PRODUCTION_EDITABLE_STATUSES:
+            raise PermissionDenied("El PP no admite correcciones en sus empaques.")
+        require_area_assignment(
+            request.user,
+            production,
+            AreaAssignment.Area.PLATE_PACK,
+        )
+        with transaction.atomic():
+            entry = get_object_or_404(
+                PlatePackagingEntry.objects.select_for_update().select_related("product"),
+                pk=entry_pk,
+                production=production,
+                is_active=True,
+            )
+            pallet = PlatePallet.objects.select_for_update().filter(
+                production=production,
+                pallet_number=entry.pallet_number,
+                is_active=True,
+            ).first()
+            if pallet is not None and pallet.status == PlatePallet.Status.CLOSED:
+                messages.error(
+                    request,
+                    f"Reabra P{entry.pallet_number} antes de eliminar este producto.",
+                )
+            else:
+                old_value = {
+                    "product": entry.product.code,
+                    "pallet": entry.pallet_number,
+                    "packages": entry.package_count,
+                }
+                with suppress_automatic_audit():
+                    entry.delete(
+                        user=request.user,
+                        reason="Corrección de empaque anterior de placas",
+                    )
+                AuditLog.objects.create(
+                    user=request.user,
+                    production=production,
+                    module="plate-pack-legacy",
+                    model_name=entry._meta.label,
+                    record_pk=str(entry.pk),
+                    action=AuditLog.Action.VOID,
+                    old_value=old_value,
+                    new_value={"is_active": False},
+                    reason="Producto empacado eliminado desde el resumen",
+                    ip_address=request.META.get("REMOTE_ADDR"),
+                    user_agent=request.META.get("HTTP_USER_AGENT", ""),
+                )
+                messages.success(
+                    request,
+                    (
+                        f"Se eliminaron {entry.package_count} bultos de "
+                        f"{entry.product.code} en P{entry.pallet_number}."
+                    ),
+                )
+        return redirect(
+            f"{reverse('productions:plate_pack_create', args=[production.pk])}"
+            "#packed-products-summary"
         )
 
 
@@ -5484,6 +6910,7 @@ class PlateBalanceView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context.update(plate_balance_dashboard(self.production))
         context["plate_pallet_dashboard"] = plate_pallet_dashboard(self.production)
+        context["back_url"] = _safe_back_url(self.request, reverse("productions:detail", args=[self.production.pk]))
         return context
 
 
@@ -5600,16 +7027,13 @@ class TroqueladoCreateView(OperationalCreateView):
 
     def form_valid(self, form):
         response = super().form_valid(form)
-        if (
-            getattr(self, "object", None) is not None
-            and response.status_code == 302
-            and not self.request.POST.get("volver")
-        ):
-            return redirect(
-                f"{reverse('productions:troquelado_create', args=[self.production.pk])}"
-                f"?crew={self.object.crew_id}#operational-entry-form"
-            )
-        return response
+        if getattr(self, "object", None) is None or response.status_code != 302:
+            return response
+
+        if self.request.POST.get("volver"):
+            return redirect(self.request.POST.get("next") or reverse("productions:detail", args=[self.production.pk]))
+
+        return redirect(self.request.POST.get("next") or reverse("productions:detail", args=[self.production.pk]))
 
 
 class TroqueladoWorkerQuickCreateView(LoginRequiredMixin, View):
@@ -5859,32 +7283,66 @@ class NuqueraQuickCaptureView(LoginRequiredMixin, View):
         if production.status == ProductionOrder.Status.VOID:
             raise PermissionDenied("La producción no admite nuevos registros en su estado actual.")
         require_area_assignment(request.user, production, AreaAssignment.Area.NUQUERAS)
+        is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        requested_crew_id = request.POST.get("crew")
+
+        def fail(field, message):
+            if is_ajax:
+                return JsonResponse({"ok": False, "errors": {field: message}}, status=400)
+            messages.error(request, message)
+            target = reverse("productions:nuquera_create", args=[production.pk])
+            if requested_crew_id:
+                target = f"{target}?crew={requested_crew_id}"
+            return redirect(target)
+
         worker_id = request.POST.get("worker")
+        worker = None
+        if worker_id:
+            worker = Worker.objects.filter(
+                pk=worker_id,
+                active=True,
+                internal_code__startswith="NUQ-W",
+            ).first()
+        crew_id = requested_crew_id or getattr(worker, "crew_id", None)
         try:
-            worker = Worker.objects.get(pk=worker_id, active=True, internal_code__startswith="NUQ-W")
-        except (Worker.DoesNotExist, ValueError, TypeError):
-            return JsonResponse(
-                {"ok": False, "errors": {"worker": "Trabajador no disponible."}},
-                status=400,
-            )
-        if not worker.crew_id:
-            return JsonResponse(
-                {"ok": False, "errors": {"worker": "El trabajador no tiene cuadrilla asignada."}},
-                status=400,
-            )
+            crew = Crew.objects.get(pk=crew_id, active=True)
+        except (Crew.DoesNotExist, ValueError, TypeError):
+            return fail("crew", "Cuadrilla no disponible.")
+        crew_workers = _nuquera_crew_worker_queryset(production, crew)
+        if worker is None:
+            candidates = list(crew_workers[:2])
+            if len(candidates) == 1:
+                worker = candidates[0]
+            else:
+                return fail("worker", "Seleccione un trabajador antes de guardar.")
+        if not crew_workers.filter(pk=worker.pk).exists():
+            return fail("worker", "El trabajador no pertenece a la cuadrilla seleccionada.")
         post_data = request.POST.copy()
+        post_data["worker"] = str(worker.pk)
+        post_data["crew"] = str(crew.pk)
         if post_data.get("shift") in ("1", "2"):
             post_data["shift"] = {"1": "DAY", "2": "NIGHT"}[post_data["shift"]]
+        if not post_data.get("shift"):
+            post_data["shift"] = production.shift
         if not post_data.get("process", "").strip():
             post_data["process"] = "NUQUERAS"
+        if not post_data.get("start_time"):
+            post_data["start_time"] = "06:00"
+        if not post_data.get("end_time"):
+            post_data["end_time"] = "18:00"
         form = NuqueraEntryForm(
             post_data,
-            crew_id=worker.crew_id,
-            worker_queryset=_nuquera_crew_worker_queryset(production, worker.crew),
-            initial={"crew": worker.crew_id},
+            crew_id=crew.pk,
+            worker_queryset=_nuquera_crew_worker_queryset(production, crew),
+            initial={"crew": crew.pk},
         )
         if not form.is_valid():
-            return JsonResponse({"ok": False, "errors": dict(form.errors)}, status=400)
+            if is_ajax:
+                return JsonResponse({"ok": False, "errors": dict(form.errors)}, status=400)
+            messages.error(request, "No se pudo guardar. Revise el peso y los datos ingresados.")
+            return redirect(
+                f"{reverse('productions:nuquera_create', args=[production.pk])}?crew={crew.pk}"
+            )
         try:
             with transaction.atomic():
                 entry = form.save(commit=False)
@@ -5907,11 +7365,22 @@ class NuqueraQuickCaptureView(LoginRequiredMixin, View):
         except (ValidationError, IntegrityError) as exc:
             messages_value = getattr(exc, "messages", None)
             detail = list(messages_value) if messages_value else [str(exc)]
-            return JsonResponse(
-                {"ok": False, "errors": {"__all__": detail}},
-                status=400,
+            if is_ajax:
+                return JsonResponse(
+                    {"ok": False, "errors": {"__all__": detail}},
+                    status=400,
+                )
+            messages.error(request, "No se pudo guardar el peso.")
+            return redirect(
+                f"{reverse('productions:nuquera_create', args=[production.pk])}?crew={crew.pk}"
             )
         title, detail = _operational_record_text(entry)
+        if not is_ajax:
+            messages.success(request, f"Peso guardado correctamente para {worker.full_name}.")
+            return redirect(
+                f"{reverse('productions:nuquera_create', args=[production.pk])}"
+                f"?crew={crew.pk}"
+            )
         return JsonResponse(
             {
                 "ok": True,
@@ -5929,7 +7398,7 @@ class NuqueraQuickCaptureView(LoginRequiredMixin, View):
                         args=[production.pk, "nuqueras", entry.pk],
                     ),
                 },
-                **_nuquera_quick_stats(production, worker, worker.crew),
+                **_nuquera_quick_stats(production, worker, crew),
             }
         )
 
@@ -6059,7 +7528,15 @@ class ProductLaminaColorListView(LoginRequiredMixin, View):
 
     def get(self, request):
         products = Product.objects.filter(active=True, code__startswith="PP-").order_by("code", "description")
-        return render(request, self.template_name, {"products": products, "color_form": ProductLaminaColorForm()})
+        return render(
+            request,
+            self.template_name,
+            {
+                "products": products,
+                "color_form": ProductLaminaColorForm(),
+                "back_url": _safe_back_url(request, reverse("productions:catalogs")),
+            },
+        )
 
     def post(self, request):
         product = get_object_or_404(Product, pk=request.POST.get("product_id"), active=True)
@@ -6069,7 +7546,7 @@ class ProductLaminaColorListView(LoginRequiredMixin, View):
             messages.success(request, f"Lámina de {product.code} actualizada a {product.lamina_color or 'sin color'}.")
         else:
             messages.error(request, "No se pudo actualizar el color de la lámina.")
-        return redirect("productions:product_lamina_colors")
+        return redirect(request.POST.get("next") or "productions:product_lamina_colors")
 
 
 class CatalogCreateView(FormTitleMixin, LoginRequiredMixin, CreateView):
@@ -6082,6 +7559,11 @@ class CatalogCreateView(FormTitleMixin, LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         messages.success(self.request, f"{self.form_title} guardado correctamente.")
         return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["back_url"] = _safe_back_url(self.request, reverse("productions:catalogs"))
+        return context
 
     def get_success_url(self):
         return reverse("productions:catalogs")
@@ -6156,6 +7638,7 @@ class ProductionReportView(LoginRequiredMixin, DetailView):
                 "materials": MaterialUsage.objects.filter(production=production, is_active=True).select_related("material"),
                 "costs": CostEntry.objects.filter(production=production, is_active=True).select_related("rate"),
                 "audit_logs": production.audit_logs.select_related("user")[:20],
+                "back_url": _safe_back_url(self.request, reverse("productions:detail", args=[production.pk])),
             }
         )
         return context
@@ -6704,7 +8187,7 @@ def csrf_failure(request, reason=""):
 
 
 def manifest(request):
-    return HttpResponse('{"name":"Partes de Producción","short_name":"PP Planta","start_url":"/","display":"standalone","background_color":"#f3f5f4","theme_color":"#124b3b","lang":"es-PE","icons":[{"src":"/static/icons/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}', content_type="application/manifest+json")
+    return HttpResponse('{"name":"Partes de Producción","short_name":"PP Planta","start_url":"/","display":"standalone","background_color":"#f3f5f4","theme_color":"#124b3b","lang":"es-PE","icons":[{"src":"/static/icons/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},{"src":"/static/icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]}', content_type="application/manifest+json")
 
 def sync_data_api(request):
     """API que devuelve todas las producciones como JSON para sincronizacion."""
@@ -6728,8 +8211,22 @@ def ads_txt(request):
 
 
 def service_worker(request):
-    content = """const CACHE='pp-shell-v8';const ASSETS=['/','/manifest.webmanifest','/static/css/app.css','/static/js/app.js?v=20260810-seleccion-limpia','/static/icons/icon.svg'];self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});self.addEventListener('activate',e=>e.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))])));self.addEventListener('fetch',e=>{if(e.request.method==='GET')e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)))});"""
+    content = """const CACHE='pp-shell-v9';const ASSETS=['/','/manifest.webmanifest','/static/css/app.css','/static/js/app.js?v=20260814-cierre-rack-fix','/static/icons/icon.svg'];self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});self.addEventListener('activate',e=>e.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))])));self.addEventListener('fetch',e=>{if(e.request.method==='GET')e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)))});"""
     response = HttpResponse(content, content_type="application/javascript")
     response["Service-Worker-Allowed"] = "/"
     response["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
+
+def download_app_apk(request):
+    from django.conf import settings
+
+    apk_path = settings.BASE_DIR / "static" / "apk" / "PP-Planta-v1.0.apk"
+    if not apk_path.is_file():
+        raise Http404("APK no disponible.")
+    payload = apk_path.read_bytes()
+    response = HttpResponse(payload, content_type="application/vnd.android.package-archive")
+    response["Content-Disposition"] = 'attachment; filename="PP-Planta-v1.0.apk"'
+    response["Content-Length"] = str(len(payload))
+    response["Cache-Control"] = "no-store"
     return response
