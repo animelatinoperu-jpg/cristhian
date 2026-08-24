@@ -404,6 +404,7 @@ def _fill_crew_sheets(wb, production, entries):
         _combine_hours(ws, sheet_name, start_time, end_time)
         ws["D10"] = supervisor
         ws["L10"] = first_plate
+        ws["L10"].alignment = Alignment(horizontal="center", vertical="center")
         # The cone of pota cleaning weight: the total envasado across all
         # tunnels and plates is shared equally between the tareo crews.
         ws["M32"] = float(cone_share)
