@@ -266,6 +266,7 @@ def _normalize_crew_typography(ws):
     }
     strong_value_cells = {
         "D9", "L9",  # hours
+        "L10",  # plate
         "C16", "C24", "C32",  # crew names
         "M18", "M26", "M34", "N36",  # totals
     }
@@ -402,7 +403,7 @@ def _fill_crew_sheets(wb, production, entries):
         ws["M8"] = production.get_shift_display().upper()
         _combine_hours(ws, sheet_name, start_time, end_time)
         ws["D10"] = supervisor
-        ws["C16"] = first_plate
+        ws["L10"] = first_plate
         # The cone of pota cleaning weight: the total envasado across all
         # tunnels and plates is shared equally between the tareo crews.
         ws["M32"] = float(cone_share)
