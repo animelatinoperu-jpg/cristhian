@@ -14,6 +14,7 @@ urlpatterns = [
     path("sesion/csrf/", views.csrf_token, name="csrf_token"),
     path("manifest.webmanifest", views.manifest, name="manifest"),
     path("service-worker.js", views.service_worker, name="service_worker"),
+    path("descargar-app/", views.download_app_apk, name="download_app_apk"),
     path("producciones/nueva/", views.ProductionCreateView.as_view(), name="create"),
     path("producciones/<int:pk>/editar/", views.ProductionUpdateView.as_view(), name="update"),
     path("catalogos/", views.CatalogDashboardView.as_view(), name="catalogs"),
