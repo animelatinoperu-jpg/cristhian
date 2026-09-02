@@ -1348,22 +1348,12 @@ body:has(#reception-entry-form) .reception-car-group.reception-car-closed .recep
   color: rgba(255,255,255,.80);
 }
 
-body:has(#reception-entry-form) .reception-car-group.reception-car-header-t1 > summary.reception-car-header{
-  background-image:
-    linear-gradient(180deg, rgba(6,18,14,.03) 0%, rgba(6,18,14,.14) 54%, rgba(4,12,10,.64) 100%),
-    url("/static/img/reception-car-1.jpg");
-}
-
-body:has(#reception-entry-form) .reception-car-group.reception-car-header-t2 > summary.reception-car-header{
-  background-image:
-    linear-gradient(180deg, rgba(6,18,14,.03) 0%, rgba(6,18,14,.14) 54%, rgba(4,12,10,.64) 100%),
-    url("/static/img/reception-car-2.jpg");
-}
-
+body:has(#reception-entry-form) .reception-car-group.reception-car-header-t1 > summary.reception-car-header,
+body:has(#reception-entry-form) .reception-car-group.reception-car-header-t2 > summary.reception-car-header,
 body:has(#reception-entry-form) .reception-car-group.reception-car-header-t3 > summary.reception-car-header{
   background-image:
     linear-gradient(180deg, rgba(6,18,14,.03) 0%, rgba(6,18,14,.14) 54%, rgba(4,12,10,.64) 100%),
-    url("/static/img/reception-car-3.jpg");
+    url("/static/img/stage-recepcion.jpg");
 }
 
 body:has(#reception-entry-form) .reception-car-title-box{

@@ -7187,7 +7187,7 @@ def _nuquera_quick_page(production, crew, workers, pk):
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Nuqueras Captura Rapida | PP Planta</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css">
-<link rel="stylesheet" href="/static/css/app.css?v=20260808-tunel-cards-v9">
+<link rel="stylesheet" href="/static/css/app.css?v=20260902-reception-car-photo-fix">
 <style>
 body{{background:#f3f5f4;padding:16px;max-width:680px;margin:0 auto}}
 .troquelado-quick-panel{{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}}
@@ -8237,7 +8237,7 @@ def ads_txt(request):
 
 
 def service_worker(request):
-    content = """const CACHE='pp-shell-v11';const ASSETS=['/','/manifest.webmanifest','/static/css/app.css','/static/js/app.js?v=20260902-realtime-poll-v2','/static/icons/icon.svg'];self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});self.addEventListener('activate',e=>e.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))])));self.addEventListener('fetch',e=>{if(e.request.method==='GET')e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)))});"""
+    content = """const CACHE='pp-shell-v12';const ASSETS=['/','/manifest.webmanifest','/static/css/app.css','/static/js/app.js?v=20260902-realtime-poll-v2','/static/icons/icon.svg'];self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});self.addEventListener('activate',e=>e.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))])));self.addEventListener('fetch',e=>{if(e.request.method==='GET')e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)))});"""
     response = HttpResponse(content, content_type="application/javascript")
     response["Service-Worker-Allowed"] = "/"
     response["Cache-Control"] = "no-cache, no-store, must-revalidate"

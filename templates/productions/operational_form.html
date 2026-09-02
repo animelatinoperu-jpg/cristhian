@@ -996,7 +996,7 @@
           <details id="carro-{{ forloop.counter }}" class="reception-car-group{% if selected_reception_car and selected_reception_car.vehicle.pk == group.vehicle.pk %} reception-car-selected{% endif %}{% if group.has_mapping_conflict %} reception-car-conflict{% endif %}{% if group.closed_at %} reception-car-closed{% endif %}{% if forloop.counter|divisibleby:3 %} reception-car-header-t3{% elif forloop.counter|divisibleby:2 %} reception-car-header-t2{% else %} reception-car-header-t1{% endif %}"{% if not group.closed_at %} open{% endif %}>
             <summary class="reception-car-header">
               <div class="reception-car-media" aria-hidden="true">
-                <img class="reception-car-photo" src="{% if forloop.counter|divisibleby:3 %}{% static 'img/reception-car-3.jpg' %}{% elif forloop.counter|divisibleby:2 %}{% static 'img/reception-car-2.jpg' %}{% else %}{% static 'img/reception-car-1.jpg' %}{% endif %}" alt="" aria-hidden="true">
+                <img class="reception-car-photo" src="{% static 'img/stage-recepcion.jpg' %}" alt="" aria-hidden="true">
               </div>
               <div class="reception-car-title-box">
                 <p class="eyebrow mb-1">CARRO {{ group.car_number }}</p>
