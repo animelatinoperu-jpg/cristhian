@@ -20,3 +20,11 @@ deploy_seed/
 .tmp_*/
 .railway-config-*
 reporte_tareo_prueba.xlsx
+
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+tmp_mkadmin.sql
+tmp_mkadmin.mts
+*.log

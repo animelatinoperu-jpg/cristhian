@@ -904,3 +904,53 @@ Traceback (most recent call last):
     raise HTTPError(req.full_url, code, msg, hdrs, fp)
 urllib.error.HTTPError: HTTP Error 404: Not Found
 [2026-08-10 20:30:03] Finalizado.
+
+[2026-08-26 16:30:09] Iniciando sincronizacion Railway -> Local...
+Traceback (most recent call last):
+  File "C:\Users\cuent\OneDrive\Desktop\APLICACION DE SOLUCIONES Y PROCESOS MARINOS\manage.py", line 14, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\cuent\OneDrive\Desktop\APLICACION DE SOLUCIONES Y PROCESOS MARINOS\manage.py", line 8, in main
+    from django.core.management import execute_from_command_line
+ModuleNotFoundError: No module named 'django'
+[2026-08-26 16:30:09] Finalizado.
+
+[2026-08-26 17:00:06] Iniciando sincronizacion Railway -> Local...
+Traceback (most recent call last):
+  File "C:\Users\cuent\OneDrive\Desktop\APLICACION DE SOLUCIONES Y PROCESOS MARINOS\manage.py", line 14, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\cuent\OneDrive\Desktop\APLICACION DE SOLUCIONES Y PROCESOS MARINOS\manage.py", line 8, in main
+    from django.core.management import execute_from_command_line
+ModuleNotFoundError: No module named 'django'
+[2026-08-26 17:00:06] Finalizado.
+
+[2026-08-26 17:30:09] Iniciando sincronizacion Railway -> Local...
+Traceback (most recent call last):
+  File "C:\Users\cuent\OneDrive\Desktop\APLICACION DE SOLUCIONES Y PROCESOS MARINOS\manage.py", line 14, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\cuent\OneDrive\Desktop\APLICACION DE SOLUCIONES Y PROCESOS MARINOS\manage.py", line 8, in main
+    from django.core.management import execute_from_command_line
+ModuleNotFoundError: No module named 'django'
+[2026-08-26 17:30:09] Finalizado.
+
+[2026-08-26 18:01:11] Iniciando sincronizacion Railway -> Local...
+Traceback (most recent call last):
+  File "C:\Users\cuent\OneDrive\Desktop\APLICACION DE SOLUCIONES Y PROCESOS MARINOS\manage.py", line 14, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\cuent\OneDrive\Desktop\APLICACION DE SOLUCIONES Y PROCESOS MARINOS\manage.py", line 8, in main
+    from django.core.management import execute_from_command_line
+ModuleNotFoundError: No module named 'django'
+[2026-08-26 18:01:11] Finalizado.
+
+[2026-08-26 18:30:55] Iniciando sincronizacion Railway -> Local...
+Traceback (most recent call last):
+  File "C:\Users\cuent\OneDrive\Desktop\APLICACION DE SOLUCIONES Y PROCESOS MARINOS\manage.py", line 14, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\cuent\OneDrive\Desktop\APLICACION DE SOLUCIONES Y PROCESOS MARINOS\manage.py", line 8, in main
+    from django.core.management import execute_from_command_line
+ModuleNotFoundError: No module named 'django'
+[2026-08-26 18:30:55] Finalizado.
