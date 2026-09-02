@@ -925,7 +925,7 @@
               {% if module_key == 'reception' and field.name == 'product' %}
               <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
               <input class="form-control" type="text" value="{{ field.field.queryset.first }}" readonly aria-readonly="true">
-              {{ field.as_hidden }}
+              <input type="hidden" name="{{ field.html_name }}" id="{{ field.id_for_label }}" value="{{ field.value|default:field.field.queryset.first.pk }}">
               <div class="form-text">Producto fijado para la recepción.</div>
               {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
               {% elif field.name == 'observation' %}
