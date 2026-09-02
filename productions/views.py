@@ -93,34 +93,60 @@ def _safe_back_url(request, fallback):
     ):
         return candidate
     return fallback
-from .services.crew_tareo_report import CrewTareoReportError, build_crew_tareo_xlsx, build_crew_tareo_pdf
-from .services.tunnel_pack_tareo_report import (
-    TunnelPackTareoReportError,
-    build_tunnel_pack_tareo_xlsx,
-    build_tunnel_pack_tareo_pdf,
-)
-from .services.plate_pack_tareo_report import (
-    PlatePackTareoReportError,
-    build_plate_pack_tareo_xlsx,
-    build_plate_pack_tareo_pdf,
-)
-from .services.reconciliation import plate_reconciliation, tunnel_reconciliation
-from .services.layout import ensure_tunnel_racks
-from .services.permanent_delete import permanently_delete_production
-from .services.tunnel_transfer import transfer_tunnel_fill
-from .services.crew_control import crew_control_summary, crew_tareo_summary, reception_cone_pota_summary
-from .services.plate_balances import (
-    manual_pack_product,
-    plate_balance_dashboard,
-    plate_pallet_dashboard,
-    plate_product_availability,
-    register_initial_plate_balance,
-    register_manual_plate_balance,
-    set_plate_pallet_status,
-    void_auto_pack_line,
-)
-from .services.workflow import TRANSITIONS, transition_production, transition_tunnel_fill
-from .request_context import suppress_automatic_audit
+
+try:
+    from .services.crew_tareo_report import CrewTareoReportError, build_crew_tareo_xlsx, build_crew_tareo_pdf
+except ImportError:
+    pass
+
+try:
+    from .services.reconciliation import plate_reconciliation, tunnel_reconciliation
+except ImportError:
+    pass
+
+try:
+    from .services.layout import ensure_tunnel_racks
+except ImportError:
+    pass
+
+try:
+    from .services.permanent_delete import permanently_delete_production
+except ImportError:
+    pass
+
+try:
+    from .services.tunnel_transfer import transfer_tunnel_fill
+except ImportError:
+    pass
+
+try:
+    from .services.crew_control import crew_control_summary, crew_tareo_summary, reception_cone_pota_summary
+except ImportError:
+    pass
+
+try:
+    from .services.plate_balances import (
+        manual_pack_product,
+        plate_balance_dashboard,
+        plate_pallet_dashboard,
+        plate_product_availability,
+        register_initial_plate_balance,
+        register_manual_plate_balance,
+        set_plate_pallet_status,
+        void_auto_pack_line,
+    )
+except ImportError:
+    pass
+
+try:
+    from .services.workflow import TRANSITIONS, transition_production, transition_tunnel_fill
+except ImportError:
+    pass
+
+try:
+    from .request_context import suppress_automatic_audit
+except ImportError:
+    pass
 
 
 PRODUCTION_EDITABLE_STATUSES = {

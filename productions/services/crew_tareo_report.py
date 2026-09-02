@@ -9,7 +9,7 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from .crew_control import crew_tareo_summary
+from .crew_control import crew_control_summary as crew_tareo_summary
 
 
 class CrewTareoReportError(Exception):

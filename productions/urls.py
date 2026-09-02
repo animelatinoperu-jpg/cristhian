@@ -113,7 +113,7 @@ urlpatterns = [
         name="plate_crew_quick_create",
     ),
     path("producciones/<int:pk>/empaque-tunel/nuevo/", views.TunnelPackagingCreateView.as_view(), name="tunnel_pack_create"),
-    path("producciones/<int:pk>/empaque-tunel/calcular/", views.TunnelAutoPackagingView.as_view(), name="tunnel_pack_auto"),
+    # path("producciones/<int:pk>/empaque-tunel/calcular/", views.TunnelAutoPackagingView.as_view(), name="tunnel_pack_auto"),
     path(
         "producciones/<int:pk>/empaque-tunel/reporte.xlsx",
         views.PackagingReportXlsxView.as_view(report_kind="tunnel"),
@@ -137,7 +137,7 @@ urlpatterns = [
         views.PackagingReportPdfView.as_view(report_kind="plate"),
         name="plate_pack_report_pdf",
     ),
-    path("producciones/<int:pk>/empaque-placas/calcular/", views.PlateAutoPackagingView.as_view(), name="plate_pack_auto"),
+    # path("producciones/<int:pk>/empaque-placas/calcular/", views.PlateAutoPackagingView.as_view(), name="plate_pack_auto"),
     path("producciones/<int:pk>/empaque-placas/saldos/", views.PlateBalanceView.as_view(), name="plate_balance"),
     path("producciones/<int:pk>/empaque-placas/pallet/<int:pallet_pk>/estado/", views.PlatePalletStatusView.as_view(), name="plate_pallet_status"),
     path("producciones/<int:pk>/empaque-placas/movimiento/<int:line_pk>/eliminar/", views.PlatePalletLineDeleteView.as_view(), name="plate_pallet_line_delete"),

@@ -10,6 +10,17 @@ CREW_CONTROL_AREAS = {
     AreaAssignment.Area.PLATE_CREW,
 }
 
+ROLE_AREA_MAP = {
+    "tunnel": AreaAssignment.Area.TUNNEL_CREW,
+    "plate": AreaAssignment.Area.PLATE_CREW,
+    "reception": AreaAssignment.Area.RECEPTION,
+    "nuqueras": AreaAssignment.Area.NUQUERAS,
+    "tunnel_pack": AreaAssignment.Area.TUNNEL_PACK,
+    "plate_pack": AreaAssignment.Area.PLATE_PACK,
+}
+
+has_operational_role = lambda user: user.is_authenticated and user.roles.filter(code__in={Role.Codes.TUNNEL_SUPERVISOR, Role.Codes.PRODUCTION_MANAGER}).exists()
+
 
 def require_roles(user, *role_codes):
     if not user.is_authenticated or not user.has_role(*role_codes):

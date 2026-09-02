@@ -1,0 +1,16 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "django-server",
+      "runtimeExecutable": ".venv\\Scripts\\python.exe",
+      "runtimeArgs": [
+        "manage.py",
+        "runserver",
+        "0.0.0.0:8000",
+        "--settings=production_control.settings"
+      ],
+      "port": 8000
+    }
+  ]
+}

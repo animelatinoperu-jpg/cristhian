@@ -1665,3 +1665,34 @@ class ExcelCellMapping(TimestampedModel):
         constraints = [
             models.UniqueConstraint(fields=["template_version", "sheet", "field_key", "cell_or_range"], name="uniq_excel_cell_mapping")
         ]
+
+
+class TunnelManualBalance(SoftDeleteModel):
+    production = models.ForeignKey(ProductionOrder, on_delete=models.CASCADE, related_name="tunnel_manual_balances")
+    product = models.ForeignKey(Product, on_delete=models.PROTECT)
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
+class TunnelPackWorker(SoftDeleteModel):
+    tunnel_entry = models.ForeignKey("TunnelEntry", on_delete=models.CASCADE, related_name="pack_workers")
+    worker = models.ForeignKey(Worker, on_delete=models.PROTECT)
+    start_time = models.TimeField(null=True, blank=True)
+    end_time = models.TimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
+class PlatePackWorker(SoftDeleteModel):
+    plate_entry = models.ForeignKey("PlateEntry", on_delete=models.CASCADE, related_name="pack_workers")
+    worker = models.ForeignKey(Worker, on_delete=models.PROTECT)
+    start_time = models.TimeField(null=True, blank=True)
+    end_time = models.TimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
