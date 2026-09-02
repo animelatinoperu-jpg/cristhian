@@ -8244,17 +8244,49 @@ def service_worker(request):
     return response
 
 
-def sync_heartbeat(request):
-    from .models import AuditLog
+_HEARTBEAT_MODELS = None
 
-    last = AuditLog.objects.order_by("-id").values_list("id", "timestamp").first()
-    if last:
-        last_id, last_timestamp = last
-    else:
-        last_id, last_timestamp = 0, None
+
+def _heartbeat_models():
+    global _HEARTBEAT_MODELS
+    if _HEARTBEAT_MODELS is None:
+        from . import models as m
+        _HEARTBEAT_MODELS = [
+            m.ProductionOrder,
+            m.ReceptionEntry,
+            m.NuqueraEntry,
+            m.TunnelFill,
+            m.TunnelRack,
+            m.TunnelEntry,
+            m.TunnelCrewEntry,
+            m.PlatePosition,
+            m.PlatePositionTiming,
+            m.PlateEntry,
+            m.PlateCrewEntry,
+            m.PackagingEntry,
+            m.PlatePackagingAllocation,
+            m.PlatePalletLine,
+            m.PlatePalletConsumption,
+            m.MaterialUsage,
+            m.CostEntry,
+            m.TroqueladoEntry,
+            m.Approval,
+            m.Observation,
+            m.AreaAssignment,
+        ]
+    return _HEARTBEAT_MODELS
+
+
+def sync_heartbeat(request):
+    from django.db.models import Max
+
+    latest = None
+    for model in _heartbeat_models():
+        value = model.objects.aggregate(m=Max("updated_at"))["m"]
+        if value and (latest is None or value > latest):
+            latest = value
     return JsonResponse({
-        "last_id": last_id,
-        "last_timestamp": last_timestamp.isoformat() if last_timestamp else None,
+        "last_timestamp": latest.isoformat() if latest else None,
     })
 
 

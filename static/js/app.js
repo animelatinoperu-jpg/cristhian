@@ -1290,7 +1290,7 @@
   if (document.body.classList.contains("login-page")) return;
   const POLL_INTERVAL_MS = 3000;
   const heartbeatUrl = "/sync/heartbeat/";
-  let knownLastId = null;
+  let knownLastTimestamp = undefined;
   let checking = false;
 
   const isEditingForm = () => {
@@ -1309,13 +1309,13 @@
       const res = await fetch(heartbeatUrl, { credentials: "same-origin", cache: "no-store" });
       if (!res.ok) return;
       const data = await res.json();
-      if (knownLastId === null) {
-        knownLastId = data.last_id;
+      if (knownLastTimestamp === undefined) {
+        knownLastTimestamp = data.last_timestamp;
         return;
       }
-      if (data.last_id !== knownLastId) {
+      if (data.last_timestamp !== knownLastTimestamp) {
         if (isEditingForm()) {
-          knownLastId = data.last_id;
+          knownLastTimestamp = data.last_timestamp;
           return;
         }
         window.location.reload();
