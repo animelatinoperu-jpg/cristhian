@@ -1277,7 +1277,7 @@
     addEventListener("load", async () => {
       try {
         const registration = await navigator.serviceWorker.register(
-          "/service-worker.js?v=20260902-realtime-poll",
+          "/service-worker.js?v=20260902-realtime-poll-v2",
           {updateViaCache: "none"}
         );
         await registration.update();
@@ -1303,7 +1303,7 @@
   };
 
   const checkForUpdates = async () => {
-    if (checking || document.hidden) return;
+    if (checking) return;
     checking = true;
     try {
       const res = await fetch(heartbeatUrl, { credentials: "same-origin", cache: "no-store" });
