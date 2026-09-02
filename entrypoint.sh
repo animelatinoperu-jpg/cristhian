@@ -20,9 +20,10 @@ fi
 echo "Running ensure_reference_data..."
 python manage.py ensure_reference_data
 
-echo "Starting gunicorn..."
+: "${PORT:=8000}"
+echo "Starting gunicorn on port [$PORT]..."
 exec gunicorn production_control.wsgi:application \
-    --bind 0.0.0.0:${PORT:-8000} \
+    --bind "0.0.0.0:$PORT" \
     --workers 3 \
     --timeout 120 \
     --access-logfile - \
