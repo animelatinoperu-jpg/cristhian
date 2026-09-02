@@ -1,4 +1,5 @@
 .env
+.env.local
 .env.railway
 .venv/
 __pycache__/
