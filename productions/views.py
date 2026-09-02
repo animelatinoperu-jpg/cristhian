@@ -8274,6 +8274,12 @@ def _heartbeat_models():
             m.Approval,
             m.Observation,
             m.AreaAssignment,
+            m.ReceptionCarTiming,
+            m.PlatePallet,
+            m.PlateCarryoverBalance,
+            m.TunnelManualBalance,
+            m.TunnelPackWorker,
+            m.PlatePackWorker,
         ]
     return _HEARTBEAT_MODELS
 
