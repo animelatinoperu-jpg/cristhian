@@ -1277,11 +1277,59 @@
     addEventListener("load", async () => {
       try {
         const registration = await navigator.serviceWorker.register(
-          "/service-worker.js?v=20260810-seleccion-limpia",
+          "/service-worker.js?v=20260902-realtime-poll",
           {updateViaCache: "none"}
         );
         await registration.update();
       } catch (_) {}
     });
   }
+})();
+
+(() => {
+  if (document.body.classList.contains("login-page")) return;
+  const POLL_INTERVAL_MS = 3000;
+  const heartbeatUrl = "/sync/heartbeat/";
+  let knownLastId = null;
+  let checking = false;
+
+  const isEditingForm = () => {
+    const el = document.activeElement;
+    if (!el) return false;
+    const tag = el.tagName;
+    if (tag !== "INPUT" && tag !== "TEXTAREA" && tag !== "SELECT") return false;
+    if (tag === "INPUT" && (el.type === "submit" || el.type === "button")) return false;
+    return true;
+  };
+
+  const checkForUpdates = async () => {
+    if (checking || document.hidden) return;
+    checking = true;
+    try {
+      const res = await fetch(heartbeatUrl, { credentials: "same-origin", cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (knownLastId === null) {
+        knownLastId = data.last_id;
+        return;
+      }
+      if (data.last_id !== knownLastId) {
+        if (isEditingForm()) {
+          knownLastId = data.last_id;
+          return;
+        }
+        window.location.reload();
+      }
+    } catch (_) {
+      // sin red: se reintenta en el siguiente ciclo
+    } finally {
+      checking = false;
+    }
+  };
+
+  setInterval(checkForUpdates, POLL_INTERVAL_MS);
+  checkForUpdates();
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) checkForUpdates();
+  });
 })();

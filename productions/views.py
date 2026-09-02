@@ -8237,11 +8237,25 @@ def ads_txt(request):
 
 
 def service_worker(request):
-    content = """const CACHE='pp-shell-v9';const ASSETS=['/','/manifest.webmanifest','/static/css/app.css','/static/js/app.js?v=20260814-cierre-rack-fix','/static/icons/icon.svg'];self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});self.addEventListener('activate',e=>e.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))])));self.addEventListener('fetch',e=>{if(e.request.method==='GET')e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)))});"""
+    content = """const CACHE='pp-shell-v10';const ASSETS=['/','/manifest.webmanifest','/static/css/app.css','/static/js/app.js?v=20260902-realtime-poll','/static/icons/icon.svg'];self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});self.addEventListener('activate',e=>e.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))])));self.addEventListener('fetch',e=>{if(e.request.method==='GET')e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)))});"""
     response = HttpResponse(content, content_type="application/javascript")
     response["Service-Worker-Allowed"] = "/"
     response["Cache-Control"] = "no-cache, no-store, must-revalidate"
     return response
+
+
+def sync_heartbeat(request):
+    from .models import AuditLog
+
+    last = AuditLog.objects.order_by("-id").values_list("id", "timestamp").first()
+    if last:
+        last_id, last_timestamp = last
+    else:
+        last_id, last_timestamp = 0, None
+    return JsonResponse({
+        "last_id": last_id,
+        "last_timestamp": last_timestamp.isoformat() if last_timestamp else None,
+    })
 
 
 def download_app_apk(request):
