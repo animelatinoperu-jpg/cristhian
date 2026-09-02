@@ -8278,16 +8278,22 @@ def _heartbeat_models():
 
 
 def sync_heartbeat(request):
+    from django.core.cache import cache
     from django.db.models import Max
+
+    cache_key = "sync_heartbeat_last_timestamp"
+    cached = cache.get(cache_key, "MISS")
+    if cached != "MISS":
+        return JsonResponse({"last_timestamp": cached})
 
     latest = None
     for model in _heartbeat_models():
         value = model.objects.aggregate(m=Max("updated_at"))["m"]
         if value and (latest is None or value > latest):
             latest = value
-    return JsonResponse({
-        "last_timestamp": latest.isoformat() if latest else None,
-    })
+    result = latest.isoformat() if latest else None
+    cache.set(cache_key, result, timeout=2)
+    return JsonResponse({"last_timestamp": result})
 
 
 def download_app_apk(request):
