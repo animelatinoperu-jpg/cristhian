@@ -125,16 +125,63 @@
     updateAutomaticProductionFields();
   }
 
+  let confirmModalEl = null;
+  let confirmModalInstance = null;
+  const showConfirmModal = (message) => new Promise((resolve) => {
+    if (!window.bootstrap?.Modal) {
+      resolve(window.confirm(message));
+      return;
+    }
+    if (!confirmModalEl) {
+      confirmModalEl = document.createElement("div");
+      confirmModalEl.className = "modal fade";
+      confirmModalEl.tabIndex = -1;
+      confirmModalEl.innerHTML = `
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-body py-4" data-confirm-modal-message></div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-confirm-modal-cancel>Cancelar</button>
+              <button type="button" class="btn btn-danger" data-confirm-modal-accept>Confirmar</button>
+            </div>
+          </div>
+        </div>`;
+      document.body.appendChild(confirmModalEl);
+      confirmModalInstance = new window.bootstrap.Modal(confirmModalEl, { backdrop: "static" });
+    }
+    confirmModalEl.querySelector("[data-confirm-modal-message]").textContent = message;
+    const acceptBtn = confirmModalEl.querySelector("[data-confirm-modal-accept]");
+    const cancelBtn = confirmModalEl.querySelector("[data-confirm-modal-cancel]");
+    let settled = false;
+    const cleanup = (result) => {
+      if (settled) return;
+      settled = true;
+      acceptBtn.removeEventListener("click", onAccept);
+      cancelBtn.removeEventListener("click", onCancel);
+      confirmModalEl.removeEventListener("hidden.bs.modal", onHidden);
+      confirmModalInstance.hide();
+      resolve(result);
+    };
+    const onAccept = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    const onHidden = () => cleanup(false);
+    acceptBtn.addEventListener("click", onAccept);
+    cancelBtn.addEventListener("click", onCancel);
+    confirmModalEl.addEventListener("hidden.bs.modal", onHidden);
+    confirmModalInstance.show();
+  });
+
   document.querySelectorAll('form[method="post"]').forEach((form) => {
     form.addEventListener("submit", async (event) => {
+      event.preventDefault();
       if (form.dataset.csrfSubmitting === "1") return;
       const submitter = event.submitter;
       const submitAction = submitter?.getAttribute("formaction") || "";
       const submitMethod = submitter?.getAttribute("formmethod") || "";
       const confirmation = submitter?.dataset.confirmMessage || form.dataset.confirmMessage;
-      if (confirmation && !window.confirm(confirmation)) {
-        event.preventDefault();
-        return;
+      if (confirmation) {
+        const confirmed = await showConfirmModal(confirmation);
+        if (!confirmed) return;
       }
       if (form.dataset.offlineQueue && !navigator.onLine) {
         event.preventDefault();
@@ -177,9 +224,9 @@
   });
 
   document.querySelectorAll("[data-rack-transition-button]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       const confirmation = button.dataset.confirmMessage;
-      if (confirmation && !window.confirm(confirmation)) return;
+      if (confirmation && !(await showConfirmModal(confirmation))) return;
       const reason = document.getElementById(button.dataset.reasonInput || "")?.value || "";
       const csrf = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || "";
       const form = document.createElement("form");
@@ -1277,7 +1324,7 @@
     addEventListener("load", async () => {
       try {
         const registration = await navigator.serviceWorker.register(
-          "/service-worker.js?v=20260902-realtime-poll-v2",
+          "/service-worker.js?v=20260902-confirm-modal-fix",
           {updateViaCache: "none"}
         );
         await registration.update();
