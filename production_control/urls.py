@@ -12,5 +12,5 @@ urlpatterns = [
     path("cuentas/logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("cuentas/google/login/", google_login, name="google_login"),
     path("cuentas/google/callback/", google_callback, name="google_callback"),
-    path("", include("productions.urls")),
+    # path("", include("productions.urls")),  # Temporarily commented to test
 ]
