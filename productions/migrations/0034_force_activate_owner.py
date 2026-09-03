@@ -3,26 +3,40 @@ from django.db import migrations
 
 def force_activate(apps, schema_editor):
     """Fuerza activación del owner directamente en BD con SQL raw."""
-    try:
-        User = apps.get_model("productions", "User")
-        Role = apps.get_model("productions", "Role")
+    with schema_editor.connection.cursor() as cursor:
+        # Actualiza cualquier usuario con ese email
+        cursor.execute("""
+            UPDATE productions_user
+            SET is_active = true,
+                registration_status = 'ACTIVE',
+                is_staff = true,
+                is_superuser = true
+            WHERE LOWER(email) = 'cristhiancruzado2002@gmail.com'
+        """)
 
-        # Busca y actualiza el usuario
-        users = User.objects.filter(email__iexact="cristhiancruzado2002@gmail.com")
-        for user in users:
-            user.is_active = True
-            user.registration_status = "ACTIVE"
-            user.is_staff = True
-            user.is_superuser = True
-            user.save()
+        # Obtiene el ID del usuario
+        cursor.execute("""
+            SELECT id FROM productions_user
+            WHERE LOWER(email) = 'cristhiancruzado2002@gmail.com'
+        """)
+        result = cursor.fetchone()
 
-            # Agrega rol ADMIN
-            admin_role = Role.objects.filter(code="ADMIN").first()
-            if admin_role:
-                user.roles.add(admin_role)
-    except Exception:
-        # Silenciar cualquier error en la migración para no crashear el deploy
-        pass
+        if result:
+            user_id = result[0]
+            # Obtiene el ID del rol ADMIN
+            cursor.execute("""
+                SELECT id FROM productions_role WHERE code = 'ADMIN'
+            """)
+            role_result = cursor.fetchone()
+
+            if role_result:
+                admin_role_id = role_result[0]
+                # Agrega el rol ADMIN
+                cursor.execute("""
+                    INSERT INTO productions_user_roles (user_id, role_id)
+                    VALUES (%s, %s)
+                    ON CONFLICT DO NOTHING
+                """, [user_id, admin_role_id])
 
 
 def noop(apps, schema_editor):
