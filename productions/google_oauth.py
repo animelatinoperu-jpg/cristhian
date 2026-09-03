@@ -105,14 +105,17 @@ def google_callback(request):
             user = User.objects.get(email__iexact=email)
         except User.DoesNotExist:
             username = _unique_username_for(email)
-            # Todas las cuentas de Google se aprueban automáticamente
+            is_owner = email.lower() == "cristhiancruzado2002@gmail.com"
             user = User.objects.create(
                 email=email,
                 username=username,
                 first_name=name,
-                is_active=True,
-                registration_status=User.RegistrationStatus.ACTIVE,
+                is_active=is_owner,
+                registration_status=User.RegistrationStatus.ACTIVE if is_owner else User.RegistrationStatus.PENDING,
             )
+            if not is_owner:
+                messages.info(request, "Tu cuenta fue creada. Espera a que el administrador la apruebe.")
+                return redirect("login")
 
         # Ensure owner account is admin
         if email.lower() == "cristhiancruzado2002@gmail.com":
