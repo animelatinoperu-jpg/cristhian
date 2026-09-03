@@ -1,30 +1,14 @@
-#!/bin/sh
-# NQ-V3 build
+#!/bin/bash
 set -e
 
+echo "Running Django checks..."
+python manage.py check --settings=production_control.settings
+
 echo "Running migrations..."
-python manage.py migrate --noinput
+python manage.py migrate --noinput --settings=production_control.settings || true
 
-if [ -n "$DJANGO_SUPERUSER_USERNAME" ]; then
-  echo "Creating superuser..."
-  python manage.py shell -c "
-from productions.models import User
-if not User.objects.filter(username='$DJANGO_SUPERUSER_USERNAME').exists():
-    User.objects.create_superuser('$DJANGO_SUPERUSER_USERNAME', '$DJANGO_SUPERUSER_EMAIL', '$DJANGO_SUPERUSER_PASSWORD')
-    print('Superuser created')
-else:
-    print('Superuser already exists')
-"
-fi
+echo "Collecting static files..."
+python manage.py collectstatic --noinput --settings=production_control.settings || true
 
-echo "Running ensure_reference_data..."
-python manage.py ensure_reference_data
-
-: "${PORT:=8000}"
-echo "Starting gunicorn on port [$PORT]..."
-exec gunicorn production_control.wsgi:application \
-    --bind "0.0.0.0:$PORT" \
-    --workers 3 \
-    --timeout 120 \
-    --access-logfile - \
-    --error-logfile -
+echo "Starting gunicorn..."
+exec gunicorn production_control.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120 --access-logfile - --error-logfile -

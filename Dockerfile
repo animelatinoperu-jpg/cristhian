@@ -9,7 +9,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN python manage.py migrate --noinput --settings=production_control.settings || true
-RUN python manage.py collectstatic --noinput --settings=production_control.settings || true
+RUN chmod +x entrypoint.sh
 
-CMD exec gunicorn production_control.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120
+ENTRYPOINT ["/app/entrypoint.sh"]
