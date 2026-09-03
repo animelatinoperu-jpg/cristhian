@@ -105,15 +105,23 @@ def google_callback(request):
             user = User.objects.get(email__iexact=email)
         except User.DoesNotExist:
             username = _unique_username_for(email)
+            # Solo el owner es automáticamente ACTIVE, los demás requieren aprobación
+            is_owner = email.lower() == "cristhiancruzado2002@gmail.com"
             user = User.objects.create(
                 email=email,
                 username=username,
                 first_name=name,
-                is_active=True,
-                registration_status=User.RegistrationStatus.ACTIVE,
+                is_active=is_owner,
+                registration_status=User.RegistrationStatus.ACTIVE if is_owner else User.RegistrationStatus.PENDING,
             )
+            if not is_owner:
+                messages.info(
+                    request,
+                    "Su cuenta fue creada. Por favor espere a que el administrador le otorgue acceso.",
+                )
+                return redirect("login")
 
-        # Auto-activate owner account
+        # Ensure owner account is admin
         if email.lower() == "cristhiancruzado2002@gmail.com":
             user.is_active = True
             user.registration_status = User.RegistrationStatus.ACTIVE
@@ -124,24 +132,6 @@ def google_callback(request):
             admin_role = Role.objects.filter(code="ADMIN").first()
             if admin_role:
                 user.roles.add(admin_role)
-
-        # Auto-activate owner if this is the owner email
-        if email.lower() == "cristhiancruzado2002@gmail.com":
-            from django.db import connection
-            try:
-                with connection.cursor() as cursor:
-                    cursor.execute("""
-                        UPDATE productions_user
-                        SET is_active = true,
-                            registration_status = 'ACTIVE',
-                            is_staff = true,
-                            is_superuser = true
-                        WHERE LOWER(email) = %s
-                    """, [email])
-                # Reload user from DB
-                user.refresh_from_db()
-            except Exception:
-                pass
 
         if user.registration_status == User.RegistrationStatus.PENDING:
             messages.error(request, "Su cuenta está pendiente de aprobación. Solicite al administrador que active sus accesos.")
