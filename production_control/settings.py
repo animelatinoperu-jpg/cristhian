@@ -3,7 +3,7 @@ import os
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+# Force rebuild for CSS update
 _env_file = BASE_DIR / ".env"
 if _env_file.is_file():
     with open(_env_file, encoding="utf-8") as _f:
