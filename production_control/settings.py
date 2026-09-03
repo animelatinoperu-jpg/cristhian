@@ -24,8 +24,8 @@ def env(name, default=None):
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", "dev-only-change-me")
 DEBUG = env("DJANGO_DEBUG", "1") == "1"
-ALLOWED_HOSTS = [item.strip() for item in env("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if item.strip()]
-CSRF_TRUSTED_ORIGINS = [item.strip() for item in env("CSRF_TRUSTED_ORIGINS", "").split(",") if item.strip()]
+ALLOWED_HOSTS = [item.strip() for item in env("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,*.up.railway.app,*.railway.app").split(",") if item.strip()]
+CSRF_TRUSTED_ORIGINS = [item.strip() for item in env("CSRF_TRUSTED_ORIGINS", "https://*.up.railway.app,https://*.railway.app").split(",") if item.strip()]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
