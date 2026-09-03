@@ -3,4 +3,4 @@ builder = "dockerfile"
 
 [deploy]
 numReplicas = 1
-startCommand = "gunicorn production_control.wsgi:application --bind 0.0.0.0:\$PORT"
+PORT = 8000
