@@ -1484,6 +1484,25 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
                 messages.success(request, f"Se asignó {crew.name} a todas las bandejas del rack {locked_rack.code}.")
             else:
                 messages.success(request, f"Se asignó {crew.name} al rack {locked_rack.code}.")
+            # Verificar si todas las bandejas están asignadas y cerrar rack automáticamente
+            physical_total = locked_rack.entries.filter(is_active=True).aggregate(total=Sum('tray_count'))['total'] or 0
+            assigned_total = locked_rack.crew_entries.filter(is_active=True).aggregate(total=Sum('tray_count'))['total'] or 0
+            if physical_total > 0 and assigned_total >= physical_total and locked_rack.status != TunnelRack.Status.CLOSED:
+                locked_rack.status = TunnelRack.Status.CLOSED
+                locked_rack.save(update_fields=['status'])
+                AuditLog.objects.create(
+                    user=request.user,
+                    production=self.production,
+                    module="tunnel-racks",
+                    model_name=locked_rack._meta.label,
+                    record_pk=str(locked_rack.pk),
+                    action=AuditLog.Action.UPDATE,
+                    old_value={"status": TunnelRack.Status.OPEN},
+                    new_value={"status": TunnelRack.Status.CLOSED},
+                    ip_address=request.META.get("REMOTE_ADDR"),
+                    user_agent=request.META.get("HTTP_USER_AGENT", ""),
+                )
+                messages.info(request, f"El rack {locked_rack.code} se cerró automáticamente (todas las bandejas asignadas).")
         return redirect(f"{reverse('productions:tunnel_batch', args=[self.production.pk, self.fill.pk])}?open_rack={rack.pk}#rack-{rack.pk}")
 
     def _save_tunnel_entry(self, request, rack, product, tray_count, extra_target, locked_entries):
