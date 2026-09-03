@@ -105,7 +105,7 @@ class User(AbstractUser):
     registration_status = models.CharField(
         max_length=12,
         choices=RegistrationStatus.choices,
-        default=RegistrationStatus.ACTIVE,
+        default=RegistrationStatus.PENDING,
     )
     requested_role = models.CharField(max_length=24, choices=Role.Codes.choices, blank=True)
     approved_by = models.ForeignKey(
