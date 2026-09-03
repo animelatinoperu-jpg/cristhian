@@ -1355,9 +1355,13 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
         }
 
     def get(self, request, *args, **kwargs):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
         _tg0 = _time_module.perf_counter()
-        racks = self._racks()
+        with CaptureQueriesContext(connection) as _cap_racks:
+            racks = self._racks()
         self._timing["get_racks_query"] = _time_module.perf_counter() - _tg0
+        self._timing["get_racks_nqueries"] = len(_cap_racks.captured_queries)
         if not racks:
             messages.error(request, "La plantilla no tiene racks configurados para esta llenada.")
             return redirect("productions:detail", pk=self.production.pk)
@@ -1365,9 +1369,16 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
             initial=[{"rack_id": rack.pk, "max_trays": rack.max_trays} for rack in racks],
             prefix="racks",
         )
+        _tg_ctx0 = _time_module.perf_counter()
+        with CaptureQueriesContext(connection) as _cap_ctx:
+            ctx = self._context(formset, racks)
+        self._timing["get_context_build"] = _time_module.perf_counter() - _tg_ctx0
+        self._timing["get_context_nqueries"] = len(_cap_ctx.captured_queries)
         _tg1 = _time_module.perf_counter()
-        response = render(request, self.template_name, self._context(formset, racks))
+        with CaptureQueriesContext(connection) as _cap_render:
+            response = render(request, self.template_name, ctx)
         self._timing["get_render"] = _time_module.perf_counter() - _tg1
+        self._timing["get_render_nqueries"] = len(_cap_render.captured_queries)
         return response
 
     def _post_crew_assignment(self, request, racks):
