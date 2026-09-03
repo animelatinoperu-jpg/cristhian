@@ -34,7 +34,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    # "productions",  # Temporarily disabled for diagnostics
+    "productions",
 ]
 
 MIDDLEWARE = [
@@ -45,7 +45,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    # "productions.middleware.AuditRequestMiddleware",  # Temporarily disabled for diagnostics
+    "productions.middleware.AuditRequestMiddleware",
 ]
 if not DEBUG:
     MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
@@ -61,7 +61,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                # "productions.context_processors.navigation_permissions",  # Temporarily disabled
+                "productions.context_processors.navigation_permissions",
             ]
         },
     }
@@ -138,13 +138,13 @@ STORAGES = {
 }
 MEDIA_ROOT = Path(env("DJANGO_MEDIA_ROOT", str(BASE_DIR / "storage" / "private")))
 MEDIA_URL = "/private-files-not-served/"
-LOGIN_REDIRECT_URL = "admin:index"  # Use admin instead of productions:list
+LOGIN_REDIRECT_URL = "productions:list"
 LOGOUT_REDIRECT_URL = "login"
 LOGIN_URL = "login"
-# AUTH_USER_MODEL = "productions.User"  # Use default Django User for diagnostics
-# AUTHENTICATION_BACKENDS = [
-#     "productions.auth_backends.LockoutBackend",
-# ]
+AUTH_USER_MODEL = "productions.User"
+AUTHENTICATION_BACKENDS = [
+    "productions.auth_backends.LockoutBackend",
+]
 GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", "642670278151-pgkmlqd5ff9kdgkbvfnde5ipd62en84t.apps.googleusercontent.com")
 GOOGLE_OAUTH_CLIENT_SECRET = env("GOOGLE_OAUTH_CLIENT_SECRET", "GOCSpX-wTAkHRrg26x7iDUKMfJoz_l8Fudd")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
