@@ -243,7 +243,7 @@
     button.addEventListener("click", (event) => {
       const card = button.closest("[data-rack-card]");
       const editor = rackMultiselectors.get(card?.querySelector("[data-rack-selector]")?.dataset.rackId || "");
-      if (editor) {
+      if (editor && editor.hasSelection()) {
         if (!editor.ready()) {
           event.preventDefault();
           return;
@@ -739,6 +739,7 @@
         const result = prepareSave();
         return result && result.ok;
       },
+      hasSelection: () => selection.size > 0,
       extrasCount: () => {
         const result = prepareSave();
         if (!result || !result.ok) return 1;
