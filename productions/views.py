@@ -1139,7 +1139,7 @@ class TunnelFillCreateView(FormTitleMixin, LoginRequiredMixin, CreateView):
             messages.success(self.request, f"Llenada creada con {rack_count} racks de la plantilla.")
         else:
             messages.warning(self.request, "Llenada creada, pero la plantilla no tiene racks configurados para esta combinación.")
-        return redirect("productions:tunnel_batch", pk=self.production.pk, fill_pk=self.object.pk)
+        return redirect("productions:detail", pk=self.production.pk)
 
 
 class LegacyTunnelEntryCreateView(FormTitleMixin, LoginRequiredMixin, CreateView):
