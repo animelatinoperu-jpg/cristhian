@@ -1257,6 +1257,7 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
             rack.is_full = rack.current_total == rack.max_trays
             rack.is_closed = rack.status == TunnelRack.Status.CLOSED
             rack.is_complete = rack.is_full or rack.is_closed
+            rack.has_crews_assigned = bool(rack.active_crew_entries)
             assigned_by_product = {}
             for assignment in rack.active_crew_entries:
                 assigned_by_product[assignment.product_id] = (

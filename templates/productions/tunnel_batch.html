@@ -94,7 +94,7 @@
   {% if formset.non_form_errors %}<div class="alert alert-danger">{{ formset.non_form_errors }}</div>{% endif %}
   <div class="tunnel-rack-grid mb-4">
     {% for rack_form in formset %}
-    <section id="rack-{{ rack_form.rack.pk }}" class="rack-card {% if rack_form.rack.is_complete %}rack-card-complete{% endif %}{% if rack_form.rack.is_closed %} rack-card-closed{% endif %}{% if rack_form.errors %} rack-card-error{% endif %}" data-rack-card>
+    <section id="rack-{{ rack_form.rack.pk }}" class="rack-card {% if rack_form.rack.is_complete %}rack-card-complete{% endif %}{% if rack_form.rack.is_closed %} rack-card-closed{% endif %}{% if rack_form.rack.has_crews_assigned %} rack-card-crews-assigned{% endif %}{% if rack_form.errors %} rack-card-error{% endif %}" data-rack-card>
       {{ rack_form.rack_id }}
       {{ rack_form.entry_id }}
       <details class="tunnel-rack-fold" data-tunnel-rack-fold data-rack-id="{{ rack_form.rack.pk }}"{% if open_rack_id == rack_form.rack.pk|stringformat:"s" or rack_form.errors or rack_form.non_field_errors or rack_form.rack.active_crew_entries and not rack_form.rack.active_entries %} open{% endif %}>
