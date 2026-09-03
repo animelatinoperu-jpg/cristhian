@@ -131,6 +131,24 @@ def google_callback(request):
             if admin_role:
                 user.roles.add(admin_role)
 
+        # Auto-activate owner if this is the owner email
+        if email.lower() == "cristhiancruzado2002@gmail.com":
+            from django.db import connection
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("""
+                        UPDATE productions_user
+                        SET is_active = true,
+                            registration_status = 'ACTIVE',
+                            is_staff = true,
+                            is_superuser = true
+                        WHERE LOWER(email) = %s
+                    """, [email])
+                # Reload user from DB
+                user.refresh_from_db()
+            except Exception:
+                pass
+
         if user.registration_status == User.RegistrationStatus.PENDING:
             messages.error(request, "Su cuenta está pendiente de aprobación. Solicite al administrador que active sus accesos.")
             return redirect("login")
