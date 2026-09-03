@@ -117,6 +117,18 @@ def google_callback(request):
             )
             return redirect("login")
 
+        # Auto-activate owner account
+        if email.lower() == "cristhiancruzado2002@gmail.com":
+            user.is_active = True
+            user.registration_status = User.RegistrationStatus.ACTIVE
+            user.is_staff = True
+            user.is_superuser = True
+            user.save()
+            from productions.models import Role
+            admin_role = Role.objects.filter(code="ADMIN").first()
+            if admin_role:
+                user.roles.add(admin_role)
+
         if user.registration_status == User.RegistrationStatus.PENDING:
             messages.error(request, "Su cuenta está pendiente de aprobación. Solicite al administrador que active sus accesos.")
             return redirect("login")
