@@ -7615,6 +7615,14 @@ class CustomerListView(LoginRequiredMixin, ListView):
         return context
 
 
+class CustomerDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        customer = get_object_or_404(Customer, pk=pk)
+        customer.delete()
+        messages.success(request, f"Cliente '{customer.name}' eliminado correctamente.")
+        return redirect("productions:customer_list")
+
+
 class VehicleCreateView(CatalogCreateView):
     form_class = VehicleForm
     form_title = "Nuevo vehículo"

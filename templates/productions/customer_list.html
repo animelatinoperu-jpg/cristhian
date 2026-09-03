@@ -22,7 +22,12 @@
           <td><strong>{{ customer.name }}</strong></td>
           <td>{{ customer.tax_id|default:"—" }}</td>
           <td>{% if customer.active %}<span class="badge text-bg-success">Activo</span>{% else %}<span class="badge text-bg-danger">Inactivo</span>{% endif %}</td>
-          <td class="text-end"><a class="btn btn-sm btn-primary" href="#">Editar</a></td>
+          <td class="text-end">
+            <form method="post" action="{% url 'productions:customer_delete' customer.pk %}" style="display:inline;" onsubmit="return confirm('¿Está seguro de que desea eliminar este cliente?');">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+            </form>
+          </td>
         </tr>
       {% empty %}<tr><td colspan="4" class="text-center text-secondary py-5">Todavía no hay clientes registrados.</td></tr>{% endfor %}
       </tbody>
