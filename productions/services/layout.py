@@ -1,8 +1,15 @@
-from productions.models import TunnelRack
+from productions.models import TunnelCrewEntry, TunnelEntry, TunnelRack
 
 
 def ensure_tunnel_racks(fill):
-    """Crea los racks exactos detectados en la hoja de túnel asignada."""
+    """Crea los racks exactos detectados en la hoja de túnel asignada.
+
+    Optimizado para hacer un numero fijo de consultas en vez de una por
+    cada rack existente/configurado: con touneles de ~12 racks, la version
+    anterior generaba mas de 30 consultas individuales cada vez que se
+    llamaba esta funcion (se llama en cada GET y POST de la captura por
+    tunel), lo que sumaba varios segundos de demora al guardar.
+    """
 
     layouts = fill.production.template_version.rules.get("tunnel_racks", {})
     configured = layouts.get(fill.tunnel.code, {}).get(str(fill.fill_number), [])
@@ -13,15 +20,36 @@ def ensure_tunnel_racks(fill):
     default_capacity = fill.production.template_version.rules.get("rack_max_trays", 50)
     configured_codes = {rack["code"] for rack in configured}
 
-    for rack in fill.racks.all():
+    existing_racks = list(fill.racks.all())
+    racks_with_entries = set()
+    racks_with_crew_entries = set()
+    if existing_racks:
+        existing_ids = [rack.pk for rack in existing_racks]
+        racks_with_entries = set(
+            TunnelEntry.objects.filter(rack_id__in=existing_ids, is_active=True)
+            .values_list("rack_id", flat=True)
+            .distinct()
+        )
+        racks_with_crew_entries = set(
+            TunnelCrewEntry.objects.filter(rack_id__in=existing_ids, is_active=True)
+            .values_list("rack_id", flat=True)
+            .distinct()
+        )
+
+    remaining_codes = set()
+    for rack in existing_racks:
         if (
             rack.code not in configured_codes
-            and not rack.entries.filter(is_active=True).exists()
-            and not rack.crew_entries.filter(is_active=True).exists()
+            and rack.pk not in racks_with_entries
+            and rack.pk not in racks_with_crew_entries
         ):
             rack.delete()
+        else:
+            remaining_codes.add(rack.code)
 
     for rack in configured:
+        if rack["code"] in remaining_codes:
+            continue
         TunnelRack.objects.get_or_create(
             fill=fill,
             code=rack["code"],
