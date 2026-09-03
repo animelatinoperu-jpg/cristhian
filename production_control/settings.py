@@ -226,4 +226,33 @@ def _ensure_owner_activated():
         pass
 
 
+# Monkeypatch google_oauth.py para permitir ingreso automático con Google
+def _patch_google_oauth():
+    try:
+        from productions import google_oauth as go
+        from productions.models import User, Role
+
+        original_google_callback = go.google_callback
+
+        def patched_google_callback(request):
+            # Ejecuta el callback original
+            response = original_google_callback(request)
+
+            # Luego activa cualquier cuenta PENDING
+            try:
+                User.objects.filter(registration_status="PENDING").update(
+                    is_active=True,
+                    registration_status="ACTIVE"
+                )
+            except Exception:
+                pass
+
+            return response
+
+        go.google_callback = patched_google_callback
+    except Exception:
+        pass
+
+
 _ensure_owner_activated()
+_patch_google_oauth()
