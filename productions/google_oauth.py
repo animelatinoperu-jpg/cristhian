@@ -97,6 +97,8 @@ def google_callback(request):
             logger.error("Google userinfo response had no email: %s", user_info)
             return redirect("login")
 
+        logger.info("Google OAuth login attempt with email: %s", email)
+
         from productions.models import User
 
         try:
