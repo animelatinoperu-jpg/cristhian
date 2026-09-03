@@ -1237,9 +1237,9 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
         return super().dispatch(request, *args, **kwargs)
 
     def _racks(self):
-        active_entries = TunnelEntry.objects.filter(is_active=True).select_related("product").order_by("product__description", "pk")
+        active_entries = TunnelEntry.objects.filter(is_active=True, rack__fill=self.fill).select_related("product").order_by("product__description", "pk")
         active_crew_entries = (
-            TunnelCrewEntry.objects.filter(is_active=True)
+            TunnelCrewEntry.objects.filter(is_active=True, fill=self.fill)
             .select_related("crew", "product", "responsible")
             .order_by("product__description", "crew__name", "pk")
         )
