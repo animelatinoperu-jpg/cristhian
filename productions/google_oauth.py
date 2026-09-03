@@ -46,10 +46,10 @@ def google_callback(request):
     error = request.GET.get("error")
 
     if error:
-        return redirect("login")
+        return HttpResponse(f"Google returned error: {error}", status=500)
 
     if not code:
-        return redirect("login")
+        return HttpResponse("No 'code' param received from Google", status=500)
 
     try:
         callback_url = get_oauth_callback_url(request)
@@ -62,9 +62,8 @@ def google_callback(request):
         }
 
         token_response = requests.post(GOOGLE_TOKEN_URL, data=token_data)
-        if not token_response.ok and settings.DEBUG:
+        if not token_response.ok:
             return HttpResponse(f"Token exchange failed ({token_response.status_code}): {token_response.text}", status=500)
-        token_response.raise_for_status()
         tokens = token_response.json()
         access_token = tokens.get("access_token")
 
@@ -72,16 +71,15 @@ def google_callback(request):
             GOOGLE_USER_INFO_URL,
             headers={"Authorization": f"Bearer {access_token}"}
         )
-        if not user_response.ok and settings.DEBUG:
+        if not user_response.ok:
             return HttpResponse(f"Userinfo failed ({user_response.status_code}): {user_response.text}", status=500)
-        user_response.raise_for_status()
         user_info = user_response.json()
 
         email = user_info.get("email")
         name = user_info.get("name", "")
 
         if not email:
-            return redirect("login")
+            return HttpResponse(f"No email in Google userinfo response: {user_info}", status=500)
 
         from productions.models import User
         user, created = User.objects.get_or_create(
@@ -93,6 +91,4 @@ def google_callback(request):
         return redirect("productions:list")
 
     except Exception as e:
-        if settings.DEBUG:
-            return HttpResponse(f"<pre>{traceback.format_exc()}</pre>", status=500)
-        return redirect("login")
+        return HttpResponse(f"<pre>{traceback.format_exc()}</pre>", status=500)
