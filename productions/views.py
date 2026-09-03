@@ -8197,13 +8197,6 @@ def health(request):
     return HttpResponse("ok", content_type="text/plain")
 
 
-def db_diagnostic(request):
-    from django.db import connection
-    engine = connection.settings_dict["ENGINE"]
-    name = str(connection.settings_dict["NAME"])
-    return HttpResponse(f"ENGINE={engine}\nNAME={name}", content_type="text/plain")
-
-
 def csrf_token(request):
     response = JsonResponse({"csrfToken": get_token(request)})
     response["Cache-Control"] = "no-store"

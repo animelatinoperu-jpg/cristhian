@@ -11,7 +11,6 @@ urlpatterns = [
     path("usuarios/", views.UserListView.as_view(), name="user_list"),
     path("usuarios/<int:pk>/acceso/", views.UserAccessUpdateView.as_view(), name="user_access"),
     path("salud/", views.health, name="health"),
-    path("salud/db/", views.db_diagnostic, name="db_diagnostic"),
     path("sesion/csrf/", views.csrf_token, name="csrf_token"),
     path("manifest.webmanifest", views.manifest, name="manifest"),
     path("service-worker.js", views.service_worker, name="service_worker"),
