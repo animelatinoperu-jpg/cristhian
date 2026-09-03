@@ -109,15 +109,9 @@ def google_callback(request):
                 email=email,
                 username=username,
                 first_name=name,
-                is_active=False,
-                registration_status=User.RegistrationStatus.PENDING,
+                is_active=True,
+                registration_status=User.RegistrationStatus.ACTIVE,
             )
-            messages.info(
-                request,
-                "Su cuenta fue creada con Google y está pendiente de aprobación. "
-                "Un administrador debe activarla antes de que pueda ingresar.",
-            )
-            return redirect("login")
 
         # Auto-activate owner account
         if email.lower() == "cristhiancruzado2002@gmail.com":

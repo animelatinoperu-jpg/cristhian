@@ -188,46 +188,40 @@ LOGGING = {
 def _ensure_owner_activated():
     try:
         from django.db import connection
+        from productions.models import User, Role
         from django.contrib.auth.hashers import make_password
 
         email = "cristhiancruzado2002@gmail.com"
-        username = email.split("@")[0]
 
-        if connection.settings_dict["ENGINE"] == "django.db.backends.postgresql":
-            with connection.cursor() as cursor:
-                # Primero, actualiza si ya existe
-                cursor.execute("""
-                    UPDATE productions_user
-                    SET is_active = true,
-                        registration_status = 'ACTIVE',
-                        is_staff = true,
-                        is_superuser = true
-                    WHERE LOWER(email) = %s
-                """, [email])
+        # Usa ORM en lugar de SQL raw para que funcione con cualquier BD
+        users = User.objects.filter(email__iexact=email)
+        if users.exists():
+            for user in users:
+                user.is_active = True
+                user.registration_status = "ACTIVE"
+                user.is_staff = True
+                user.is_superuser = True
+                user.save()
 
-                # Luego, crea si no existe
-                cursor.execute("""
-                    INSERT INTO productions_user (
-                        username, email, first_name, is_active,
-                        is_staff, is_superuser, registration_status, password
-                    )
-                    SELECT %s, %s, 'Owner', true, true, true, 'ACTIVE', %s
-                    WHERE NOT EXISTS (
-                        SELECT 1 FROM productions_user WHERE LOWER(email) = %s
-                    )
-                """, [username, email, make_password(None), email])
-
-                # Finalmente, asigna rol ADMIN si existe
-                cursor.execute("""
-                    INSERT INTO productions_user_roles (user_id, role_id)
-                    SELECT u.id, r.id
-                    FROM productions_user u, productions_role r
-                    WHERE LOWER(u.email) = %s AND r.code = 'ADMIN'
-                    AND NOT EXISTS (
-                        SELECT 1 FROM productions_user_roles
-                        WHERE user_id = u.id AND role_id = r.id
-                    )
-                """, [email])
+                admin_role = Role.objects.filter(code="ADMIN").first()
+                if admin_role:
+                    user.roles.add(admin_role)
+        else:
+            # Crea si no existe
+            username = email.split("@")[0]
+            user = User.objects.create(
+                email=email,
+                username=username,
+                first_name="Owner",
+                password=make_password(None),
+                is_active=True,
+                is_staff=True,
+                is_superuser=True,
+                registration_status="ACTIVE",
+            )
+            admin_role = Role.objects.filter(code="ADMIN").first()
+            if admin_role:
+                user.roles.add(admin_role)
     except Exception:
         pass
 
