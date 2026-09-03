@@ -1527,8 +1527,8 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
         return 1
 
     def post(self, request, *args, **kwargs):
+        racks = self._racks()
         if "crew_rack_id" in request.POST:
-            racks = self._racks()
             return self._post_crew_assignment(request, racks)
         post_data = request.POST.copy()
         save_rack_id = post_data.get("save_rack_id") or ""
