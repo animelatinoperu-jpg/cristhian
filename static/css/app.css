@@ -637,9 +637,9 @@ details>summary:focus-visible{
 
 .rack-card-complete,
 .rack-card-closed{
-  border-color:#07110e!important;
-  background:linear-gradient(145deg,#07110e,#111b17)!important;
-  box-shadow:0 12px 28px rgba(3,17,13,.22);
+  border-color:#0a5f3f!important;
+  background:linear-gradient(145deg,#087443,#0d9c5a)!important;
+  box-shadow:0 12px 28px rgba(0,100,60,.22);
 }
 
 .rack-card-complete .tunnel-rack-summary,
