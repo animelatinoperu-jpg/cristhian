@@ -1,30 +1,14 @@
 FROM python:3.12-slim
 
-# Build: NQ-FIX-20260811-SHIFT
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    DJANGO_DEBUG=0
-
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y gcc postgresql-client && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-RUN echo "NQ-FIX-SHIFT-20260811-0300" > /dev/null
 
-ENV NQ_BUILD_ID=NQ-V3-20260811-03
+RUN python manage.py collectstatic --noinput --settings=production_control.settings || true
 
-RUN python manage.py collectstatic --noinput
-
-EXPOSE 8000
-
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-CMD ["/entrypoint.sh"]
+CMD ["gunicorn", "production_control.wsgi:application", "--bind", "0.0.0.0:8000"]
