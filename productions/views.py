@@ -1651,9 +1651,10 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
 
         try:
             with transaction.atomic():
+                locked_racks_query = TunnelRack.objects.select_for_update().filter(pk__in=allowed_ids) if not save_rack_id.isdigit() else TunnelRack.objects.select_for_update().filter(pk=save_rack_id)
                 locked_racks = {
                     rack.pk: rack
-                    for rack in TunnelRack.objects.select_for_update().filter(pk__in=allowed_ids)
+                    for rack in locked_racks_query
                 }
                 existing_ids = {existing.pk for _, _, _, _, existing, _ in plans if existing}
                 for _, _, _, _, _, extras in plans:
