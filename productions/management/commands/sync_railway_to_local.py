@@ -11,7 +11,7 @@ from django.core import serializers
 from django.db import transaction
 from django.apps import apps
 
-RAILWAY_URL = os.environ.get("RAILWAY_API_URL", "https://ppplanta-production.up.railway.app")
+RAILWAY_URL = os.environ.get("RAILWAY_API_URL", "https://web-production-498f1.up.railway.app")
 SYNC_USER = os.environ.get("SYNC_USER", "admin")
 SYNC_PASS = os.environ.get("SYNC_PASS", "Diego2026")
 

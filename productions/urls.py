@@ -20,6 +20,7 @@ urlpatterns = [
     path("producciones/<int:pk>/editar/", views.ProductionUpdateView.as_view(), name="update"),
     path("catalogos/", views.CatalogDashboardView.as_view(), name="catalogs"),
     path("catalogos/laminas/", views.ProductLaminaColorListView.as_view(), name="product_lamina_colors"),
+    path("catalogos/clientes/", views.CustomerListView.as_view(), name="customer_list"),
     path("catalogos/clientes/nuevo/", views.CustomerCreateView.as_view(), name="customer_create"),
     path("catalogos/vehiculos/nuevo/", views.VehicleCreateView.as_view(), name="vehicle_create"),
     path("catalogos/trabajadores/nuevo/", views.WorkerCreateView.as_view(), name="worker_create"),

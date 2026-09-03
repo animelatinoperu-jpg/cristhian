@@ -7600,6 +7600,21 @@ class CustomerCreateView(CatalogCreateView):
     form_title = "Nuevo cliente"
 
 
+class CustomerListView(LoginRequiredMixin, ListView):
+    model = Customer
+    template_name = "productions/customer_list.html"
+    context_object_name = "customers"
+    paginate_by = 20
+
+    def get_queryset(self):
+        return Customer.objects.all().order_by("name")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["back_url"] = _safe_back_url(self.request, reverse("productions:catalogs"))
+        return context
+
+
 class VehicleCreateView(CatalogCreateView):
     form_class = VehicleForm
     form_title = "Nuevo vehículo"
