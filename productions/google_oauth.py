@@ -1,8 +1,8 @@
 import logging
 import requests
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import login
-from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.views.decorators.http import require_http_methods
 from urllib.parse import urlencode
@@ -12,6 +12,19 @@ logger = logging.getLogger(__name__)
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USER_INFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
+
+
+def _unique_username_for(email):
+    """Genera un username disponible a partir del email, evitando colisiones."""
+    from productions.models import User
+
+    base = email.split("@")[0] or "usuario"
+    candidate = base
+    suffix = 1
+    while User.objects.filter(username__iexact=candidate).exists():
+        suffix += 1
+        candidate = f"{base}{suffix}"
+    return candidate
 
 
 def get_oauth_callback_url(request):
@@ -85,10 +98,34 @@ def google_callback(request):
             return redirect("login")
 
         from productions.models import User
-        user, created = User.objects.get_or_create(
-            email=email,
-            defaults={"username": email.split("@")[0], "first_name": name}
-        )
+
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            username = _unique_username_for(email)
+            user = User.objects.create(
+                email=email,
+                username=username,
+                first_name=name,
+                is_active=False,
+                registration_status=User.RegistrationStatus.PENDING,
+            )
+            messages.info(
+                request,
+                "Su cuenta fue creada con Google y está pendiente de aprobación. "
+                "Un administrador debe activarla antes de que pueda ingresar.",
+            )
+            return redirect("login")
+
+        if user.registration_status == User.RegistrationStatus.PENDING:
+            messages.error(request, "Su cuenta está pendiente de aprobación. Solicite al administrador que active sus accesos.")
+            return redirect("login")
+        if user.registration_status == User.RegistrationStatus.REJECTED:
+            messages.error(request, "Esta solicitud de cuenta no fue aprobada. Consulte con el administrador.")
+            return redirect("login")
+        if not user.is_active:
+            messages.error(request, "Esta cuenta está desactivada. Consulte con el administrador.")
+            return redirect("login")
 
         login(request, user, backend="productions.auth_backends.LockoutBackend")
         return redirect("productions:list")

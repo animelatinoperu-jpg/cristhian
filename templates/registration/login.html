@@ -48,6 +48,12 @@
       <h2 id="login-title">Bienvenido</h2>
       <p class="login-form-intro">Ingrese a Partes de Producción con su cuenta asignada.</p>
 
+      {% if messages %}
+        {% for message in messages %}
+          <div class="login-alert" role="alert">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
       {% if form.non_field_errors %}
         <div class="login-alert" role="alert">
           {% for error in form.non_field_errors %}{{ error }}{% endfor %}
