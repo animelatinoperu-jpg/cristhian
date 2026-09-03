@@ -46,6 +46,7 @@ def google_login(request):
         "response_type": "code",
         "scope": "openid email profile",
         "access_type": "online",
+        "prompt": "select_account",
     }
     auth_url = f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
     return redirect(auth_url)
