@@ -4,8 +4,10 @@ cffi==2.1.1
 charset-normalizer==3.4.9
 cryptography==50.0.1
 Django==6.1.1
-django-allauth==65.19.2
 et_xmlfile==2.0.0
+google-auth==2.35.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.1
 gunicorn==23.0.0
 idna==3.19
 openpyxl==3.1.5
