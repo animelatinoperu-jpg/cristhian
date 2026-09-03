@@ -17,8 +17,16 @@ class LockoutBackend(ModelBackend):
         try:
             candidate = User.objects.get(**lookup)
         except User.DoesNotExist:
-            User().set_password(password)
-            return None
+            # Intenta buscar por email también
+            if username:
+                try:
+                    candidate = User.objects.get(email=username)
+                except User.DoesNotExist:
+                    User().set_password(password)
+                    return None
+            else:
+                User().set_password(password)
+                return None
         if not candidate.is_active:
             User().set_password(password)
             return None

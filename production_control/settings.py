@@ -33,8 +33,13 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "django.contrib.sites",
     "django.contrib.staticfiles",
     "productions",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
 ]
 
 MIDDLEWARE = [
@@ -46,6 +51,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "productions.middleware.AuditRequestMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 if not DEBUG:
     MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
@@ -142,7 +148,22 @@ LOGIN_REDIRECT_URL = "productions:list"
 LOGOUT_REDIRECT_URL = "login"
 LOGIN_URL = "login"
 AUTH_USER_MODEL = "productions.User"
-AUTHENTICATION_BACKENDS = ["productions.auth_backends.LockoutBackend"]
+SITE_ID = 1
+AUTHENTICATION_BACKENDS = [
+    "productions.auth_backends.LockoutBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "SCOPE": [
+            "profile",
+            "email",
+        ],
+        "AUTH_PARAMS": {
+            "access_type": "online",
+        }
+    }
+}
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 TEST_RUNNER = "productions.test_runner.TemporaryMediaTestRunner"
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024

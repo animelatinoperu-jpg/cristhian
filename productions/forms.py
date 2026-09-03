@@ -1495,3 +1495,50 @@ class TransitionForm(forms.Form):
         super().__init__(*args, **kwargs)
         for name, field in self.fields.items():
             field.label = SPANISH_FIELD_LABELS.get(name, field.label)
+
+class EmailOrUsernameAuthenticationForm(AuthenticationForm):
+    """Formulario de login que permite ingresar con email o usuario."""
+
+    username = forms.CharField(
+        label="Usuario o Correo Electrónico",
+        widget=forms.TextInput(attrs={
+            "autofocus": True,
+            "class": "form-control",
+            "placeholder": "Escriba su usuario o correo"
+        })
+    )
+    password = forms.CharField(
+        label="Contraseña",
+        strip=False,
+        widget=forms.PasswordInput(attrs={
+            "class": "form-control",
+            "placeholder": "Escriba su contraseña"
+        })
+    )
+
+    def clean(self):
+        username = self.cleaned_data.get('username')
+        password = self.cleaned_data.get('password')
+
+        if username and password:
+            self.user_cache = None
+            try:
+                user = User.objects.get(username=username)
+            except User.DoesNotExist:
+                try:
+                    user = User.objects.get(email=username)
+                except User.DoesNotExist:
+                    raise forms.ValidationError(
+                        "Por favor, introduzca un usuario/correo válido. Tenga en cuenta que ambos campos pueden ser sensibles a mayúsculas."
+                    )
+
+            if not user.check_password(password):
+                raise forms.ValidationError(
+                    "Por favor, introduzca un usuario/correo y contraseña correctos."
+                )
+            if not user.is_active:
+                raise forms.ValidationError(
+                    "Esta cuenta está inactiva."
+                )
+            self.user_cache = user
+        return self.cleaned_data
