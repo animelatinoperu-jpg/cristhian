@@ -19,7 +19,7 @@ ROLE_AREA_MAP = {
     "plate_pack": AreaAssignment.Area.PLATE_PACK,
 }
 
-has_operational_role = lambda user: user.is_authenticated and user.roles.filter(code__in={Role.Codes.TUNNEL_SUPERVISOR, Role.Codes.PRODUCTION_MANAGER}).exists()
+has_operational_role = lambda user: user.is_authenticated and user.roles.filter(code__in={Role.Codes.TUNNEL, Role.Codes.PRODUCTION_MANAGER}).exists()
 
 
 def require_roles(user, *role_codes):

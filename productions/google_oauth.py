@@ -1,14 +1,13 @@
-import os
-import json
-import traceback
+import logging
 import requests
 from django.conf import settings
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import login
 from django.http import HttpResponse
 from django.shortcuts import redirect
-from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 from urllib.parse import urlencode
+
+logger = logging.getLogger(__name__)
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -46,10 +45,11 @@ def google_callback(request):
     error = request.GET.get("error")
 
     if error:
-        return HttpResponse(f"Google returned error: {error}", status=500)
+        logger.warning("Google OAuth callback returned error: %s", error)
+        return redirect("login")
 
     if not code:
-        return HttpResponse("No 'code' param received from Google", status=500)
+        return redirect("login")
 
     try:
         callback_url = get_oauth_callback_url(request)
@@ -63,7 +63,8 @@ def google_callback(request):
 
         token_response = requests.post(GOOGLE_TOKEN_URL, data=token_data)
         if not token_response.ok:
-            return HttpResponse(f"Token exchange failed ({token_response.status_code}): {token_response.text}", status=500)
+            logger.error("Google token exchange failed (%s): %s", token_response.status_code, token_response.text)
+            return redirect("login")
         tokens = token_response.json()
         access_token = tokens.get("access_token")
 
@@ -72,14 +73,16 @@ def google_callback(request):
             headers={"Authorization": f"Bearer {access_token}"}
         )
         if not user_response.ok:
-            return HttpResponse(f"Userinfo failed ({user_response.status_code}): {user_response.text}", status=500)
+            logger.error("Google userinfo request failed (%s): %s", user_response.status_code, user_response.text)
+            return redirect("login")
         user_info = user_response.json()
 
         email = user_info.get("email")
         name = user_info.get("name", "")
 
         if not email:
-            return HttpResponse(f"No email in Google userinfo response: {user_info}", status=500)
+            logger.error("Google userinfo response had no email: %s", user_info)
+            return redirect("login")
 
         from productions.models import User
         user, created = User.objects.get_or_create(
@@ -90,5 +93,6 @@ def google_callback(request):
         login(request, user, backend="productions.auth_backends.LockoutBackend")
         return redirect("productions:list")
 
-    except Exception as e:
-        return HttpResponse(f"<pre>{traceback.format_exc()}</pre>", status=500)
+    except Exception:
+        logger.exception("Unexpected error in Google OAuth callback")
+        return redirect("login")
