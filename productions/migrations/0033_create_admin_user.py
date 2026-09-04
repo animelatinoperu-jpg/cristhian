@@ -1,28 +1,13 @@
 from django.db import migrations
-from django.contrib.auth.hashers import make_password
-
-
-def create_admin(apps, schema_editor):
-    User = apps.get_model("productions", "User")
-
-    # Borra cualquier admin_temp previo
-    User.objects.filter(username="admin_temp").delete()
-
-    # Crea nuevo admin_temp
-    User.objects.create(
-        username="admin_temp",
-        email="admin_temp@localhost",
-        password=make_password("admin123"),
-        is_active=True,
-        is_staff=True,
-        is_superuser=True,
-        registration_status="ACTIVE",
-        first_name="Admin Temporal",
-    )
 
 
 def noop(apps, schema_editor):
-    pass
+    """Antes creaba un superusuario `admin_temp` con la contrasena `admin123`
+    escrita aqui mismo. Como este repositorio es publico, esa cuenta era una
+    puerta trasera con acceso total al panel de administracion. Se deja sin
+    efecto para que ninguna base de datos nueva vuelva a crearla; la cuenta ya
+    existente se desactiva en la migracion 0035_neutralize_admin_temp.
+    """
 
 
 class Migration(migrations.Migration):
@@ -32,5 +17,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(create_admin, noop),
+        migrations.RunPython(noop, noop),
     ]

@@ -4,6 +4,7 @@ from decimal import Decimal
 import unicodedata
 
 from django import forms
+from django.contrib.auth import authenticate
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.core.exceptions import ValidationError
 from django.db.models import Case, IntegerField, Q, Sum, When
@@ -1539,28 +1540,46 @@ class EmailOrUsernameAuthenticationForm(AuthenticationForm):
     )
 
     def clean(self):
-        username = self.cleaned_data.get('username')
-        password = self.cleaned_data.get('password')
+        username = self.cleaned_data.get("username")
+        password = self.cleaned_data.get("password")
 
         if username and password:
-            self.user_cache = None
-            try:
-                user = User.objects.get(username=username)
-            except User.DoesNotExist:
-                try:
-                    user = User.objects.get(email=username)
-                except User.DoesNotExist:
-                    raise forms.ValidationError(
-                        "Por favor, introduzca un usuario/correo válido. Tenga en cuenta que ambos campos pueden ser sensibles a mayúsculas."
-                    )
-
-            if not user.check_password(password):
-                raise forms.ValidationError(
-                    "Por favor, introduzca un usuario/correo y contraseña correctos."
-                )
-            if not user.is_active:
-                raise forms.ValidationError(
-                    "Esta cuenta está inactiva."
-                )
-            self.user_cache = user
+            # Se delega en authenticate() para que pase por LockoutBackend,
+            # que es quien cuenta los intentos fallidos y aplica el bloqueo
+            # temporal. Antes se comparaba la contraseña con check_password()
+            # directamente, de modo que ese bloqueo nunca llegaba a activarse
+            # desde el formulario de ingreso.
+            self.user_cache = authenticate(
+                self.request, username=username, password=password
+            )
+            if self.user_cache is None:
+                raise forms.ValidationError(self._rejection_message(username))
         return self.cleaned_data
+
+    def _rejection_message(self, username):
+        """Explica por qué no se pudo ingresar sin dar pistas de más.
+
+        Solo se detalla el motivo cuando la cuenta existe pero está inhabilitada
+        (pendiente, rechazada o bloqueada); si las credenciales simplemente no
+        coinciden se devuelve un mensaje genérico.
+        """
+        candidate = (
+            User.objects.filter(username=username).first()
+            or User.objects.filter(email__iexact=username).first()
+        )
+        if candidate is not None:
+            if candidate.registration_status == User.RegistrationStatus.PENDING:
+                return (
+                    "Su cuenta está pendiente de aprobación. Un administrador "
+                    "debe habilitarla antes de que pueda ingresar."
+                )
+            if candidate.registration_status == User.RegistrationStatus.REJECTED:
+                return "Su solicitud de cuenta fue rechazada. Comuníquese con el administrador."
+            if not candidate.is_active:
+                return "Esta cuenta está inactiva. Comuníquese con el administrador."
+            if candidate.locked_until and candidate.locked_until > timezone.now():
+                return (
+                    "La cuenta está bloqueada temporalmente por varios intentos "
+                    "fallidos. Espere unos minutos e inténtelo de nuevo."
+                )
+        return "Por favor, introduzca un usuario/correo y contraseña correctos."
