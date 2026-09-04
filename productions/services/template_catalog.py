@@ -331,11 +331,10 @@ def sync_template_catalog(template_version, report_path):
     report = json.loads(Path(report_path).read_text(encoding="utf-8"))
     products_created = 0
     for item in extract_products(report):
-        _, created = Product.objects.update_or_create(
+        product, created = Product.objects.update_or_create(
             description=item["description"],
             code=item["code"],
             defaults={
-                "color": item["color"],
                 "presentation": item["presentation"],
                 "standard_weight_kg": item["standard_weight_kg"],
                 "plus_weight_kg": item["plus_weight_kg"],
@@ -343,6 +342,18 @@ def sync_template_catalog(template_version, report_path):
                 "active": True,
             },
         )
+        # El color de identificacion de lamina se asigna a mano en
+        # Catalogos > Laminas por codigo (ver LaminaColorUpdateView). La
+        # plantilla Excel maestra normalmente trae esa columna vacia; antes
+        # se escribia "color": item["color"] dentro de los defaults de
+        # arriba, y como update_or_create aplica los defaults siempre (haya
+        # o no producto existente), un valor vacio en la plantilla borraba
+        # el color que el usuario ya habia guardado cada vez que se corria
+        # este comando. Ahora solo se toca el color si la plantilla trae
+        # uno explicito.
+        if item["color"] and product.color != item["color"]:
+            product.color = item["color"]
+            product.save(update_fields=["color", "updated_at"])
         products_created += int(created)
 
     for item in extract_production_products(report):
