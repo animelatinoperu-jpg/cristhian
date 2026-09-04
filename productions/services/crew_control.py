@@ -5,7 +5,7 @@ import unicodedata
 
 from django.db.models import Sum
 
-from productions.models import PlateCrewEntry, PlateEntry, ReceptionEntry, TunnelCrewEntry, TunnelEntry
+from productions.models import Crew, PlateCrewEntry, PlateEntry, ReceptionEntry, TunnelCrewEntry, TunnelEntry, Worker
 
 
 KG_QUANTUM = Decimal("0.01")
@@ -294,4 +294,60 @@ def crew_control_summary(production):
         "tunnel_difference": tunnel_physical - tunnel_trays,
         "plate_physical": plate_physical,
         "plate_difference": plate_physical - plate_trays,
+    }
+
+
+def crew_tareo_summary(production, crew_pk):
+    """Tareo de una sola cuadrilla dentro de un parte de produccion.
+
+    Reutiliza el consolidado de crew_control_summary y le agrega lo propio
+    del tareo: el objeto Crew y la lista de trabajadores del catalogo. Si la
+    cuadrilla no tiene trabajo registrado en el parte devuelve la fila en
+    cero, para que la pantalla igual muestre a su personal.
+    """
+    crew = Crew.objects.get(pk=crew_pk)
+    summary = crew_control_summary(production)
+    tray_kg = summary["tray_kg"]
+
+    row = next(
+        (item for item in summary["rows"] if item["crew_id"] == crew.pk),
+        None,
+    )
+    if row is None:
+        row = {
+            "crew_id": crew.pk,
+            "crew_name": _normalized_crew_name(crew.name),
+            "tunnel_trays": 0,
+            "plate_trays": 0,
+            "total_trays": 0,
+            "tunnel_kg": _decimal_kg(0),
+            "plate_kg": _decimal_kg(0),
+            "total_kg": _decimal_kg(0),
+            "tunnel_details": [],
+            "plate_details": [],
+            "tunnel_detail_groups": [],
+            "tunnels": [
+                {"code": code, "trays": 0, "kg": _decimal_kg(0)}
+                for code in STANDARD_TUNNELS
+            ],
+            "plate_racks": [
+                {
+                    "code": code,
+                    "label": f"Plaquero {code.removeprefix('P')}",
+                    "trays": 0,
+                    "kg": _decimal_kg(0),
+                }
+                for code in ("P1", "P2", "P3")
+            ],
+        }
+
+    workers = list(
+        Worker.objects.filter(crew=crew, active=True).order_by("full_name", "pk")
+    )
+    return {
+        **row,
+        "crew": crew,
+        "tray_kg": tray_kg,
+        "workers": workers,
+        "worker_count": len(workers),
     }

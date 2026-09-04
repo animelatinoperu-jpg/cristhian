@@ -1726,6 +1726,28 @@ class OperationalCorrectionTests(TestCase):
         self.assertNotContains(reception_response, "Cuadrilla Uno")
         self.assertContains(nuquera_response, "Cuadrilla Uno")
 
+    def test_crew_tareo_page_shows_the_crew_work_and_its_workers(self):
+        # La pagina del tareo por cuadrilla dependia de crew_tareo_summary,
+        # que no existia y tumbaba tanto esta vista como el reporte
+        # consolidado (el import agrupado fallaba en silencio).
+        response = self.client.get(
+            reverse("productions:crew_tareo", args=[self.production.pk, self.crew.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        # El servicio normaliza el nombre de la cuadrilla a mayusculas.
+        self.assertContains(response, "CUADRILLA UNO")
+        self.assertContains(response, "Trabajador Uno")
+        # Debe sumar su trabajo de tunel (10 bdj) y de plaqueros (12 bdj).
+        self.assertContains(response, "22 bandejas")
+
+    def test_consolidated_report_page_opens(self):
+        response = self.client.get(
+            reverse("productions:report", args=[self.production.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+
     def test_selecting_a_crew_goes_directly_to_the_capture_panel(self):
         # "Elegir otra cuadrilla" debe seguir funcionando de forma directa,
         # sin forzar el paso de asistencia (que es opcional y vive aparte).
