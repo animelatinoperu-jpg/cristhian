@@ -1765,6 +1765,47 @@ class OperationalCorrectionTests(TestCase):
         self.assertNotContains(response, "Toque una persona para registrar sus pesos")
         second_worker.delete()
 
+    def test_deactivating_a_worker_removes_it_from_future_suggestions(self):
+        second_worker = Worker.objects.create(
+            internal_code="NUQ-W02",
+            full_name="Trabajador Dos",
+            crew=self.crew,
+        )
+
+        response = self.client.post(
+            reverse(
+                "productions:nuquera_worker_deactivate",
+                args=[self.production.pk, second_worker.pk],
+            ),
+            {"next": reverse("productions:nuquera_create", args=[self.production.pk])},
+            follow=True,
+        )
+
+        second_worker.refresh_from_db()
+        self.assertFalse(second_worker.active)
+        self.assertContains(response, "Trabajador Dos fue dado de baja")
+        # Ya no debe aparecer en el datalist de sugerencias del catalogo.
+        self.assertNotContains(response, '<option value="Trabajador Dos">')
+        # El resto del catalogo (Trabajador Uno) sigue disponible.
+        self.assertContains(response, "Trabajador Uno")
+
+    def test_cannot_deactivate_a_worker_from_another_area(self):
+        other_area_worker = Worker.objects.create(
+            internal_code="TROQ-W01",
+            full_name="Trabajador de Troquelado",
+        )
+
+        response = self.client.post(
+            reverse(
+                "productions:nuquera_worker_deactivate",
+                args=[self.production.pk, other_area_worker.pk],
+            )
+        )
+
+        self.assertEqual(response.status_code, 404)
+        other_area_worker.refresh_from_db()
+        self.assertTrue(other_area_worker.active)
+
     def test_marking_attendance_filters_the_capture_panel_to_present_workers(self):
         second_worker = Worker.objects.create(
             internal_code="NUQ-W02",

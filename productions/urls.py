@@ -61,6 +61,7 @@ urlpatterns = [
     path("producciones/<int:pk>/recepcion/carro/<int:vehicle_pk>/cerrar/", views.ReceptionCarCloseView.as_view(), name="reception_car_close"),
     path("producciones/<int:pk>/nuqueras/nuevo/", views.NuqueraCreateView.as_view(), name="nuquera_create"),
     path("producciones/<int:pk>/nuqueras/crear-trabajador/", views.NuqueraWorkerQuickCreateView.as_view(), name="nuquera_worker_quick_create"),
+    path("producciones/<int:pk>/nuqueras/trabajador/<int:worker_pk>/eliminar/", views.NuqueraWorkerDeactivateView.as_view(), name="nuquera_worker_deactivate"),
     path("producciones/<int:pk>/nuqueras/tareo.xlsx", views.NuqueraTareoXlsxView.as_view(), name="nuquera_tareo_xlsx"),
     path("producciones/<int:pk>/nuqueras/tareo.pdf", views.NuqueraTareoPdfView.as_view(), name="nuquera_tareo_pdf"),
     path("producciones/<int:pk>/cuadrillas-tunel/nuevo/", views.TunnelCrewCreateView.as_view(), name="tunnel_crew_create"),

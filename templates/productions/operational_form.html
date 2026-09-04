@@ -248,14 +248,23 @@
           {% if nuquera_attendance_mode %}
           <p class="small text-secondary mt-3 mb-2">Desmarque a quien no asistió. Solo los marcados pasarán a <strong>Cuadrilla de trabajo</strong>.</p>
           {% if nuquera_attendance_workers %}
+          {% for worker_id, worker_name in nuquera_attendance_workers %}
+          <form id="nuquera-worker-delete-{{ worker_id }}" method="post" action="{% url 'productions:nuquera_worker_deactivate' production.pk worker_id %}" data-prevent-double-submit class="d-none">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          </form>
+          {% endfor %}
           <form method="get" action="{% url 'productions:nuquera_create' production.pk %}">
             <input type="hidden" name="crew" value="{{ nuquera_attendance_crew_id }}">
             <div class="access-option-grid mb-3">
               {% for worker_id, worker_name in nuquera_attendance_workers %}
-              <label class="access-option">
-                <input type="checkbox" name="present" value="{{ worker_id }}" checked>
-                <span><strong>{{ worker_name }}</strong></span>
-              </label>
+              <div class="access-option d-flex align-items-center justify-content-between gap-2">
+                <label class="d-flex align-items-center gap-2 mb-0 flex-grow-1" style="cursor:pointer">
+                  <input type="checkbox" name="present" value="{{ worker_id }}" checked>
+                  <span><strong>{{ worker_name }}</strong></span>
+                </label>
+                <button type="submit" form="nuquera-worker-delete-{{ worker_id }}" class="btn btn-sm btn-outline-danger" data-confirm-message="¿Dar de baja a {{ worker_name }}? Ya no aparecerá en el listado de ningún parte de producción." title="Dar de baja (p. ej. si dejó la empresa)">Eliminar</button>
+              </div>
               {% endfor %}
             </div>
             <div class="d-flex flex-wrap gap-2">

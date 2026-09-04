@@ -5209,6 +5209,42 @@ class NuqueraWorkerQuickCreateView(LoginRequiredMixin, View):
         return redirect(reverse("productions:nuquera_create", args=[production.pk]))
 
 
+class NuqueraWorkerDeactivateView(LoginRequiredMixin, View):
+    """Da de baja a un trabajador de nuqueras (p. ej. porque dejo la
+    empresa): deja de aparecer en el catalogo de sugerencias y en las
+    cuadrillas para cualquier parte de produccion futuro. No se elimina
+    fisicamente porque puede tener registros de peso ya guardados."""
+
+    def post(self, request, pk, worker_pk):
+        production = get_object_or_404(ProductionOrder, pk=pk)
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        require_area_assignment(request.user, production, AreaAssignment.Area.NUQUERAS)
+        worker = get_object_or_404(
+            Worker, pk=worker_pk, internal_code__startswith="NUQ-W"
+        )
+        if worker.active:
+            worker.active = False
+            worker.save(update_fields=["active", "updated_at"])
+            AuditLog.objects.create(
+                user=request.user,
+                production=production,
+                module="nuquera_worker_catalog",
+                model_name=worker._meta.label,
+                record_pk=str(worker.pk),
+                action=AuditLog.Action.VOID,
+                old_value={"worker": {"code": worker.internal_code, "name": worker.full_name}},
+                reason="Trabajador de nuqueras dado de baja",
+                ip_address=request.META.get("REMOTE_ADDR"),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+            messages.success(request, f"{worker.full_name} fue dado de baja y ya no aparecerá en el listado.")
+        next_url = request.POST.get("next")
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            return redirect(next_url)
+        return redirect(reverse("productions:nuquera_create", args=[production.pk]))
+
+
 class PlateCreateView(OperationalCreateView):
     module_key = "plates"
     form_class = PlateEntryForm
