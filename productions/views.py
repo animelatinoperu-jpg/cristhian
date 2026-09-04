@@ -1,7 +1,6 @@
 import datetime as dt
 import itertools
 import re
-import time as _time_module
 from collections import defaultdict
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import timedelta
@@ -1221,8 +1220,6 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
     template_name = "productions/tunnel_batch.html"
 
     def dispatch(self, request, *args, **kwargs):
-        _t0 = _time_module.perf_counter()
-        self._timing = {}
         self.production = get_object_or_404(ProductionOrder, pk=kwargs["pk"])
         self.fill = get_object_or_404(
             TunnelFill.objects.select_related("tunnel", "production"),
@@ -1230,28 +1227,15 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
             production=self.production,
             is_active=True,
         )
-        self._timing["load_prod_fill"] = _time_module.perf_counter() - _t0
         if not can_view_production(request.user, self.production):
             raise PermissionDenied
         if self.production.status in {ProductionOrder.Status.APPROVED, ProductionOrder.Status.CLOSED, ProductionOrder.Status.VOID}:
             raise PermissionDenied("La producción no admite nuevos registros en su estado actual.")
         if self.fill.status not in {TunnelFill.Status.OPEN, TunnelFill.Status.REOPENED}:
             raise PermissionDenied("La llenada está cerrada. Reábrala antes de modificar sus racks.")
-        _t1 = _time_module.perf_counter()
         require_area_assignment(request.user, self.production, AreaAssignment.Area.TUNNEL, tunnel=self.fill.tunnel)
-        self._timing["require_area"] = _time_module.perf_counter() - _t1
-        _t2 = _time_module.perf_counter()
         ensure_tunnel_racks(self.fill)
-        self._timing["ensure_racks"] = _time_module.perf_counter() - _t2
-        _t3 = _time_module.perf_counter()
-        response = super().dispatch(request, *args, **kwargs)
-        self._timing["handler"] = _time_module.perf_counter() - _t3
-        self._timing["total"] = _time_module.perf_counter() - _t0
-        try:
-            response["X-Debug-Timing"] = "; ".join(f"{k}={v*1000:.0f}ms" for k, v in self._timing.items())
-        except Exception:
-            pass
-        return response
+        return super().dispatch(request, *args, **kwargs)
 
     def _racks(self):
         active_entries = TunnelEntry.objects.filter(is_active=True).select_related("product").order_by("product__description", "pk")
@@ -1356,13 +1340,7 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
         }
 
     def get(self, request, *args, **kwargs):
-        from django.db import connection
-        from django.test.utils import CaptureQueriesContext
-        _tg0 = _time_module.perf_counter()
-        with CaptureQueriesContext(connection) as _cap_racks:
-            racks = self._racks()
-        self._timing["get_racks_query"] = _time_module.perf_counter() - _tg0
-        self._timing["get_racks_nqueries"] = len(_cap_racks.captured_queries)
+        racks = self._racks()
         if not racks:
             messages.error(request, "La plantilla no tiene racks configurados para esta llenada.")
             return redirect("productions:detail", pk=self.production.pk)
@@ -1375,29 +1353,7 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
                 "product_choices": active_product_choices(_product_queryset),
             },
         )
-        _tg_ctx0 = _time_module.perf_counter()
-        with CaptureQueriesContext(connection) as _cap_ctx:
-            ctx = self._context(formset, racks)
-        self._timing["get_context_build"] = _time_module.perf_counter() - _tg_ctx0
-        self._timing["get_context_nqueries"] = len(_cap_ctx.captured_queries)
-        _tg1 = _time_module.perf_counter()
-        with CaptureQueriesContext(connection) as _cap_render:
-            response = render(request, self.template_name, ctx)
-        self._timing["get_render"] = _time_module.perf_counter() - _tg1
-        self._timing["get_render_nqueries"] = len(_cap_render.captured_queries)
-        try:
-            import re as _re_mod
-            def _summarize(queries, limit=25):
-                out = []
-                for q in queries[:limit]:
-                    sql = _re_mod.sub(r"\s+", " ", q["sql"])[:60]
-                    out.append(f"{q['time']}s:{sql}")
-                return " | ".join(out)
-            response["X-Debug-Ctx-Queries"] = _summarize(_cap_ctx.captured_queries)
-            response["X-Debug-Render-Queries"] = _summarize(_cap_render.captured_queries)
-        except Exception:
-            pass
-        return response
+        return render(request, self.template_name, self._context(formset, racks))
 
     def _post_crew_assignment(self, request, racks):
         rack_id = request.POST.get("crew_rack_id")
@@ -1578,9 +1534,7 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
         return 1
 
     def post(self, request, *args, **kwargs):
-        _tp0 = _time_module.perf_counter()
         racks = self._racks()
-        self._timing["post_racks_query"] = _time_module.perf_counter() - _tp0
         if "crew_rack_id" in request.POST:
             return self._post_crew_assignment(request, racks)
         post_data = request.POST.copy()
@@ -1710,15 +1664,12 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
         if any(form.errors for form in formset.forms):
             return render(request, self.template_name, self._context(formset, racks), status=400)
 
-        _tp1 = _time_module.perf_counter()
         try:
             with transaction.atomic():
-                _tp_lock0 = _time_module.perf_counter()
                 locked_racks = {
                     rack.pk: rack
                     for rack in TunnelRack.objects.select_for_update().filter(pk__in=allowed_ids)
                 }
-                self._timing["lock_racks"] = _time_module.perf_counter() - _tp_lock0
                 existing_ids = {existing.pk for _, _, _, _, existing, _ in plans if existing}
                 for _, _, _, _, _, extras in plans:
                     for _, _, target in extras:
@@ -1815,7 +1766,6 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
                 "; ".join(exc.messages) if hasattr(exc, "messages") else "No se pudo guardar porque otro registro cambió. Recargue la pantalla."
             ])
             return render(request, self.template_name, self._context(formset, self._racks()), status=400)
-        self._timing["transaction_total"] = _time_module.perf_counter() - _tp1
 
         if saved:
             messages.success(request, f"Se guardaron {saved} registros de racks en {self.fill.tunnel.code}, llenada {self.fill.fill_number}.")
