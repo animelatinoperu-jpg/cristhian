@@ -1726,7 +1726,9 @@ class OperationalCorrectionTests(TestCase):
         self.assertNotContains(reception_response, "Cuadrilla Uno")
         self.assertContains(nuquera_response, "Cuadrilla Uno")
 
-    def test_selecting_a_crew_shows_attendance_step_before_the_capture_panel(self):
+    def test_selecting_a_crew_goes_directly_to_the_capture_panel(self):
+        # "Elegir otra cuadrilla" debe seguir funcionando de forma directa,
+        # sin forzar el paso de asistencia (que es opcional y vive aparte).
         second_worker = Worker.objects.create(
             internal_code="NUQ-W02",
             full_name="Trabajador Dos",
@@ -1738,10 +1740,28 @@ class OperationalCorrectionTests(TestCase):
             {"crew": self.crew.pk},
         )
 
-        self.assertContains(response, "Marque quién vino hoy")
+        self.assertContains(response, "Toque una persona para registrar sus pesos")
         self.assertContains(response, "Trabajador Uno")
         self.assertContains(response, "Trabajador Dos")
-        # Todavia no debe mostrarse el panel de captura de pesos.
+        second_worker.delete()
+
+    def test_marking_attendance_is_a_separate_optional_step(self):
+        second_worker = Worker.objects.create(
+            internal_code="NUQ-W02",
+            full_name="Trabajador Dos",
+            crew=self.crew,
+        )
+
+        response = self.client.get(
+            reverse("productions:nuquera_create", args=[self.production.pk]),
+            {"attendance": self.crew.pk},
+        )
+
+        self.assertContains(response, "Desmarque a quien no asistió")
+        self.assertContains(response, "Trabajador Uno")
+        self.assertContains(response, "Trabajador Dos")
+        # El paso de asistencia no debe activar por si solo el panel de
+        # captura de pesos (esa cuadrilla es independiente de 'crew').
         self.assertNotContains(response, "Toque una persona para registrar sus pesos")
         second_worker.delete()
 
