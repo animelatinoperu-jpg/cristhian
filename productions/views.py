@@ -1379,6 +1379,18 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
             response = render(request, self.template_name, ctx)
         self._timing["get_render"] = _time_module.perf_counter() - _tg1
         self._timing["get_render_nqueries"] = len(_cap_render.captured_queries)
+        try:
+            import re as _re_mod
+            def _summarize(queries, limit=25):
+                out = []
+                for q in queries[:limit]:
+                    sql = _re_mod.sub(r"\s+", " ", q["sql"])[:60]
+                    out.append(f"{q['time']}s:{sql}")
+                return " | ".join(out)
+            response["X-Debug-Ctx-Queries"] = _summarize(_cap_ctx.captured_queries)
+            response["X-Debug-Render-Queries"] = _summarize(_cap_render.captured_queries)
+        except Exception:
+            pass
         return response
 
     def _post_crew_assignment(self, request, racks):
