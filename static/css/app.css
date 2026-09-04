@@ -1504,6 +1504,12 @@ body:has(#reception-entry-form) .reception-crew-total{
   box-shadow: inset 0 1px 0 rgba(255,255,255,.84);
 }
 
+body:has(#reception-entry-form) .reception-crew-total-select.is-selected{
+  border-color: #168160;
+  background: #e7f5ef;
+  box-shadow: 0 0 0 2px rgba(22,129,96,.12);
+}
+
 body:has(#reception-entry-form) .reception-entry-user strong{
   color: #0d5b49;
 }
