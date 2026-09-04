@@ -1726,6 +1726,51 @@ class OperationalCorrectionTests(TestCase):
         self.assertNotContains(reception_response, "Cuadrilla Uno")
         self.assertContains(nuquera_response, "Cuadrilla Uno")
 
+    def test_selecting_a_crew_shows_attendance_step_before_the_capture_panel(self):
+        second_worker = Worker.objects.create(
+            internal_code="NUQ-W02",
+            full_name="Trabajador Dos",
+            crew=self.crew,
+        )
+
+        response = self.client.get(
+            reverse("productions:nuquera_create", args=[self.production.pk]),
+            {"crew": self.crew.pk},
+        )
+
+        self.assertContains(response, "Marque quién vino hoy")
+        self.assertContains(response, "Trabajador Uno")
+        self.assertContains(response, "Trabajador Dos")
+        # Todavia no debe mostrarse el panel de captura de pesos.
+        self.assertNotContains(response, "Toque una persona para registrar sus pesos")
+        second_worker.delete()
+
+    def test_marking_attendance_filters_the_capture_panel_to_present_workers(self):
+        second_worker = Worker.objects.create(
+            internal_code="NUQ-W02",
+            full_name="Trabajador Dos",
+            crew=self.crew,
+        )
+
+        response = self.client.get(
+            reverse("productions:nuquera_create", args=[self.production.pk]),
+            {"crew": self.crew.pk, "present": [self.worker.pk]},
+        )
+
+        self.assertContains(response, "Toque una persona para registrar sus pesos")
+        self.assertContains(
+            response, f'data-quick-worker-id="{self.worker.pk}"'
+        )
+        # "Trabajador Dos" no marco asistencia: no debe tener boton de
+        # seleccion rapida ni aparecer en el <select> de respaldo del
+        # formulario (aunque si puede seguir en el datalist global para
+        # crear/reutilizar trabajadores, que no depende de la cuadrilla).
+        self.assertNotContains(response, f'data-quick-worker-id="{second_worker.pk}"')
+        self.assertNotContains(
+            response, f'<option value="{second_worker.pk}">Trabajador Dos</option>'
+        )
+        second_worker.delete()
+
     def test_reception_uses_the_pp_date_automatically(self):
         response = self.client.post(
             reverse("productions:reception_create", args=[self.production.pk]),

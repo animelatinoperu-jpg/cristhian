@@ -4796,6 +4796,19 @@ class NuqueraCreateView(OperationalCreateView):
         except (Crew.DoesNotExist, ValueError, TypeError):
             return None
 
+    def _present_param(self):
+        """IDs de trabajadores marcados como presentes hoy (paso de
+        asistencia). None significa que el usuario todavia no marco
+        asistencia para esta cuadrilla; un set (incluso vacio) significa que
+        ya la marco y hay que filtrar la lista de captura a esos IDs."""
+        if "present" not in self.request.GET:
+            return None
+        ids = set()
+        for raw in self.request.GET.getlist("present"):
+            if raw.isdigit():
+                ids.add(int(raw))
+        return ids
+
     def _worker_param(self, crew):
         worker_id = self.request.GET.get("worker")
         if not worker_id:
@@ -4813,7 +4826,11 @@ class NuqueraCreateView(OperationalCreateView):
         crew = self._crew_param()
         if crew is not None:
             kwargs["crew_id"] = crew.pk
-            kwargs["worker_queryset"] = _nuquera_crew_worker_queryset(self.production, crew)
+            queryset = _nuquera_crew_worker_queryset(self.production, crew)
+            present_ids = self._present_param()
+            if present_ids is not None:
+                queryset = queryset.filter(pk__in=present_ids)
+            kwargs["worker_queryset"] = queryset
         return kwargs
 
     def get_initial(self):
@@ -4852,19 +4869,37 @@ class NuqueraCreateView(OperationalCreateView):
         context = super().get_context_data(**kwargs)
         crew = self._crew_param()
         if crew is not None:
+            all_workers = list(
+                _nuquera_crew_worker_queryset(self.production, crew).values_list("pk", "full_name")
+            )
+            present_ids = self._present_param()
+            if present_ids is None:
+                # Paso de asistencia: todavia no se marco quien vino hoy.
+                context["nuquera_attendance_mode"] = True
+                context["nuquera_crew_id"] = crew.pk
+                context["nuquera_crew_name"] = crew.name
+                context["nuquera_attendance_workers"] = all_workers
+                context["nuquera_clear_url"] = reverse(
+                    "productions:nuquera_create", args=[self.production.pk]
+                )
+                return context
             context["nuquera_crew_mode"] = True
             context["nuquera_crew_id"] = crew.pk
             context["nuquera_crew_name"] = crew.name
-            context["nuquera_crew_workers"] = list(
-                _nuquera_crew_worker_queryset(self.production, crew).values_list("pk", "full_name")
-            )
-            quick_workers = _nuquera_quick_workers(self.production, crew)
+            context["nuquera_crew_workers"] = [w for w in all_workers if w[0] in present_ids]
+            quick_workers = [
+                worker for worker in _nuquera_quick_workers(self.production, crew)
+                if worker["pk"] in present_ids
+            ]
             context["nuquera_quick_workers"] = quick_workers
             context["nuquera_quick_url"] = reverse(
                 "productions:nuquera_quick_capture", args=[self.production.pk]
             )
             context["nuquera_clear_url"] = reverse(
                 "productions:nuquera_create", args=[self.production.pk]
+            )
+            context["nuquera_attendance_url"] = (
+                f"{reverse('productions:nuquera_create', args=[self.production.pk])}?crew={crew.pk}"
             )
             worker = self._worker_param(crew)
             if worker is None and len(quick_workers) == 1:

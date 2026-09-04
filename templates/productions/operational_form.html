@@ -258,9 +258,37 @@
         {% else %}
         <p class="small text-secondary mb-0">Esta cuadrilla todavía no tiene trabajadores. Créelos en <strong>Nuevo trabajador de nuqueras</strong> y vuelva aquí.</p>
         {% endif %}
+        {% elif nuquera_attendance_mode %}
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+          <div>
+            <p class="mb-1"><strong>{{ nuquera_crew_name }}</strong> <span class="text-secondary">· Marque quién vino hoy</span></p>
+            <p class="small text-secondary mb-0">Desmarque a quien no asistió. Solo los marcados pasarán a registrar sus pesos.</p>
+          </div>
+          <a class="btn btn-sm btn-ghost" href="{{ nuquera_clear_url }}">Elegir otra cuadrilla</a>
+        </div>
+        {% if nuquera_attendance_workers %}
+        <form method="get" action="{% url 'productions:nuquera_create' production.pk %}">
+          <input type="hidden" name="crew" value="{{ nuquera_crew_id }}">
+          <div class="access-option-grid mb-3">
+            {% for worker_id, worker_name in nuquera_attendance_workers %}
+            <label class="access-option">
+              <input type="checkbox" name="present" value="{{ worker_id }}" checked>
+              <span><strong>{{ worker_name }}</strong></span>
+            </label>
+            {% endfor %}
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="this.closest('form').querySelectorAll('input[name=present]').forEach(function(c){c.checked=true})">Marcar todos</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="this.closest('form').querySelectorAll('input[name=present]').forEach(function(c){c.checked=false})">Desmarcar todos</button>
+            <button type="submit" class="btn btn-primary ms-auto">Continuar a cuadrilla de trabajo</button>
+          </div>
+        </form>
+        {% else %}
+        <p class="small text-secondary mb-0">Esta cuadrilla todavía no tiene trabajadores. Créelos en <strong>Nuevo trabajador de nuqueras</strong> y vuelva aquí.</p>
+        {% endif %}
         {% else %}
         {% if nuquera_crew_suggestions %}
-        <p class="small text-secondary mb-3">Elija la cuadrilla para ver a su gente y registrar los pesos de cada persona tocando su nombre.</p>
+        <p class="small text-secondary mb-3">Elija la cuadrilla para marcar asistencia y registrar los pesos de cada persona.</p>
         <form method="get" action="{% url 'productions:nuquera_create' production.pk %}" class="row g-2 align-items-end">
           <div class="col-12 col-md">
             <label class="form-label fw-semibold" for="nuquera-crew-select">Cuadrilla</label>
