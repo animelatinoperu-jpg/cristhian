@@ -2281,3 +2281,13 @@ class OperationalCorrectionTests(TestCase):
 
         self.assertEqual(values["materials.rafia.quantity"], Decimal("6.25"))
         self.assertNotIn("materials.bolsa.quantity", values)
+
+    def test_nuquera_crew_suggestions_include_crews_without_activity_in_this_pp(self):
+        self.client.force_login(self.user)
+        other_crew = Crew.objects.create(code="NUQ-04", name="CHARLY")
+
+        url = reverse("productions:nuquera_create", args=[self.production.pk])
+        response = self.client.get(url)
+
+        crew_ids = [pk for pk, _name in response.context["nuquera_crew_suggestions"]]
+        self.assertIn(other_crew.pk, crew_ids)

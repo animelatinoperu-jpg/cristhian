@@ -4498,8 +4498,10 @@ class ReceptionCarCloseView(LoginRequiredMixin, View):
 
 
 def _nuquera_production_crews(production):
-    """Cuadrillas relevantes a un parte de producción de nuqueras: las que ya
-    tienen pesos en este parte más las creadas o usadas desde su captura."""
+    """Cuadrillas de nuqueras disponibles para elegir: todo el catálogo activo
+    del área (código NUQ-), igual que el catálogo de trabajadores, para que
+    cualquier cuadrilla ya usada en cualquier parte de producción se pueda
+    elegir aquí sin importar si tuvo actividad en este PP específico."""
     entry_crews = NuqueraEntry.objects.filter(
         production=production,
         is_active=True,
@@ -4514,7 +4516,11 @@ def _nuquera_production_crews(production):
     ]
     return (
         Crew.objects.filter(active=True)
-        .filter(Q(pk__in=entry_crews) | Q(code__in=audited_codes))
+        .filter(
+            Q(code__startswith="NUQ-")
+            | Q(pk__in=entry_crews)
+            | Q(code__in=audited_codes)
+        )
         .distinct()
         .order_by("name", "code")
     )
