@@ -1089,6 +1089,11 @@ class PackagingEntry(OperationalRecord):
 
 
 class TunnelPackagingEntry(PackagingEntry):
+    # Bultos empacados por tunel de origen: {"T1": 3, "T2": 5}. La vista de
+    # empaque de tuneles lo escribe y lo lee para mostrar el desglose; faltaba
+    # el campo en el modelo y eso dejaba el modulo caido con error 500.
+    source_breakdown = models.JSONField(default=dict, blank=True)
+
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["production", "pallet_number", "product"], condition=Q(is_active=True), name="uniq_tunnel_pack_product_pallet"),

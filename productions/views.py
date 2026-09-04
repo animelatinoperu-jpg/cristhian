@@ -127,7 +127,6 @@ except ImportError:
 
 try:
     from .services.plate_balances import (
-        manual_pack_product,
         plate_balance_dashboard,
         plate_pallet_dashboard,
         plate_product_availability,
@@ -136,6 +135,16 @@ try:
         set_plate_pallet_status,
         void_auto_pack_line,
     )
+except ImportError:
+    pass
+
+# manual_pack_product ya no existe en plate_balances (quedo solo
+# auto_pack_product). Se aisla en su propio bloque para que su ausencia no
+# tumbe los imports de arriba: al ir todos juntos, el ImportError silenciado
+# dejaba sin definir tambien plate_product_availability y provocaba un
+# NameError (error 500) al mostrar errores de validacion en empaque de placas.
+try:
+    from .services.plate_balances import manual_pack_product
 except ImportError:
     pass
 
@@ -2970,7 +2979,9 @@ def _tunnel_manual_balance_rows(production):
     balances = list(
         TunnelManualBalance.objects.filter(production=production, is_active=True)
         .select_related("product")
-        .order_by("date", "pk")
+        # TunnelManualBalance no tiene campo 'date'; su marca temporal es
+        # created_at. Ordenar por 'date' provocaba FieldError (error 500).
+        .order_by("created_at", "pk")
     )
     if not balances:
         return []
@@ -3000,7 +3011,11 @@ def _tunnel_product_availability(production, tunnel_code=None, balance_ids=None)
             "rack__fill__fill_number",
             "rack__code",
         )
-        .annotate(total=Sum(F("tray_count") - F("carryover_trays")))
+        # TunnelEntry no tiene campo carryover_trays (el arrastre de tunel se
+        # maneja aparte con TunnelManualBalance, que se consulta mas abajo).
+        # Restarlo aqui provocaba FieldError y dejaba el modulo de empaque de
+        # tunel caido con error 500.
+        .annotate(total=Sum("tray_count"))
         .order_by(
             "product",
             "rack__fill__tunnel__code",
@@ -3011,7 +3026,8 @@ def _tunnel_product_availability(production, tunnel_code=None, balance_ids=None)
     all_manual_balances = list(
         TunnelManualBalance.objects.filter(production=production, is_active=True)
         .select_related("product")
-        .order_by("date", "pk")
+        # Mismo caso: el campo cronologico del modelo es created_at, no 'date'.
+        .order_by("created_at", "pk")
     )
     selected_balance_ids = set(balance_ids) if balance_ids is not None else None
     packaging_entries = list(
@@ -3262,7 +3278,8 @@ def _tunnel_pack_cards(production, availability=None):
     rows = (
         TunnelEntry.objects.filter(production=production, is_active=True)
         .values("rack__fill__tunnel__code", "rack__fill__fill_number")
-        .annotate(total=Sum(F("tray_count") - F("carryover_trays")))
+        # Mismo caso que arriba: carryover_trays no existe en TunnelEntry.
+        .annotate(total=Sum("tray_count"))
     )
     active_tunnel_codes = set(
         TunnelFill.objects.filter(

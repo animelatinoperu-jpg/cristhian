@@ -28,6 +28,19 @@ urlpatterns = [
     path("catalogos/tarifas/nueva/", views.RateCreateView.as_view(), name="rate_create"),
     path("producciones/<int:pk>/", views.ProductionDetailView.as_view(), name="detail"),
     path("producciones/<int:pk>/cuadrillas/consolidado/", views.CrewControlView.as_view(), name="crew_control"),
+    path("producciones/<int:pk>/cuadrillas/<int:crew_pk>/tareo/", views.CrewTareoView.as_view(), name="crew_tareo"),
+    path("producciones/<int:pk>/cuadrillas/<int:crew_pk>/tareo.xlsx", views.CrewTareoXlsxView.as_view(), name="crew_tareo_xlsx"),
+    path("producciones/<int:pk>/cuadrillas/<int:crew_pk>/tareo.pdf", views.CrewTareoPdfView.as_view(), name="crew_tareo_pdf"),
+    path(
+        "producciones/<int:pk>/cuadrillas/<int:crew_pk>/trabajador/crear/",
+        views.CrewWorkerQuickCreateView.as_view(),
+        name="crew_worker_quick_create",
+    ),
+    path(
+        "producciones/<int:pk>/cuadrillas/<int:crew_pk>/trabajador/<int:worker_pk>/quitar/",
+        views.CrewWorkerDeleteView.as_view(),
+        name="crew_worker_delete",
+    ),
     path("producciones/<int:pk>/reporte/", views.ProductionReportView.as_view(), name="report"),
     path("producciones/<int:pk>/reporte-recepcion.xlsx", views.ReceptionReportXlsxView.as_view(), name="reception_report_xlsx"),
     path("producciones/<int:pk>/tareo-recepcion.xlsx", views.ReceptionTareoXlsxView.as_view(), name="reception_tareo_xlsx"),
@@ -118,6 +131,25 @@ urlpatterns = [
         name="plate_crew_quick_create",
     ),
     path("producciones/<int:pk>/empaque-tunel/nuevo/", views.TunnelPackagingCreateView.as_view(), name="tunnel_pack_create"),
+    # El tareo de personal de empaque (TunnelPackTareoView / PlatePackTareoView y
+    # sus vistas de trabajadores, xlsx y pdf) quedo sin terminar: faltan las
+    # plantillas productions/tunnel_pack_tareo.html y plate_pack_tareo.html. Se
+    # deja sin ruta y con su boton oculto en operational_form.html hasta
+    # completarlo, para no exponer un enlace que termina en error.
+    path("producciones/<int:pk>/empaque-tunel/manual/", views.TunnelManualPackagingView.as_view(), name="tunnel_pack_manual"),
+    path("producciones/<int:pk>/empaque-tunel/cerrar/", views.TunnelPackagingCloseView.as_view(), name="tunnel_pack_close"),
+    path("producciones/<int:pk>/empaque-tunel/reabrir/", views.TunnelPackagingReopenView.as_view(), name="tunnel_pack_reopen"),
+    path("producciones/<int:pk>/empaque-tunel/unir/", views.TunnelPackagingJoinView.as_view(), name="tunnel_pack_join"),
+    path(
+        "producciones/<int:pk>/empaque-tunel/saldo/inicial/",
+        views.TunnelManualBalanceCreateView.as_view(),
+        name="tunnel_pack_initial_balance",
+    ),
+    path(
+        "producciones/<int:pk>/empaque-tunel/saldo/<int:balance_pk>/eliminar/",
+        views.TunnelManualBalanceDeleteView.as_view(),
+        name="tunnel_pack_manual_balance_delete",
+    ),
     # path("producciones/<int:pk>/empaque-tunel/calcular/", views.TunnelAutoPackagingView.as_view(), name="tunnel_pack_auto"),
     path(
         "producciones/<int:pk>/empaque-tunel/reporte.xlsx",
@@ -130,6 +162,12 @@ urlpatterns = [
         name="tunnel_pack_report_pdf",
     ),
     path("producciones/<int:pk>/empaque-placas/nuevo/", views.PlatePackagingCreateView.as_view(), name="plate_pack_create"),
+    path("producciones/<int:pk>/empaque-placas/manual/", views.PlateManualPackagingView.as_view(), name="plate_pack_manual"),
+    path(
+        "producciones/<int:pk>/empaque-placas/legacy/<int:entry_pk>/eliminar/",
+        views.PlateLegacyPackagingDeleteView.as_view(),
+        name="plate_legacy_packaging_delete",
+    ),
     path("producciones/<int:pk>/empaque-placas/saldo/manual/", views.PlateManualBalanceCreateView.as_view(), name="plate_pack_manual_balance"),
     path("producciones/<int:pk>/empaque-placas/saldo/inicial/", views.PlateInitialBalanceCreateView.as_view(), name="plate_pack_initial_balance"),
     path(
