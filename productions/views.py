@@ -5268,6 +5268,79 @@ class NuqueraWorkerDeactivateView(LoginRequiredMixin, View):
         return redirect(reverse("productions:nuquera_create", args=[production.pk]))
 
 
+class NuqueraCrewDeactivateView(LoginRequiredMixin, View):
+    """Da de baja una cuadrilla de nuqueras creada por error: deja de
+    aparecer en las listas para elegir en cualquier parte de produccion
+    futuro. No se elimina fisicamente porque puede tener registros de peso
+    ya guardados."""
+
+    def post(self, request, pk, crew_pk):
+        production = get_object_or_404(ProductionOrder, pk=pk)
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        require_area_assignment(request.user, production, AreaAssignment.Area.NUQUERAS)
+        crew = get_object_or_404(Crew, pk=crew_pk, code__startswith="NUQ-")
+        if crew.active:
+            crew.active = False
+            crew.save(update_fields=["active", "updated_at"])
+            AuditLog.objects.create(
+                user=request.user,
+                production=production,
+                module="nuquera_worker_catalog",
+                model_name=crew._meta.label,
+                record_pk=str(crew.pk),
+                action=AuditLog.Action.VOID,
+                old_value={"crew": {"code": crew.code, "name": crew.name}},
+                reason="Cuadrilla de nuqueras dada de baja",
+                ip_address=request.META.get("REMOTE_ADDR"),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+            messages.success(request, f"La cuadrilla {crew.name} fue dada de baja y ya no aparecerá en el listado.")
+        next_url = request.POST.get("next")
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            return redirect(next_url)
+        return redirect(reverse("productions:nuquera_create", args=[production.pk]))
+
+
+class NuqueraCrewRenameView(LoginRequiredMixin, View):
+    """Corrige el nombre de una cuadrilla de nuqueras (p. ej. si se escribió
+    mal al crearla), sin perder los pesos ya registrados con ella."""
+
+    def post(self, request, pk, crew_pk):
+        production = get_object_or_404(ProductionOrder, pk=pk)
+        if not can_view_production(request.user, production):
+            raise PermissionDenied
+        require_area_assignment(request.user, production, AreaAssignment.Area.NUQUERAS)
+        crew = get_object_or_404(Crew, pk=crew_pk, code__startswith="NUQ-")
+        new_name = request.POST.get("name", "").strip()
+        next_url = request.POST.get("next")
+        if not new_name:
+            messages.error(request, "Escriba un nombre para la cuadrilla.")
+        elif Crew.objects.filter(name__iexact=new_name).exclude(pk=crew.pk).exists():
+            messages.error(request, f"Ya existe una cuadrilla llamada {new_name}.")
+        else:
+            old_name = crew.name
+            crew.name = new_name
+            crew.save(update_fields=["name", "updated_at"])
+            AuditLog.objects.create(
+                user=request.user,
+                production=production,
+                module="nuquera_worker_catalog",
+                model_name=crew._meta.label,
+                record_pk=str(crew.pk),
+                action=AuditLog.Action.UPDATE,
+                old_value={"crew": {"code": crew.code, "name": old_name}},
+                new_value={"crew": {"code": crew.code, "name": new_name}},
+                reason="Cuadrilla de nuqueras renombrada",
+                ip_address=request.META.get("REMOTE_ADDR"),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+            messages.success(request, f"La cuadrilla ahora se llama {new_name}.")
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            return redirect(next_url)
+        return redirect(reverse("productions:nuquera_create", args=[production.pk]))
+
+
 class PlateCreateView(OperationalCreateView):
     module_key = "plates"
     form_class = PlateEntryForm

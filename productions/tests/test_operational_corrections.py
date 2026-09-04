@@ -2291,3 +2291,41 @@ class OperationalCorrectionTests(TestCase):
 
         crew_ids = [pk for pk, _name in response.context["nuquera_crew_suggestions"]]
         self.assertIn(other_crew.pk, crew_ids)
+
+    def test_a_nuquera_crew_created_by_mistake_can_be_deactivated(self):
+        self.client.force_login(self.user)
+        mistaken_crew = Crew.objects.create(code="NUQ-99", name="Cuadrilla Error")
+
+        url = reverse(
+            "productions:nuquera_crew_deactivate",
+            args=[self.production.pk, mistaken_crew.pk],
+        )
+        response = self.client.post(url)
+
+        mistaken_crew.refresh_from_db()
+        self.assertFalse(mistaken_crew.active)
+        self.assertRedirects(
+            response, reverse("productions:nuquera_create", args=[self.production.pk])
+        )
+
+        list_response = self.client.get(
+            reverse("productions:nuquera_create", args=[self.production.pk])
+        )
+        crew_ids = [pk for pk, _name in list_response.context["nuquera_crew_suggestions"]]
+        self.assertNotIn(mistaken_crew.pk, crew_ids)
+
+    def test_a_nuquera_crew_name_can_be_corrected(self):
+        self.client.force_login(self.user)
+        misspelled_crew = Crew.objects.create(code="NUQ-05", name="CHARLES")
+
+        url = reverse(
+            "productions:nuquera_crew_rename",
+            args=[self.production.pk, misspelled_crew.pk],
+        )
+        response = self.client.post(url, {"name": "CHARLY"})
+
+        misspelled_crew.refresh_from_db()
+        self.assertEqual(misspelled_crew.name, "CHARLY")
+        self.assertRedirects(
+            response, reverse("productions:nuquera_create", args=[self.production.pk])
+        )

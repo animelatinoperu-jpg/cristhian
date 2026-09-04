@@ -247,6 +247,24 @@
             </div>
             <div class="col-12 col-md-auto"><button class="btn btn-outline-primary w-100">Marcar asistencia</button></div>
           </form>
+          {% if nuquera_attendance_mode and nuquera_attendance_crew_id %}
+          <div class="d-flex flex-wrap gap-2 align-items-end mt-2">
+            <form method="post" action="{% url 'productions:nuquera_crew_rename' production.pk nuquera_attendance_crew_id %}" data-prevent-double-submit class="row g-2 align-items-end">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{% url 'productions:nuquera_create' production.pk %}?attendance={{ nuquera_attendance_crew_id }}">
+              <div class="col-auto">
+                <label class="form-label fw-semibold" for="nuquera-attendance-crew-rename">Corregir nombre</label>
+                <input class="form-control form-control-sm" id="nuquera-attendance-crew-rename" name="name" maxlength="100" value="{{ nuquera_attendance_crew_name }}" required>
+              </div>
+              <div class="col-auto"><button type="submit" class="btn btn-sm btn-outline-secondary">Guardar nombre</button></div>
+            </form>
+            <form method="post" action="{% url 'productions:nuquera_crew_deactivate' production.pk nuquera_attendance_crew_id %}" data-prevent-double-submit>
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{% url 'productions:nuquera_create' production.pk %}">
+              <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm-message="¿Dar de baja esta cuadrilla? Ya no aparecerá en el listado de ningún parte de producción (úsese solo si se creó por error).">Eliminar esta cuadrilla</button>
+            </form>
+          </div>
+          {% endif %}
           {% if nuquera_attendance_mode %}
           <p class="small text-secondary mt-3 mb-2">Desmarque a quien no asistió. Solo los marcados pasarán a <strong>Cuadrilla de trabajo</strong>.</p>
           {% if nuquera_attendance_workers %}
