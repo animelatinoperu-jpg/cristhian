@@ -25,6 +25,7 @@ from productions.models import (
     User,
 )
 from productions.services.plate_balances import (
+    _source_remaining_rows,
     auto_pack_product,
     compatible_carryover_queryset,
     manual_pack_product,
@@ -425,6 +426,18 @@ class PlateBalanceTests(TestCase):
 
         self.assertTrue(queryset.query.select_for_update)
         self.assertEqual(queryset.query.select_for_update_of, ("self",))
+
+    def test_source_rows_lock_does_not_combine_distinct_with_row_locking(self):
+        # PostgreSQL rechaza DISTINCT junto a FOR UPDATE. El filtro por tiempos
+        # de descarga obliga a usar distinct(), asi que el bloqueo debe hacerse
+        # en una segunda consulta por ids. Se verifica ejecutando el camino real
+        # con lock=True y comprobando que devuelve las placas esperadas.
+        source = self._source(self.current, self.current_position, self.product_a, 6)
+
+        rows = _source_remaining_rows(self.current, product=self.product_a, lock=True)
+
+        self.assertEqual([row["source"].pk for row in rows], [source.pk])
+        self.assertEqual(rows[0]["remaining_trays"], 6)
 
     def test_manual_packing_rejects_more_packages_than_available_trays(self):
         self._source(self.current, self.current_position, self.product_a, 4)

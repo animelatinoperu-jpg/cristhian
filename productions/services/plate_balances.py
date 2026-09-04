@@ -102,7 +102,18 @@ def _source_remaining_rows(
             position__production_timings__unloaded_at__isnull=False,
         ).distinct()
     if lock:
-        sources = sources.select_for_update()
+        # El filtro por tiempos de descarga puede repetir una misma placa, por
+        # eso arriba hace falta `distinct()`. PostgreSQL no admite DISTINCT
+        # junto a FOR UPDATE, asi que primero se resuelven los identificadores
+        # y luego se vuelve a consultar bloqueando solo esas filas. SQLite
+        # ignora los bloqueos, de modo que este choque solo se veia en
+        # produccion y jamas en las pruebas.
+        locked_ids = list(sources.values_list("pk", flat=True))
+        sources = (
+            PlateEntry.objects.filter(pk__in=locked_ids)
+            .select_related("product", "position")
+            .select_for_update(of=("self",))
+        )
     sources = list(
         sources.order_by(
             "position__plate_rack",
@@ -660,7 +671,10 @@ def void_auto_pack_line(*, line_id, production, user):
     if line.pallet.status == PlatePallet.Status.CLOSED:
         raise ValidationError("Reabra el pallet antes de eliminar este movimiento.")
     consumptions = list(
-        PlatePalletConsumption.objects.select_for_update()
+        # `carryover_balance` es opcional y arma un LEFT JOIN, que PostgreSQL
+        # no acepta bloquear: sin `of=("self",)` esto respondia con error 500
+        # al eliminar un movimiento de pallet.
+        PlatePalletConsumption.objects.select_for_update(of=("self",))
         .filter(line=line)
         .select_related("carryover_balance")
     )
