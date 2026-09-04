@@ -146,6 +146,19 @@ def active_product_queryset():
     return queryset.order_by("code", "description")
 
 
+def active_product_choices(queryset=None):
+    """Materializa las choices de producto una sola vez (misma forma que
+    genera ModelChoiceField, incluyendo ModelChoiceIteratorValue con
+    .instance para ProductColorSelect), para compartirlas entre varios
+    forms sin que cada uno vuelva a evaluar el queryset al renderizar."""
+    field = forms.ModelChoiceField(
+        queryset=queryset if queryset is not None else active_product_queryset(),
+        required=False,
+        empty_label="Seleccione el producto",
+    )
+    return list(field.choices)
+
+
 class ProductColorSelect(forms.Select):
     """Expone el color de lámina en cada opción sin cambiar su valor ni su lógica."""
 
@@ -638,15 +651,19 @@ class TunnelBatchRowForm(forms.Form):
         ),
     )
 
-    def __init__(self, *args, product_queryset=None, **kwargs):
+    def __init__(self, *args, product_queryset=None, product_choices=None, **kwargs):
         super().__init__(*args, **kwargs)
-        # product_queryset se puede pasar via form_kwargs del formset para
-        # calcularlo una sola vez y compartirlo entre todos los forms, en vez
-        # de que cada fila (rack) repita la misma consulta de productos.
+        # product_queryset/product_choices se pueden pasar via form_kwargs del
+        # formset para calcularse una sola vez y compartirse entre todos los
+        # forms. product_queryset se necesita para validar (clean/to_python);
+        # product_choices ya viene materializada (lista) para que el widget no
+        # vuelva a evaluar el queryset por cada fila (rack) al renderizar.
         self.fields["product"].queryset = (
             product_queryset if product_queryset is not None else active_product_queryset()
         )
         self.fields["product"].empty_label = "Seleccione el producto"
+        if product_choices is not None:
+            self.fields["product"].choices = product_choices
 
     def clean(self):
         cleaned = super().clean()

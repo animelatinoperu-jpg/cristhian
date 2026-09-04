@@ -689,3 +689,25 @@ class TunnelBatchCaptureTests(TestCase):
             response,
             "Esta cuadrilla ya existe como FERMIN. No se creó un duplicado",
         )
+
+    def test_product_select_keeps_lamina_color_attribute_and_all_options(self):
+        # Verifica que compartir el queryset/choices de producto entre las
+        # filas del formset (optimizacion de performance) no rompe el color
+        # de lamina por opcion ni la lista completa de productos por rack.
+        self.product.color = "Rojo"
+        self.product.save(update_fields=["color"])
+
+        response = self.client.get(self.url)
+
+        # Dos racks (R01 y R02) deben mostrar la opcion con su color de lamina.
+        self.assertContains(
+            response,
+            f'<option value="{self.product.pk}" data-lamina-color="ROJO">P001 — CONOS DE POTA</option>',
+            count=2,
+        )
+        # Y ambos deben mostrar tambien el producto sin color.
+        self.assertContains(
+            response,
+            f'<option value="{self.other_product.pk}">P002 — ALETA ENTERA</option>',
+            count=2,
+        )

@@ -38,6 +38,7 @@ from .forms import (
     TunnelCrewEntryForm,
     TunnelBatchFormSet,
     active_crew_queryset,
+    active_product_choices,
     active_product_queryset,
     find_existing_crew_by_name,
     normalized_crew_name,
@@ -1365,10 +1366,14 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
         if not racks:
             messages.error(request, "La plantilla no tiene racks configurados para esta llenada.")
             return redirect("productions:detail", pk=self.production.pk)
+        _product_queryset = active_product_queryset()
         formset = TunnelBatchFormSet(
             initial=[{"rack_id": rack.pk, "max_trays": rack.max_trays} for rack in racks],
             prefix="racks",
-            form_kwargs={"product_queryset": active_product_queryset()},
+            form_kwargs={
+                "product_queryset": _product_queryset,
+                "product_choices": active_product_choices(_product_queryset),
+            },
         )
         _tg_ctx0 = _time_module.perf_counter()
         with CaptureQueriesContext(connection) as _cap_ctx:
@@ -1590,8 +1595,14 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
                 post_data[f"racks-{index}-tray_count"] = ""
                 for key in [key for key in post_data if key.startswith(f"racks-{index}-extra_")]:
                     del post_data[key]
+        _product_queryset = active_product_queryset()
         formset = TunnelBatchFormSet(
-            post_data, prefix="racks", form_kwargs={"product_queryset": active_product_queryset()}
+            post_data,
+            prefix="racks",
+            form_kwargs={
+                "product_queryset": _product_queryset,
+                "product_choices": active_product_choices(_product_queryset),
+            },
         )
         valid = formset.is_valid()
         allowed_ids = {rack.pk for rack in racks}
