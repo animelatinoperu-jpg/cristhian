@@ -63,7 +63,13 @@ def compatible_carryover_queryset(production, *, product=None, lock=False):
     if product is not None:
         queryset = queryset.filter(product=product)
     if lock:
-        queryset = queryset.select_for_update()
+        # `of=("self",)` bloquea solo las filas de saldo, no las de las tablas
+        # relacionadas. Es obligatorio porque abajo se hace select_related de
+        # `source_entry`, que es opcional y por eso arma un LEFT JOIN:
+        # PostgreSQL rechaza un FOR UPDATE sobre el lado nulo de un outer join
+        # y respondia con error 500. SQLite ignora los bloqueos, asi que el
+        # fallo solo aparecia en produccion y nunca en las pruebas.
+        queryset = queryset.select_for_update(of=("self",))
     return queryset.select_related(
         "origin_production",
         "product",

@@ -26,6 +26,7 @@ from productions.models import (
 )
 from productions.services.plate_balances import (
     auto_pack_product,
+    compatible_carryover_queryset,
     manual_pack_product,
     plate_pallet_dashboard,
     plate_product_availability,
@@ -413,6 +414,17 @@ class PlateBalanceTests(TestCase):
         line = PlatePalletLine.objects.get(production=self.current, product=self.product_a)
         self.assertEqual(line.package_count, 3)
         self.assertEqual(line.observation, "Formación manual de bultos por producto")
+
+    def test_carryover_lock_only_targets_its_own_rows(self):
+        # El queryset hace select_related de `source_entry`, que es opcional y
+        # arma un LEFT JOIN. Si el bloqueo no se limita a "self", PostgreSQL
+        # aborta con "FOR UPDATE cannot be applied to the nullable side of an
+        # outer join" y la pagina responde 500. SQLite ignora los bloqueos, asi
+        # que esto se comprueba sobre la consulta y no ejecutandola.
+        queryset = compatible_carryover_queryset(self.current, lock=True)
+
+        self.assertTrue(queryset.query.select_for_update)
+        self.assertEqual(queryset.query.select_for_update_of, ("self",))
 
     def test_manual_packing_rejects_more_packages_than_available_trays(self):
         self._source(self.current, self.current_position, self.product_a, 4)
