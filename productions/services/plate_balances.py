@@ -373,7 +373,14 @@ def plate_pallet_dashboard(production):
 
 
 @transaction.atomic
-def auto_pack_product(*, production, product_id, pallet_number, user):
+def auto_pack_product(*, production, product_id, pallet_number, user, requested_packages=None):
+    """Forma bultos de un producto y consume los saldos compatibles.
+
+    Con `requested_packages=None` (modo automático) arma todos los bultos
+    completos que alcancen. Si se indica un número, arma exactamente esa
+    cantidad: es la formación manual, donde el operario decide cuántos bultos
+    quiere registrar en el pallet.
+    """
     if production.status in {
         ProductionOrder.Status.APPROVED,
         ProductionOrder.Status.CLOSED,
@@ -414,16 +421,35 @@ def auto_pack_product(*, production, product_id, pallet_number, user):
     current_trays = sum(row["remaining_trays"] for row in source_rows)
     total_available = carryover_trays + current_trays
     package_trays = _package_trays(production)
-    package_count = min(total_available // package_trays, available_capacity)
-    if package_count <= 0:
+    possible_packages = min(total_available // package_trays, available_capacity)
+    if possible_packages <= 0:
         raise ValidationError(
             f"{product.code} todavía no reúne {package_trays} bandejas para formar un bulto completo."
         )
+    if requested_packages is None:
+        package_count = possible_packages
+    else:
+        package_count = requested_packages
+        if package_count < 1:
+            raise ValidationError("Ingrese al menos 1 bulto para formar.")
+        if package_count > available_capacity:
+            raise ValidationError(
+                f"En el pallet P{pallet_number} solo caben {available_capacity} bultos más."
+            )
+        if package_count * package_trays > total_available:
+            raise ValidationError(
+                f"{product.code} solo alcanza para {possible_packages} bulto(s): "
+                f"hay {total_available} bandejas y cada bulto necesita {package_trays}."
+            )
     trays_to_consume = package_count * package_trays
     line = PlatePalletLine(
         production=production,
         responsible=user,
-        observation="Cálculo automático de bultos por producto",
+        observation=(
+            "Cálculo automático de bultos por producto"
+            if requested_packages is None
+            else "Formación manual de bultos por producto"
+        ),
         date=production.packaging_date
         or production.production_date
         or production.reception_date,
@@ -506,6 +532,22 @@ def auto_pack_product(*, production, product_id, pallet_number, user):
         "pallet_total": used_packages + package_count,
         "pallet_capacity": capacity,
     }
+
+
+def manual_pack_product(*, production, product_id, pallet_number, package_count, user):
+    """Forma exactamente `package_count` bultos del producto en el pallet.
+
+    Es lo que usa el botón «Registrar bultos en pallet» de Empaque de placas.
+    Esta función no existía y la vista igual la llamaba, así que el botón
+    respondía con un error 500 (NameError) al pulsarlo.
+    """
+    return auto_pack_product(
+        production=production,
+        product_id=product_id,
+        pallet_number=pallet_number,
+        user=user,
+        requested_packages=package_count,
+    )
 
 
 @transaction.atomic

@@ -26,6 +26,7 @@ from productions.models import (
 )
 from productions.services.plate_balances import (
     auto_pack_product,
+    manual_pack_product,
     plate_pallet_dashboard,
     plate_product_availability,
     set_plate_pallet_status,
@@ -391,3 +392,37 @@ class PlateBalanceTests(TestCase):
             f'value="{self.product_a.pk}"',
             auto_select,
         )
+
+    def test_manual_packing_button_forms_the_requested_packages(self):
+        # El boton "Registrar bultos en pallet" respondia con error 500 porque
+        # la vista llamaba a manual_pack_product y esa funcion no existia.
+        self._source(self.current, self.current_position, self.product_a, 20)
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("productions:plate_pack_manual", args=[self.current.pk]),
+            {
+                "product": self.product_a.pk,
+                "pallet_number": 1,
+                "package_count": 3,
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        line = PlatePalletLine.objects.get(production=self.current, product=self.product_a)
+        self.assertEqual(line.package_count, 3)
+        self.assertEqual(line.observation, "Formación manual de bultos por producto")
+
+    def test_manual_packing_rejects_more_packages_than_available_trays(self):
+        self._source(self.current, self.current_position, self.product_a, 4)
+
+        with self.assertRaises(ValidationError):
+            manual_pack_product(
+                production=self.current,
+                product_id=self.product_a.pk,
+                pallet_number=1,
+                package_count=5,
+                user=self.user,
+            )
+        self.assertFalse(PlatePalletLine.objects.filter(production=self.current).exists())
