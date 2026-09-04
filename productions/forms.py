@@ -638,9 +638,14 @@ class TunnelBatchRowForm(forms.Form):
         ),
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, product_queryset=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["product"].queryset = active_product_queryset()
+        # product_queryset se puede pasar via form_kwargs del formset para
+        # calcularlo una sola vez y compartirlo entre todos los forms, en vez
+        # de que cada fila (rack) repita la misma consulta de productos.
+        self.fields["product"].queryset = (
+            product_queryset if product_queryset is not None else active_product_queryset()
+        )
         self.fields["product"].empty_label = "Seleccione el producto"
 
     def clean(self):

@@ -1368,6 +1368,7 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
         formset = TunnelBatchFormSet(
             initial=[{"rack_id": rack.pk, "max_trays": rack.max_trays} for rack in racks],
             prefix="racks",
+            form_kwargs={"product_queryset": active_product_queryset()},
         )
         _tg_ctx0 = _time_module.perf_counter()
         with CaptureQueriesContext(connection) as _cap_ctx:
@@ -1589,7 +1590,9 @@ class TunnelBatchEntryView(LoginRequiredMixin, View):
                 post_data[f"racks-{index}-tray_count"] = ""
                 for key in [key for key in post_data if key.startswith(f"racks-{index}-extra_")]:
                     del post_data[key]
-        formset = TunnelBatchFormSet(post_data, prefix="racks")
+        formset = TunnelBatchFormSet(
+            post_data, prefix="racks", form_kwargs={"product_queryset": active_product_queryset()}
+        )
         valid = formset.is_valid()
         allowed_ids = {rack.pk for rack in racks}
         posted_ids = [form.cleaned_data.get("rack_id") for form in formset.forms if hasattr(form, "cleaned_data")]
