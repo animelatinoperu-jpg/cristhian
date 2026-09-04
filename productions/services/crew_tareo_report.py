@@ -9,7 +9,11 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from .crew_control import crew_control_summary as crew_tareo_summary
+# Se usaba crew_control_summary con un alias, pero esa funcion solo recibe
+# la produccion y aqui se la llamaba con (production, crew_pk), lo que
+# reventaba con TypeError al descargar el tareo. La funcion real que filtra
+# por cuadrilla es crew_tareo_summary.
+from .crew_control import crew_tareo_summary
 
 
 class CrewTareoReportError(Exception):

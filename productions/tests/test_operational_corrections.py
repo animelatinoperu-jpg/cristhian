@@ -1741,6 +1741,29 @@ class OperationalCorrectionTests(TestCase):
         # Debe sumar su trabajo de tunel (10 bdj) y de plaqueros (12 bdj).
         self.assertContains(response, "22 bandejas")
 
+    def test_crew_tareo_downloads_report_missing_template_instead_of_crashing(self):
+        # El generador llamaba crew_control_summary(production, crew_pk) a
+        # traves de un alias, pero esa funcion solo recibe la produccion: la
+        # descarga moria con TypeError (error 500). Ahora usa la funcion real
+        # y, si falta la plantilla oficial de la empresa
+        # (productions/templates_excel/tareo_envasado.xlsx, que no esta en el
+        # repositorio), avisa en pantalla en vez de romperse.
+        for kind in ("xlsx", "pdf"):
+            with self.subTest(kind=kind):
+                response = self.client.get(
+                    reverse(
+                        f"productions:crew_tareo_{kind}",
+                        args=[self.production.pk, self.crew.pk],
+                    ),
+                    follow=True,
+                )
+                self.assertEqual(response.status_code, 200)
+                mensajes = [str(m) for m in response.context["messages"]]
+                self.assertTrue(
+                    any("plantilla oficial" in m for m in mensajes),
+                    f"Se esperaba aviso de plantilla faltante, llego: {mensajes}",
+                )
+
     def test_consolidated_report_page_opens(self):
         response = self.client.get(
             reverse("productions:report", args=[self.production.pk])
