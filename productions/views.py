@@ -8413,7 +8413,18 @@ class PackagingReportPdfView(LoginRequiredMixin, View):
 
 
 def health(request):
-    return HttpResponse("ok", content_type="text/plain")
+    # Se incluye el commit desplegado (Railway lo expone en el entorno) para
+    # poder comprobar desde fuera que version esta realmente en produccion.
+    # Sin esto, al verificar una correccion no habia forma de distinguir entre
+    # "el arreglo no funciona" y "el despliegue todavia no termino".
+    import os
+
+    commit = (
+        os.environ.get("RAILWAY_GIT_COMMIT_SHA")
+        or os.environ.get("SOURCE_COMMIT")
+        or "desconocido"
+    )
+    return HttpResponse(f"ok {commit[:12]}", content_type="text/plain")
 
 
 def csrf_token(request):
