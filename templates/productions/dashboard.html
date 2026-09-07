@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px;">
+    <div style="max-width: 1200px; margin: 0 auto;">
+        <div style="color: white; text-align: center; margin-bottom: 40px;">
+            <h1 style="font-size: 2.5em; margin-bottom: 10px;">📊 Dashboard de Rendimiento</h1>
+            <p>Análisis de productividad</p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div style="background: white; border-radius: 15px; padding: 25px; border-top: 4px solid #FF6B6B; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+                <div style="font-size: 0.9em; color: #666; margin-bottom: 10px; text-transform: uppercase;">Total</div>
+                <div style="font-size: 2.2em; font-weight: 700;">{{ kpis.total_kg|floatformat:0 }} kg</div>
+            </div>
+
+            <div style="background: white; border-radius: 15px; padding: 25px; border-top: 4px solid #45B7D1; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+                <div style="font-size: 0.9em; color: #666; margin-bottom: 10px; text-transform: uppercase;">Túneles</div>
+                <div style="font-size: 2.2em; font-weight: 700;">{{ kpis.tunnel_kg|floatformat:0 }} kg</div>
+            </div>
+
+            <div style="background: white; border-radius: 15px; padding: 25px; border-top: 4px solid #96CEB4; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+                <div style="font-size: 0.9em; color: #666; margin-bottom: 10px; text-transform: uppercase;">Placas</div>
+                <div style="font-size: 2.2em; font-weight: 700;">{{ kpis.plate_kg|floatformat:0 }} kg</div>
+            </div>
+
+            <div style="background: white; border-radius: 15px; padding: 25px; border-top: 4px solid #FFEAA7; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+                <div style="font-size: 0.9em; color: #666; margin-bottom: 10px; text-transform: uppercase;">Nuqueras</div>
+                <div style="font-size: 2.2em; font-weight: 700;">{{ kpis.nuquera_kg|floatformat:0 }} kg</div>
+            </div>
+
+            <div style="background: white; border-radius: 15px; padding: 25px; border-top: 4px solid #DDA0DD; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+                <div style="font-size: 0.9em; color: #666; margin-bottom: 10px; text-transform: uppercase;">Troquelado</div>
+                <div style="font-size: 2.2em; font-weight: 700;">{{ kpis.troquelado_kg|floatformat:0 }} kg</div>
+            </div>
+
+            <div style="background: white; border-radius: 15px; padding: 25px; border-top: 4px solid #74B9FF; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+                <div style="font-size: 0.9em; color: #666; margin-bottom: 10px; text-transform: uppercase;">PPs Activas</div>
+                <div style="font-size: 2.2em; font-weight: 700;">{{ kpis.active_pp }}</div>
+            </div>
+
+            <div style="background: white; border-radius: 15px; padding: 25px; border-top: 4px solid #A29BFE; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+                <div style="font-size: 0.9em; color: #666; margin-bottom: 10px; text-transform: uppercase;">Cuadrillas</div>
+                <div style="font-size: 2.2em; font-weight: 700;">{{ kpis.active_crews }}</div>
+            </div>
+        </div>
+
+        <div style="background: white; border-radius: 15px; padding: 30px; margin-top: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); text-align: center;">
+            <h2 style="color: #333; margin-bottom: 15px;">🎯 Dashboard Profesional</h2>
+            <p style="color: #666;">Sistema de análisis de rendimiento con gráficas interactivas</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
