@@ -1,17 +1,12 @@
 from django.urls import path
 
 from . import views
+from .dashboard_views import DashboardView
 
 
 app_name = "productions"
-
-try:
-    from .dashboard_views import DashboardView
-    dashboard_enabled = True
-except ImportError:
-    dashboard_enabled = False
-
 urlpatterns = [
+    path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("", views.ProductionListView.as_view(), name="list"),
     path("cuentas/registro/", views.UserRegistrationView.as_view(), name="register"),
     path("cuentas/registro/listo/", views.UserRegistrationDoneView.as_view(), name="register_done"),
@@ -217,6 +212,3 @@ path("producciones/<int:pk>/troquelado/captura/", views.TroqueladoQuickCaptureVi
     path("api/sync-data/", views.sync_data_api, name="sync_data_api"),
     path("ads.txt", views.ads_txt, name="ads_txt"),
 ]
-
-if dashboard_enabled:
-    urlpatterns.insert(1, path("dashboard/", DashboardView.as_view(), name="dashboard"))
