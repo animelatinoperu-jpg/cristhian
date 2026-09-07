@@ -7899,6 +7899,7 @@ class ProductionReportView(LoginRequiredMixin, DetailView):
                 "area_chart_data": json.dumps(self._build_area_chart(reception_total, nuquera_total, troquelado_total, tunnel_packaging_total, plate_packaging_total)),
                 "packaging_chart_data": json.dumps(self._build_packaging_chart(tunnel_packaging, plate_packaging)),
                 "costs_chart_data": json.dumps(self._build_costs_chart(costs)),
+                "crew_summary": crew_control_summary(production),
             }
         )
         return context

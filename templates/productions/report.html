@@ -2,14 +2,39 @@
 {% block title %}Reporte PP {{ production.number }}{% endblock %}
 {% block extra_css %}
 <style>
-    .charts-section {
-        margin: 30px 0 40px 0;
+    .report-tabs-wrap {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #f4f6f5;
+        padding-top: 8px;
+        margin-bottom: 16px;
     }
-    .charts-section h2 {
-        font-size: 1.4em;
-        font-weight: 800;
-        margin-bottom: 18px;
+    .report-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        border-bottom: 2px solid #d6dedb;
+        padding-bottom: 0;
     }
+    .report-tabs button {
+        border: none;
+        background: transparent;
+        padding: 10px 16px;
+        font-weight: 700;
+        font-size: 0.9em;
+        color: #5b6b66;
+        border-radius: 10px 10px 0 0;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .report-tabs button.active {
+        background: #0d5b49;
+        color: #fff;
+    }
+    .report-tab-panel { display: none; }
+    .report-tab-panel.active { display: block; }
+
     .charts-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -30,10 +55,45 @@
     }
     .chart-card .chart-container {
         position: relative;
-        height: 280px;
+        height: 260px;
     }
+
+    .crew-tareo-card {
+        background: #fff;
+        border: 1px solid #d6dedb;
+        border-radius: 14px;
+        padding: 18px;
+        margin-bottom: 14px;
+    }
+    .crew-tareo-card header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+    .crew-tareo-card h3 { margin: 0; font-size: 1.1em; }
+    .crew-tareo-total { text-align: right; }
+    .crew-tareo-total strong { display: block; font-size: 1.3em; color: #0d5b49; }
+    .crew-tareo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+    }
+    .crew-tareo-chip {
+        background: #f4f6f5;
+        border-radius: 8px;
+        padding: 8px 10px;
+        text-align: center;
+    }
+    .crew-tareo-chip.has-work { background: #e4f3ee; }
+    .crew-tareo-chip small { display: block; color: #6b7a75; font-size: 0.75em; }
+    .crew-tareo-chip strong { display: block; font-size: 1.05em; }
+
     @media print {
-        .charts-section { display: none; }
+        .report-tabs-wrap { display: none; }
+        .report-tab-panel { display: block !important; }
     }
 </style>
 {% endblock %}
@@ -48,16 +108,32 @@
 </div>
 <div class="print-only"><h1>PP {{ production.number }} · {{ production.plant_lot }}</h1><p>{{ production.customer }} · {{ production.production_date|date:"d/m/Y" }}</p></div>
 
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-3">
   <div class="col-6 col-lg-3"><div class="metric-card"><span>Recepción (kg)</span><strong class="fs-3">{{ reception_total|floatformat:"2u" }}</strong></div></div>
   <div class="col-6 col-lg-3"><div class="metric-card"><span>Nuqueras (kg)</span><strong class="fs-3">{{ nuquera_total|floatformat:"2u" }}</strong></div></div>
   <div class="col-6 col-lg-3"><div class="metric-card"><span>Troquelado (kg)</span><strong class="fs-3">{{ troquelado_total|floatformat:"2u" }}</strong></div></div>
-  <div class="col-6 col-lg-3"><div class="metric-card {% if tunnel_reconciliation.difference %}metric-alert{% endif %}"><span>Dif. túneles</span><strong>{{ tunnel_reconciliation.difference }}</strong></div></div>
-  <div class="col-6 col-lg-3"><div class="metric-card {% if plate_reconciliation.difference %}metric-alert{% endif %}"><span>Dif. placas</span><strong>{{ plate_reconciliation.difference }}</strong></div></div>
+  <div class="col-6 col-lg-3"><div class="metric-card"><span>Cuadrillas · Total</span><strong class="fs-3">{{ crew_summary.total_kg }} kg</strong></div></div>
 </div>
 
-<section class="charts-section no-print">
-  <h2>📊 Análisis Visual del PP</h2>
+<div class="report-tabs-wrap no-print">
+  <div class="report-tabs" role="tablist">
+    <button type="button" class="active" data-tab="resumen">📊 Resumen</button>
+    <button type="button" data-tab="cuadrillas">👥 Cuadrillas / Tareo</button>
+    <button type="button" data-tab="recepcion">🚚 Recepción</button>
+    <button type="button" data-tab="procesos">⚙️ Nuqueras y Troquelado</button>
+    <button type="button" data-tab="empaque">📦 Empaque</button>
+    <button type="button" data-tab="costos">💰 Materiales y Costos</button>
+    <button type="button" data-tab="auditoria">🕒 Auditoría</button>
+  </div>
+</div>
+
+<div class="report-tab-panel active" data-panel="resumen">
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3"><div class="metric-card {% if tunnel_reconciliation.difference %}metric-alert{% endif %}"><span>Dif. túneles</span><strong>{{ tunnel_reconciliation.difference }}</strong></div></div>
+    <div class="col-6 col-lg-3"><div class="metric-card {% if plate_reconciliation.difference %}metric-alert{% endif %}"><span>Dif. placas</span><strong>{{ plate_reconciliation.difference }}</strong></div></div>
+    <div class="col-6 col-lg-3"><div class="metric-card"><span>Cuadrillas activas</span><strong class="fs-3">{{ crew_summary.crew_count }}</strong></div></div>
+    <div class="col-6 col-lg-3"><div class="metric-card"><span>Bandejas totales</span><strong class="fs-3">{{ crew_summary.total_trays }}</strong></div></div>
+  </div>
   <div class="charts-grid">
     <div class="chart-card">
       <h3>Distribución por Área (kg)</h3>
@@ -72,71 +148,100 @@
       <div class="chart-container"><canvas id="costsChart"></canvas></div>
     </div>
   </div>
-</section>
+</div>
 
-<section class="report-section"><h2>Recepción de materia prima</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Fecha</th><th>Vehículo</th><th>Producto</th><th>Cuadrilla</th><th class="text-end">Peso kg</th></tr></thead><tbody>{% for entry in receptions %}<tr><td>{{ entry.date|date:"d/m/Y" }}</td><td>{{ entry.vehicle.plate }}</td><td>{{ entry.product }}</td><td>{{ entry.crew|default:"—" }}</td><td class="text-end">{{ entry.weight_kg|floatformat:"2u" }}</td></tr>{% empty %}<tr><td colspan="5">Sin registros.</td></tr>{% endfor %}</tbody></table></div></section>
-
-<section class="report-section">
-  <h2>Peso de limpieza de cono de pota por cuadrilla</h2>
-  <p class="text-secondary small mb-3">Se toma automáticamente de los registros de recepción con producto <strong>CONOS DE POTA</strong>. Si el nombre de la cuadrilla cambia, el resumen se adapta sin tocar la plantilla.</p>
-  <div class="row g-3 mb-3">
-    <div class="col-6 col-lg-3">
-      <div class="metric-card">
-        <span>Registros</span>
-        <strong class="fs-3">{{ reception_cone_pota_summary.entry_count }}</strong>
-      </div>
-    </div>
-    <div class="col-6 col-lg-3">
-      <div class="metric-card">
-        <span>Peso total</span>
-        <strong class="fs-3">{{ reception_cone_pota_summary.total_weight|floatformat:"2u" }} kg</strong>
-      </div>
-    </div>
-  </div>
-  {% if reception_cone_pota_summary.rows %}
-    <div class="table-responsive">
-      <table class="table table-sm">
-        <thead>
-          <tr>
-            <th>Cuadrilla</th>
-            <th class="text-end">Dinos</th>
-            <th class="text-end">Peso kg</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in reception_cone_pota_summary.rows %}
-            <tr>
-              <td>{{ row.crew_name }}</td>
-              <td class="text-end">{{ row.dino_count }}</td>
-              <td class="text-end">{{ row.total_weight|floatformat:"2u" }}</td>
-            </tr>
+<div class="report-tab-panel" data-panel="cuadrillas">
+  <section class="report-section mb-3">
+    <h2>Tareo consolidado por cuadrilla</h2>
+    <p class="text-secondary small mb-0">Cantidad de bandejas y kilogramos realizados por cada cuadrilla, en túneles y plaqueros. Mismo dato que "Control de cuadrillas".</p>
+  </section>
+  {% if crew_summary.rows %}
+    {% for row in crew_summary.rows %}
+      <div class="crew-tareo-card">
+        <header>
+          <h3>{{ row.crew_name }}</h3>
+          <div class="crew-tareo-total">
+            <strong>{{ row.total_kg }} kg</strong>
+            <span class="text-secondary small">{{ row.total_trays }} bandejas</span>
+          </div>
+        </header>
+        <div class="row g-2 mb-2">
+          <div class="col-6"><div class="crew-tareo-chip {% if row.tunnel_trays %}has-work{% endif %}"><small>Túneles</small><strong>{{ row.tunnel_kg }} kg</strong><small>{{ row.tunnel_trays }} bdj</small></div></div>
+          <div class="col-6"><div class="crew-tareo-chip {% if row.plate_trays %}has-work{% endif %}"><small>Plaqueros</small><strong>{{ row.plate_kg }} kg</strong><small>{{ row.plate_trays }} bdj</small></div></div>
+        </div>
+        <div class="crew-tareo-grid">
+          {% for tunnel in row.tunnels %}
+            <div class="crew-tareo-chip {% if tunnel.trays %}has-work{% endif %}"><small>{{ tunnel.code }}</small><strong>{{ tunnel.trays }}</strong><small>{{ tunnel.kg }} kg</small></div>
           {% endfor %}
-        </tbody>
-      </table>
-    </div>
+          {% for plate_rack in row.plate_racks %}
+            <div class="crew-tareo-chip {% if plate_rack.trays %}has-work{% endif %}"><small>{{ plate_rack.label }}</small><strong>{{ plate_rack.trays }}</strong><small>{{ plate_rack.kg }} kg</small></div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
   {% else %}
-    <div class="alert alert-light border mb-0">No hay registros de CONOS DE POTA en recepción.</div>
+    <div class="alert alert-light border">Todavía no existen registros por cuadrilla en este PP.</div>
   {% endif %}
-</section>
-
-<section class="report-section"><h2>Nuqueras y perfilado</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Fecha</th><th>Trabajador</th><th>Cuadrilla</th><th>Proceso</th><th class="text-end">Peso kg</th></tr></thead><tbody>{% for entry in nuqueras %}<tr><td>{{ entry.date|date:"d/m/Y" }}</td><td>{{ entry.worker }}</td><td>{{ entry.crew }}</td><td>{{ entry.process }}</td><td class="text-end">{{ entry.weight_kg|floatformat:"2u" }}</td></tr>{% empty %}<tr><td colspan="5">Sin registros.</td></tr>{% endfor %}</tbody></table></div></section>
-
-<section class="report-section"><h2>Troquelado</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Fecha</th><th>Turno</th><th>Cuadrilla</th><th>Trabajador</th><th>Categoría</th><th class="text-end">Cajas</th><th class="text-end">Peso por caja kg</th><th class="text-end">Total kg</th><th>Inicio</th><th>Fin</th></tr></thead><tbody>{% for entry in troquelados %}<tr><td>{{ entry.date|date:"d/m/Y" }}</td><td>{{ entry.get_shift_display }}</td><td>{% if entry.crew %}{{ entry.crew.name }}{% else %}—{% endif %}</td><td>{{ entry.worker }}</td><td>{% if entry.product_type %}{{ entry.get_product_type_display }}{% else %}—{% endif %}</td><td class="text-end">{{ entry.cajas }}</td><td class="text-end">{{ entry.kg_por_caja|floatformat:"2u" }}</td><td class="text-end">{{ entry.weight_kg|floatformat:"2u" }}</td><td>{{ entry.start_time|date:"H:i" }}</td><td>{{ entry.end_time|date:"H:i" }}</td></tr>{% empty %}<tr><td colspan="10">Sin registros.</td></tr>{% endfor %}</tbody></table></div></section>
-
-<div class="row g-4">
-  <div class="col-12 col-lg-6"><section class="report-section h-100"><h2>Empaque de túneles</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Pallet</th><th>Producto</th><th>Bultos</th><th>Kg</th></tr></thead><tbody>{% for entry in tunnel_packaging %}<tr><td>P{{ entry.pallet_number }}</td><td>{{ entry.product }}</td><td>{{ entry.package_count }}</td><td>{{ entry.kilos|floatformat:"2u" }}</td></tr>{% empty %}<tr><td colspan="4">Sin registros.</td></tr>{% endfor %}</tbody></table></div></section></div>
-  <div class="col-12 col-lg-6"><section class="report-section h-100"><h2>Empaque de placas</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Pallet</th><th>Origen</th><th>Producto</th><th>Bultos</th><th>Kg</th></tr></thead><tbody>{% for entry in plate_packaging %}<tr><td>P{{ entry.pallet_number }}</td><td>{% if entry.source_entry %}{{ entry.source_entry.position.operational_label }}{% else %}Registro anterior{% endif %}</td><td>{{ entry.product }}</td><td>{{ entry.package_count }}</td><td>{{ entry.kilos|floatformat:"2u" }}</td></tr>{% empty %}<tr><td colspan="5">Sin registros.</td></tr>{% endfor %}</tbody></table></div></section></div>
+  <a class="btn btn-outline-secondary btn-sm mt-2" href="{% url 'productions:crew_control' production.pk %}">Ver control de cuadrillas completo →</a>
 </div>
 
-<div class="row g-4 mt-0">
-  <div class="col-12 col-lg-6"><section class="report-section h-100"><h2>Materiales</h2><table class="table table-sm"><thead><tr><th>Insumo</th><th class="text-end">Cantidad</th><th>Unidad</th></tr></thead><tbody>{% for entry in materials %}<tr><td>{{ entry.material.name }}</td><td class="text-end">{% if entry.material.unit|lower == "kg" %}{{ entry.quantity|floatformat:"2u" }}{% else %}{{ entry.quantity|floatformat:3 }}{% endif %}</td><td>{{ entry.material.unit }}</td></tr>{% empty %}<tr><td colspan="3">Sin registros.</td></tr>{% endfor %}</tbody></table></section></div>
-  <div class="col-12 col-lg-6"><section class="report-section h-100"><h2>Costos</h2><table class="table table-sm"><thead><tr><th>Concepto</th><th>Cantidad</th><th>Unitario</th><th>Total</th></tr></thead><tbody>{% for entry in costs %}<tr><td>{{ entry.concept }}</td><td>{{ entry.quantity }}</td><td>{{ entry.unit_cost }}</td><td>{{ entry.total }}</td></tr>{% empty %}<tr><td colspan="4">Sin registros.</td></tr>{% endfor %}</tbody></table></section></div>
+<div class="report-tab-panel" data-panel="recepcion">
+  <section class="report-section"><h2>Recepción de materia prima</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Fecha</th><th>Vehículo</th><th>Producto</th><th>Cuadrilla</th><th class="text-end">Peso kg</th></tr></thead><tbody>{% for entry in receptions %}<tr><td>{{ entry.date|date:"d/m/Y" }}</td><td>{{ entry.vehicle.plate }}</td><td>{{ entry.product }}</td><td>{{ entry.crew|default:"—" }}</td><td class="text-end">{{ entry.weight_kg|floatformat:"2u" }}</td></tr>{% empty %}<tr><td colspan="5">Sin registros.</td></tr>{% endfor %}</tbody></table></div></section>
+
+  <section class="report-section mt-3">
+    <h2>Peso de limpieza de cono de pota por cuadrilla</h2>
+    <p class="text-secondary small mb-3">Se toma automáticamente de los registros de recepción con producto <strong>CONOS DE POTA</strong>.</p>
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-lg-3"><div class="metric-card"><span>Registros</span><strong class="fs-3">{{ reception_cone_pota_summary.entry_count }}</strong></div></div>
+      <div class="col-6 col-lg-3"><div class="metric-card"><span>Peso total</span><strong class="fs-3">{{ reception_cone_pota_summary.total_weight|floatformat:"2u" }} kg</strong></div></div>
+    </div>
+    {% if reception_cone_pota_summary.rows %}
+      <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Cuadrilla</th><th class="text-end">Dinos</th><th class="text-end">Peso kg</th></tr></thead><tbody>{% for row in reception_cone_pota_summary.rows %}<tr><td>{{ row.crew_name }}</td><td class="text-end">{{ row.dino_count }}</td><td class="text-end">{{ row.total_weight|floatformat:"2u" }}</td></tr>{% endfor %}</tbody></table></div>
+    {% else %}
+      <div class="alert alert-light border mb-0">No hay registros de CONOS DE POTA en recepción.</div>
+    {% endif %}
+  </section>
 </div>
 
-<section class="report-section mt-4 no-print"><h2>Auditoría reciente</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Fecha</th><th>Usuario</th><th>Módulo</th><th>Acción</th><th>Registro</th></tr></thead><tbody>{% for log in audit_logs %}<tr><td>{{ log.timestamp|date:"d/m/Y H:i" }}</td><td>{{ log.user|default:"Sistema" }}</td><td>{{ log.module }}</td><td>{{ log.get_action_display }}</td><td>{{ log.record_pk|default:"—" }}</td></tr>{% empty %}<tr><td colspan="5">Sin eventos.</td></tr>{% endfor %}</tbody></table></div></section>
+<div class="report-tab-panel" data-panel="procesos">
+  <section class="report-section"><h2>Nuqueras y perfilado</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Fecha</th><th>Trabajador</th><th>Cuadrilla</th><th>Proceso</th><th class="text-end">Peso kg</th></tr></thead><tbody>{% for entry in nuqueras %}<tr><td>{{ entry.date|date:"d/m/Y" }}</td><td>{{ entry.worker }}</td><td>{{ entry.crew }}</td><td>{{ entry.process }}</td><td class="text-end">{{ entry.weight_kg|floatformat:"2u" }}</td></tr>{% empty %}<tr><td colspan="5">Sin registros.</td></tr>{% endfor %}</tbody></table></div></section>
+
+  <section class="report-section mt-3"><h2>Troquelado</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Fecha</th><th>Turno</th><th>Cuadrilla</th><th>Trabajador</th><th>Categoría</th><th class="text-end">Cajas</th><th class="text-end">Peso por caja kg</th><th class="text-end">Total kg</th><th>Inicio</th><th>Fin</th></tr></thead><tbody>{% for entry in troquelados %}<tr><td>{{ entry.date|date:"d/m/Y" }}</td><td>{{ entry.get_shift_display }}</td><td>{% if entry.crew %}{{ entry.crew.name }}{% else %}—{% endif %}</td><td>{{ entry.worker }}</td><td>{% if entry.product_type %}{{ entry.get_product_type_display }}{% else %}—{% endif %}</td><td class="text-end">{{ entry.cajas }}</td><td class="text-end">{{ entry.kg_por_caja|floatformat:"2u" }}</td><td class="text-end">{{ entry.weight_kg|floatformat:"2u" }}</td><td>{{ entry.start_time|date:"H:i" }}</td><td>{{ entry.end_time|date:"H:i" }}</td></tr>{% empty %}<tr><td colspan="10">Sin registros.</td></tr>{% endfor %}</tbody></table></div></section>
+</div>
+
+<div class="report-tab-panel" data-panel="empaque">
+  <div class="row g-4">
+    <div class="col-12 col-lg-6"><section class="report-section h-100"><h2>Empaque de túneles</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Pallet</th><th>Producto</th><th>Bultos</th><th>Kg</th></tr></thead><tbody>{% for entry in tunnel_packaging %}<tr><td>P{{ entry.pallet_number }}</td><td>{{ entry.product }}</td><td>{{ entry.package_count }}</td><td>{{ entry.kilos|floatformat:"2u" }}</td></tr>{% empty %}<tr><td colspan="4">Sin registros.</td></tr>{% endfor %}</tbody></table></div></section></div>
+    <div class="col-12 col-lg-6"><section class="report-section h-100"><h2>Empaque de placas</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Pallet</th><th>Origen</th><th>Producto</th><th>Bultos</th><th>Kg</th></tr></thead><tbody>{% for entry in plate_packaging %}<tr><td>P{{ entry.pallet_number }}</td><td>{% if entry.source_entry %}{{ entry.source_entry.position.operational_label }}{% else %}Registro anterior{% endif %}</td><td>{{ entry.product }}</td><td>{{ entry.package_count }}</td><td>{{ entry.kilos|floatformat:"2u" }}</td></tr>{% empty %}<tr><td colspan="5">Sin registros.</td></tr>{% endfor %}</tbody></table></div></section></div>
+  </div>
+</div>
+
+<div class="report-tab-panel" data-panel="costos">
+  <div class="row g-4">
+    <div class="col-12 col-lg-6"><section class="report-section h-100"><h2>Materiales</h2><table class="table table-sm"><thead><tr><th>Insumo</th><th class="text-end">Cantidad</th><th>Unidad</th></tr></thead><tbody>{% for entry in materials %}<tr><td>{{ entry.material.name }}</td><td class="text-end">{% if entry.material.unit|lower == "kg" %}{{ entry.quantity|floatformat:"2u" }}{% else %}{{ entry.quantity|floatformat:3 }}{% endif %}</td><td>{{ entry.material.unit }}</td></tr>{% empty %}<tr><td colspan="3">Sin registros.</td></tr>{% endfor %}</tbody></table></section></div>
+    <div class="col-12 col-lg-6"><section class="report-section h-100"><h2>Costos</h2><table class="table table-sm"><thead><tr><th>Concepto</th><th>Cantidad</th><th>Unitario</th><th>Total</th></tr></thead><tbody>{% for entry in costs %}<tr><td>{{ entry.concept }}</td><td>{{ entry.quantity }}</td><td>{{ entry.unit_cost }}</td><td>{{ entry.total }}</td></tr>{% empty %}<tr><td colspan="4">Sin registros.</td></tr>{% endfor %}</tbody></table></section></div>
+  </div>
+</div>
+
+<div class="report-tab-panel" data-panel="auditoria">
+  <section class="report-section"><h2>Auditoría reciente</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Fecha</th><th>Usuario</th><th>Módulo</th><th>Acción</th><th>Registro</th></tr></thead><tbody>{% for log in audit_logs %}<tr><td>{{ log.timestamp|date:"d/m/Y H:i" }}</td><td>{{ log.user|default:"Sistema" }}</td><td>{{ log.module }}</td><td>{{ log.get_action_display }}</td><td>{{ log.record_pk|default:"—" }}</td></tr>{% empty %}<tr><td colspan="5">Sin eventos.</td></tr>{% endfor %}</tbody></table></div></section>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 <script>
+    (function () {
+        const buttons = document.querySelectorAll('.report-tabs button');
+        const panels = document.querySelectorAll('.report-tab-panel');
+        buttons.forEach((btn) => {
+            btn.addEventListener('click', () => {
+                buttons.forEach((b) => b.classList.remove('active'));
+                panels.forEach((p) => p.classList.remove('active'));
+                btn.classList.add('active');
+                document.querySelector(`.report-tab-panel[data-panel="${btn.dataset.tab}"]`).classList.add('active');
+            });
+        });
+    })();
+
     Chart.defaults.color = '#94a3b8';
     const chartOpts = {
         responsive: true,
