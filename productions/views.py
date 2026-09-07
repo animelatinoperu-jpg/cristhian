@@ -7878,6 +7878,7 @@ class ProductionReportView(LoginRequiredMixin, DetailView):
         troquelado_total = TroqueladoEntry.objects.filter(production=production, is_active=True).aggregate(total=Sum("weight_kg"))["total"] or 0
         tunnel_packaging_total = sum((float(entry.kilos or 0) for entry in tunnel_packaging), 0.0)
         plate_packaging_total = sum((float(entry.kilos or 0) for entry in plate_packaging), 0.0)
+        crew_summary = crew_control_summary(production)
 
         context.update(
             {
@@ -7899,10 +7900,30 @@ class ProductionReportView(LoginRequiredMixin, DetailView):
                 "area_chart_data": json.dumps(self._build_area_chart(reception_total, nuquera_total, troquelado_total, tunnel_packaging_total, plate_packaging_total)),
                 "packaging_chart_data": json.dumps(self._build_packaging_chart(tunnel_packaging, plate_packaging)),
                 "costs_chart_data": json.dumps(self._build_costs_chart(costs)),
-                "crew_summary": crew_control_summary(production),
+                "crew_summary": crew_summary,
+                "crew_chart_data": json.dumps(self._build_crew_chart(crew_summary)),
             }
         )
         return context
+
+    @staticmethod
+    def _build_crew_chart(crew_summary):
+        rows = crew_summary.get("rows", [])[:10]
+        return {
+            "labels": [row["crew_name"] for row in rows],
+            "datasets": [
+                {
+                    "label": "Túneles (kg)",
+                    "data": [float(row["tunnel_kg"]) for row in rows],
+                    "backgroundColor": "#45B7D1",
+                },
+                {
+                    "label": "Plaqueros (kg)",
+                    "data": [float(row["plate_kg"]) for row in rows],
+                    "backgroundColor": "#96CEB4",
+                },
+            ],
+        }
 
     @staticmethod
     def _build_area_chart(reception_total, nuquera_total, troquelado_total, tunnel_packaging_total, plate_packaging_total):

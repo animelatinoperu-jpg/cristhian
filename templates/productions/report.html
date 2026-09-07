@@ -62,24 +62,36 @@
         background: #fff;
         border: 1px solid #d6dedb;
         border-radius: 14px;
-        padding: 18px;
-        margin-bottom: 14px;
+        padding: 16px 18px;
+        margin-bottom: 12px;
+        transition: box-shadow 0.15s ease, transform 0.15s ease;
     }
+    .crew-tareo-card:hover { box-shadow: 0 6px 18px rgba(18,45,37,.08); }
     .crew-tareo-card header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         flex-wrap: wrap;
         gap: 8px;
-        margin-bottom: 10px;
+        cursor: pointer;
+        user-select: none;
     }
-    .crew-tareo-card h3 { margin: 0; font-size: 1.1em; }
+    .crew-tareo-card h3 { margin: 0; font-size: 1.1em; display: flex; align-items: center; gap: 8px; }
+    .crew-tareo-card h3 .toggle-icon { transition: transform 0.2s ease; display: inline-block; color: #0d5b49; font-size: 0.85em; }
+    .crew-tareo-card.is-open h3 .toggle-icon { transform: rotate(90deg); }
     .crew-tareo-total { text-align: right; }
     .crew-tareo-total strong { display: block; font-size: 1.3em; color: #0d5b49; }
+    .crew-tareo-body {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.25s ease;
+    }
+    .crew-tareo-card.is-open .crew-tareo-body { max-height: 900px; }
     .crew-tareo-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         gap: 10px;
+        margin-top: 12px;
     }
     .crew-tareo-chip {
         background: #f4f6f5;
@@ -90,6 +102,33 @@
     .crew-tareo-chip.has-work { background: #e4f3ee; }
     .crew-tareo-chip small { display: block; color: #6b7a75; font-size: 0.75em; }
     .crew-tareo-chip strong { display: block; font-size: 1.05em; }
+
+    .crew-search-bar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+    }
+    .crew-search-bar input {
+        flex: 1;
+        min-width: 220px;
+        padding: 10px 14px;
+        border: 1px solid #d6dedb;
+        border-radius: 10px;
+        font-size: 0.95em;
+    }
+    .crew-search-bar button {
+        border: 1px solid #d6dedb;
+        background: #fff;
+        border-radius: 10px;
+        padding: 9px 14px;
+        font-size: 0.85em;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .crew-search-bar button.active { background: #0d5b49; color: #fff; border-color: #0d5b49; }
+    .crew-no-match { display: none; padding: 16px; color: #6b7a75; }
 
     @media print {
         .report-tabs-wrap { display: none; }
@@ -118,7 +157,7 @@
 <div class="report-tabs-wrap no-print">
   <div class="report-tabs" role="tablist">
     <button type="button" class="active" data-tab="resumen">📊 Resumen</button>
-    <button type="button" data-tab="cuadrillas">👥 Cuadrillas / Tareo</button>
+    <button type="button" data-tab="cuadrillas">👥 Envasado en Túneles y Placas</button>
     <button type="button" data-tab="recepcion">🚚 Recepción</button>
     <button type="button" data-tab="procesos">⚙️ Nuqueras y Troquelado</button>
     <button type="button" data-tab="empaque">📦 Empaque</button>
@@ -152,33 +191,52 @@
 
 <div class="report-tab-panel" data-panel="cuadrillas">
   <section class="report-section mb-3">
-    <h2>Tareo consolidado por cuadrilla</h2>
-    <p class="text-secondary small mb-0">Cantidad de bandejas y kilogramos realizados por cada cuadrilla, en túneles y plaqueros. Mismo dato que "Control de cuadrillas".</p>
+    <h2>Envasado en Túneles y Placas</h2>
+    <p class="text-secondary small mb-0">Cantidad de bandejas y kilogramos envasados por cada cuadrilla, en túneles y plaqueros.</p>
   </section>
+
   {% if crew_summary.rows %}
-    {% for row in crew_summary.rows %}
-      <div class="crew-tareo-card">
-        <header>
-          <h3>{{ row.crew_name }}</h3>
-          <div class="crew-tareo-total">
-            <strong>{{ row.total_kg }} kg</strong>
-            <span class="text-secondary small">{{ row.total_trays }} bandejas</span>
+    <div class="chart-card mb-3">
+      <h3>Ranking de cuadrillas (kg envasados)</h3>
+      <div class="chart-container" style="height:320px;"><canvas id="crewChart"></canvas></div>
+    </div>
+
+    <div class="crew-search-bar">
+      <input type="text" id="crewSearch" placeholder="🔍 Buscar cuadrilla por nombre...">
+      <button type="button" class="crew-sort-btn active" data-sort="kg">Ordenar por kg</button>
+      <button type="button" class="crew-sort-btn" data-sort="name">Ordenar por nombre</button>
+      <button type="button" id="crewExpandAll">Expandir todo</button>
+      <button type="button" id="crewCollapseAll">Colapsar todo</button>
+    </div>
+
+    <div id="crewCardsList">
+      {% for row in crew_summary.rows %}
+        <div class="crew-tareo-card" data-name="{{ row.crew_name|lower }}" data-kg="{{ row.total_kg }}">
+          <header class="crew-tareo-toggle">
+            <h3><span class="toggle-icon">▶</span> {{ row.crew_name }}</h3>
+            <div class="crew-tareo-total">
+              <strong>{{ row.total_kg }} kg</strong>
+              <span class="text-secondary small">{{ row.total_trays }} bandejas</span>
+            </div>
+          </header>
+          <div class="crew-tareo-body">
+            <div class="row g-2 mb-2">
+              <div class="col-6"><div class="crew-tareo-chip {% if row.tunnel_trays %}has-work{% endif %}"><small>Túneles</small><strong>{{ row.tunnel_kg }} kg</strong><small>{{ row.tunnel_trays }} bdj</small></div></div>
+              <div class="col-6"><div class="crew-tareo-chip {% if row.plate_trays %}has-work{% endif %}"><small>Plaqueros</small><strong>{{ row.plate_kg }} kg</strong><small>{{ row.plate_trays }} bdj</small></div></div>
+            </div>
+            <div class="crew-tareo-grid">
+              {% for tunnel in row.tunnels %}
+                <div class="crew-tareo-chip {% if tunnel.trays %}has-work{% endif %}"><small>{{ tunnel.code }}</small><strong>{{ tunnel.trays }}</strong><small>{{ tunnel.kg }} kg</small></div>
+              {% endfor %}
+              {% for plate_rack in row.plate_racks %}
+                <div class="crew-tareo-chip {% if plate_rack.trays %}has-work{% endif %}"><small>{{ plate_rack.label }}</small><strong>{{ plate_rack.trays }}</strong><small>{{ plate_rack.kg }} kg</small></div>
+              {% endfor %}
+            </div>
           </div>
-        </header>
-        <div class="row g-2 mb-2">
-          <div class="col-6"><div class="crew-tareo-chip {% if row.tunnel_trays %}has-work{% endif %}"><small>Túneles</small><strong>{{ row.tunnel_kg }} kg</strong><small>{{ row.tunnel_trays }} bdj</small></div></div>
-          <div class="col-6"><div class="crew-tareo-chip {% if row.plate_trays %}has-work{% endif %}"><small>Plaqueros</small><strong>{{ row.plate_kg }} kg</strong><small>{{ row.plate_trays }} bdj</small></div></div>
         </div>
-        <div class="crew-tareo-grid">
-          {% for tunnel in row.tunnels %}
-            <div class="crew-tareo-chip {% if tunnel.trays %}has-work{% endif %}"><small>{{ tunnel.code }}</small><strong>{{ tunnel.trays }}</strong><small>{{ tunnel.kg }} kg</small></div>
-          {% endfor %}
-          {% for plate_rack in row.plate_racks %}
-            <div class="crew-tareo-chip {% if plate_rack.trays %}has-work{% endif %}"><small>{{ plate_rack.label }}</small><strong>{{ plate_rack.trays }}</strong><small>{{ plate_rack.kg }} kg</small></div>
-          {% endfor %}
-        </div>
-      </div>
-    {% endfor %}
+      {% endfor %}
+    </div>
+    <div class="crew-no-match" id="crewNoMatch">No se encontraron cuadrillas con ese nombre.</div>
   {% else %}
     <div class="alert alert-light border">Todavía no existen registros por cuadrilla en este PP.</div>
   {% endif %}
@@ -243,10 +301,23 @@
     })();
 
     Chart.defaults.color = '#94a3b8';
+    const kgTooltip = {
+        callbacks: {
+            label: (ctx) => {
+                const value = ctx.parsed.y ?? ctx.parsed.x ?? ctx.parsed;
+                const label = ctx.dataset.label ? `${ctx.dataset.label}: ` : `${ctx.label}: `;
+                return `${label}${Number(value).toLocaleString('es-PE', { maximumFractionDigits: 2 })} kg`;
+            }
+        }
+    };
     const chartOpts = {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: '#e2e8f0', boxWidth: 12, font: { size: 11 } } } },
+        animation: { duration: 600, easing: 'easeOutQuart' },
+        plugins: {
+            legend: { labels: { color: '#e2e8f0', boxWidth: 12, font: { size: 11 } } },
+            tooltip: kgTooltip,
+        },
         scales: {
             y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8' } },
             x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
@@ -256,19 +327,78 @@
     new Chart(document.getElementById('areaChart'), {
         type: 'doughnut',
         data: {{ area_chart_data|safe }},
-        options: { responsive: true, maintainAspectRatio: false, plugins: chartOpts.plugins }
+        options: { responsive: true, maintainAspectRatio: false, animation: chartOpts.animation, plugins: { legend: chartOpts.plugins.legend, tooltip: kgTooltip } }
     });
 
     new Chart(document.getElementById('packagingChart'), {
         type: 'bar',
         data: {{ packaging_chart_data|safe }},
-        options: { ...chartOpts, plugins: { legend: { display: false } }, indexAxis: 'y' }
+        options: { ...chartOpts, plugins: { legend: { display: false }, tooltip: kgTooltip }, indexAxis: 'y' }
     });
 
     new Chart(document.getElementById('costsChart'), {
         type: 'bar',
         data: {{ costs_chart_data|safe }},
-        options: { ...chartOpts, plugins: { legend: { display: false } } }
+        options: {
+            ...chartOpts,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: (ctx) => `S/ ${Number(ctx.parsed.y).toLocaleString('es-PE', { minimumFractionDigits: 2 })}` } }
+            }
+        }
     });
+
+    const crewChartEl = document.getElementById('crewChart');
+    if (crewChartEl) {
+        new Chart(crewChartEl, {
+            type: 'bar',
+            data: {{ crew_chart_data|safe }},
+            options: {
+                ...chartOpts,
+                scales: { ...chartOpts.scales, x: { ...chartOpts.scales.x, stacked: true }, y: { ...chartOpts.scales.y, stacked: true } },
+            }
+        });
+    }
+
+    (function () {
+        const list = document.getElementById('crewCardsList');
+        if (!list) return;
+        const cards = Array.from(list.querySelectorAll('.crew-tareo-card'));
+        const searchInput = document.getElementById('crewSearch');
+        const noMatch = document.getElementById('crewNoMatch');
+        const sortBtns = document.querySelectorAll('.crew-sort-btn');
+
+        cards.forEach((card) => {
+            const header = card.querySelector('.crew-tareo-toggle');
+            header.addEventListener('click', () => card.classList.toggle('is-open'));
+        });
+
+        document.getElementById('crewExpandAll').addEventListener('click', () => cards.forEach((c) => c.classList.add('is-open')));
+        document.getElementById('crewCollapseAll').addEventListener('click', () => cards.forEach((c) => c.classList.remove('is-open')));
+
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.trim().toLowerCase();
+            let visibleCount = 0;
+            cards.forEach((card) => {
+                const matches = card.dataset.name.includes(query);
+                card.style.display = matches ? '' : 'none';
+                if (matches) visibleCount += 1;
+            });
+            noMatch.style.display = visibleCount === 0 ? 'block' : 'none';
+        });
+
+        sortBtns.forEach((btn) => {
+            btn.addEventListener('click', () => {
+                sortBtns.forEach((b) => b.classList.remove('active'));
+                btn.classList.add('active');
+                const sortBy = btn.dataset.sort;
+                const sorted = [...cards].sort((a, b) => {
+                    if (sortBy === 'kg') return parseFloat(b.dataset.kg) - parseFloat(a.dataset.kg);
+                    return a.dataset.name.localeCompare(b.dataset.name);
+                });
+                sorted.forEach((card) => list.appendChild(card));
+            });
+        });
+    })();
 </script>
 {% endblock %}
