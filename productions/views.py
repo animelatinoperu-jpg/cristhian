@@ -1,5 +1,6 @@
 import datetime as dt
 import itertools
+import json
 import re
 from collections import defaultdict
 from decimal import Decimal, ROUND_HALF_UP
@@ -7867,26 +7868,88 @@ class ProductionReportView(LoginRequiredMixin, DetailView):
                 entry.pk,
             )
         )
+        tunnel_packaging = list(
+            TunnelPackagingEntry.objects.filter(production=production, is_active=True).select_related("product")
+        )
+        costs = list(CostEntry.objects.filter(production=production, is_active=True).select_related("rate"))
+
+        reception_total = ReceptionEntry.objects.filter(production=production, is_active=True).aggregate(total=Sum("weight_kg"))["total"] or 0
+        nuquera_total = NuqueraEntry.objects.filter(production=production, is_active=True).aggregate(total=Sum("weight_kg"))["total"] or 0
+        troquelado_total = TroqueladoEntry.objects.filter(production=production, is_active=True).aggregate(total=Sum("weight_kg"))["total"] or 0
+        tunnel_packaging_total = sum((float(entry.kilos or 0) for entry in tunnel_packaging), 0.0)
+        plate_packaging_total = sum((float(entry.kilos or 0) for entry in plate_packaging), 0.0)
+
         context.update(
             {
                 "tunnel_reconciliation": tunnel_reconciliation(production),
                 "plate_reconciliation": plate_reconciliation(production),
                 "receptions": ReceptionEntry.objects.filter(production=production, is_active=True).select_related("vehicle", "product", "crew"),
-                "reception_total": ReceptionEntry.objects.filter(production=production, is_active=True).aggregate(total=Sum("weight_kg"))["total"] or 0,
+                "reception_total": reception_total,
                 "reception_cone_pota_summary": reception_cone_pota_summary(production),
                 "nuqueras": NuqueraEntry.objects.filter(production=production, is_active=True).select_related("worker", "crew"),
-                "nuquera_total": NuqueraEntry.objects.filter(production=production, is_active=True).aggregate(total=Sum("weight_kg"))["total"] or 0,
+                "nuquera_total": nuquera_total,
                 "troquelados": TroqueladoEntry.objects.filter(production=production, is_active=True).select_related("worker"),
-                "troquelado_total": TroqueladoEntry.objects.filter(production=production, is_active=True).aggregate(total=Sum("weight_kg"))["total"] or 0,
-                "tunnel_packaging": TunnelPackagingEntry.objects.filter(production=production, is_active=True).select_related("product"),
+                "troquelado_total": troquelado_total,
+                "tunnel_packaging": tunnel_packaging,
                 "plate_packaging": plate_packaging,
                 "materials": MaterialUsage.objects.filter(production=production, is_active=True).select_related("material"),
-                "costs": CostEntry.objects.filter(production=production, is_active=True).select_related("rate"),
+                "costs": costs,
                 "audit_logs": production.audit_logs.select_related("user")[:20],
                 "back_url": _safe_back_url(self.request, reverse("productions:detail", args=[production.pk])),
+                "area_chart_data": json.dumps(self._build_area_chart(reception_total, nuquera_total, troquelado_total, tunnel_packaging_total, plate_packaging_total)),
+                "packaging_chart_data": json.dumps(self._build_packaging_chart(tunnel_packaging, plate_packaging)),
+                "costs_chart_data": json.dumps(self._build_costs_chart(costs)),
             }
         )
         return context
+
+    @staticmethod
+    def _build_area_chart(reception_total, nuquera_total, troquelado_total, tunnel_packaging_total, plate_packaging_total):
+        return {
+            "labels": ["Recepción", "Nuqueras", "Troquelado", "Emp. Túneles", "Emp. Placas"],
+            "datasets": [{
+                "data": [float(reception_total), float(nuquera_total), float(troquelado_total), tunnel_packaging_total, plate_packaging_total],
+                "backgroundColor": ["#45B7D1", "#FFEAA7", "#DDA0DD", "#4ECDC4", "#96CEB4"],
+                "borderColor": "#0f172a",
+                "borderWidth": 3,
+            }],
+        }
+
+    @staticmethod
+    def _build_packaging_chart(tunnel_packaging, plate_packaging):
+        totals = {}
+        for entry in tunnel_packaging:
+            key = str(entry.product)
+            totals[key] = totals.get(key, 0.0) + float(entry.kilos or 0)
+        for entry in plate_packaging:
+            key = str(entry.product)
+            totals[key] = totals.get(key, 0.0) + float(entry.kilos or 0)
+        ordered = sorted(totals.items(), key=lambda item: item[1], reverse=True)[:8]
+        palette = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#74B9FF", "#FD79A8"]
+        return {
+            "labels": [label for label, _ in ordered],
+            "datasets": [{
+                "label": "Kg empacados",
+                "data": [round(value, 2) for _, value in ordered],
+                "backgroundColor": palette[: len(ordered)] or ["#4ECDC4"],
+            }],
+        }
+
+    @staticmethod
+    def _build_costs_chart(costs):
+        totals = {}
+        for entry in costs:
+            key = entry.concept
+            totals[key] = totals.get(key, 0.0) + float(entry.total or 0)
+        ordered = sorted(totals.items(), key=lambda item: item[1], reverse=True)[:8]
+        return {
+            "labels": [label for label, _ in ordered],
+            "datasets": [{
+                "label": "Costo total",
+                "data": [round(value, 2) for _, value in ordered],
+                "backgroundColor": "#FFEAA7",
+            }],
+        }
 
 
 class ReceptionReportXlsxView(LoginRequiredMixin, View):

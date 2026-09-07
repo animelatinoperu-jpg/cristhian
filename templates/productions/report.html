@@ -1,5 +1,42 @@
 {% extends "base.html" %}
 {% block title %}Reporte PP {{ production.number }}{% endblock %}
+{% block extra_css %}
+<style>
+    .charts-section {
+        margin: 30px 0 40px 0;
+    }
+    .charts-section h2 {
+        font-size: 1.4em;
+        font-weight: 800;
+        margin-bottom: 18px;
+    }
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 20px;
+    }
+    .chart-card {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 24px;
+        color: #f1f5f9;
+    }
+    .chart-card h3 {
+        font-size: 1.05em;
+        font-weight: 700;
+        margin-bottom: 16px;
+        color: #f1f5f9;
+    }
+    .chart-card .chart-container {
+        position: relative;
+        height: 280px;
+    }
+    @media print {
+        .charts-section { display: none; }
+    }
+</style>
+{% endblock %}
 {% block content %}
 <div class="page-header no-print">
   <div class="page-header-copy">
@@ -18,6 +55,24 @@
   <div class="col-6 col-lg-3"><div class="metric-card {% if tunnel_reconciliation.difference %}metric-alert{% endif %}"><span>Dif. túneles</span><strong>{{ tunnel_reconciliation.difference }}</strong></div></div>
   <div class="col-6 col-lg-3"><div class="metric-card {% if plate_reconciliation.difference %}metric-alert{% endif %}"><span>Dif. placas</span><strong>{{ plate_reconciliation.difference }}</strong></div></div>
 </div>
+
+<section class="charts-section no-print">
+  <h2>📊 Análisis Visual del PP</h2>
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>Distribución por Área (kg)</h3>
+      <div class="chart-container"><canvas id="areaChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Empaque por Producto (kg)</h3>
+      <div class="chart-container"><canvas id="packagingChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Costos por Concepto</h3>
+      <div class="chart-container"><canvas id="costsChart"></canvas></div>
+    </div>
+  </div>
+</section>
 
 <section class="report-section"><h2>Recepción de materia prima</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Fecha</th><th>Vehículo</th><th>Producto</th><th>Cuadrilla</th><th class="text-end">Peso kg</th></tr></thead><tbody>{% for entry in receptions %}<tr><td>{{ entry.date|date:"d/m/Y" }}</td><td>{{ entry.vehicle.plate }}</td><td>{{ entry.product }}</td><td>{{ entry.crew|default:"—" }}</td><td class="text-end">{{ entry.weight_kg|floatformat:"2u" }}</td></tr>{% empty %}<tr><td colspan="5">Sin registros.</td></tr>{% endfor %}</tbody></table></div></section>
 
@@ -79,4 +134,36 @@
 </div>
 
 <section class="report-section mt-4 no-print"><h2>Auditoría reciente</h2><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Fecha</th><th>Usuario</th><th>Módulo</th><th>Acción</th><th>Registro</th></tr></thead><tbody>{% for log in audit_logs %}<tr><td>{{ log.timestamp|date:"d/m/Y H:i" }}</td><td>{{ log.user|default:"Sistema" }}</td><td>{{ log.module }}</td><td>{{ log.get_action_display }}</td><td>{{ log.record_pk|default:"—" }}</td></tr>{% empty %}<tr><td colspan="5">Sin eventos.</td></tr>{% endfor %}</tbody></table></div></section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+    Chart.defaults.color = '#94a3b8';
+    const chartOpts = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#e2e8f0', boxWidth: 12, font: { size: 11 } } } },
+        scales: {
+            y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8' } },
+            x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+        }
+    };
+
+    new Chart(document.getElementById('areaChart'), {
+        type: 'doughnut',
+        data: {{ area_chart_data|safe }},
+        options: { responsive: true, maintainAspectRatio: false, plugins: chartOpts.plugins }
+    });
+
+    new Chart(document.getElementById('packagingChart'), {
+        type: 'bar',
+        data: {{ packaging_chart_data|safe }},
+        options: { ...chartOpts, plugins: { legend: { display: false } }, indexAxis: 'y' }
+    });
+
+    new Chart(document.getElementById('costsChart'), {
+        type: 'bar',
+        data: {{ costs_chart_data|safe }},
+        options: { ...chartOpts, plugins: { legend: { display: false } } }
+    });
+</script>
 {% endblock %}
