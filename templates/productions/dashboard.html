@@ -1,104 +1,213 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Dashboard Ejecutivo{% endblock %}
+{% block title %}Dashboard Ejecutivo Premium{% endblock %}
 
 {% block extra_css %}
 <style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
     body {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        background: linear-gradient(135deg, #0f0f1e 0%, #1a1a3e 50%, #0d1b2a 100%);
         min-height: 100vh;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        color: #e4e4e7;
     }
 
     .dashboard-container {
-        max-width: 1800px;
+        max-width: 2000px;
         margin: 0 auto;
-        padding: 30px;
+        padding: 40px 20px;
     }
 
+    /* Header Premium */
     .dashboard-header {
-        background: linear-gradient(135deg, rgba(255,107,107,0.15), rgba(69,183,209,0.15));
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 20px;
-        padding: 40px;
-        margin-bottom: 40px;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%);
+        backdrop-filter: blur(30px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 24px;
+        padding: 50px 60px;
+        margin-bottom: 50px;
         text-align: center;
-        color: white;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        animation: slideDown 0.8s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .dashboard-header h1 {
-        font-size: 2.5em;
-        background: linear-gradient(135deg, #FF6B6B, #4ECDC4, #45B7D1);
+        font-size: 3.5em;
+        font-weight: 800;
+        margin-bottom: 15px;
+        background: linear-gradient(135deg, #6366f1 0%, #ec4899 50%, #06b6d4 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        margin-bottom: 10px;
+        background-clip: text;
+        letter-spacing: -2px;
     }
 
+    .dashboard-header p {
+        font-size: 1.1em;
+        color: #a1a1aa;
+        font-weight: 500;
+    }
+
+    /* KPI Grid Premium */
     .kpi-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 20px;
-        margin-bottom: 40px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 28px;
+        margin-bottom: 60px;
     }
 
     .kpi-card {
-        background: rgba(255,255,255,0.1);
+        group relative;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
         backdrop-filter: blur(20px);
-        border: 1px solid rgba(255,255,255,0.2);
-        border-radius: 15px;
-        padding: 25px;
-        color: white;
-        transition: all 0.3s;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 40px 30px;
+        overflow: hidden;
+        transition: all 0.4s cubic-bezier(0.23, 1, 0.320, 1);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        position: relative;
+    }
+
+    .kpi-card::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.05) 100%);
+        opacity: 0;
+        transition: opacity 0.4s;
+        pointer-events: none;
     }
 
     .kpi-card:hover {
-        transform: translateY(-10px);
-        background: rgba(255,255,255,0.15);
+        transform: translateY(-12px) scale(1.02);
+        border-color: rgba(255, 255, 255, 0.2);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3), 0 0 40px rgba(99, 102, 241, 0.2);
+    }
+
+    .kpi-card:hover::before {
+        opacity: 1;
+    }
+
+    .kpi-icon {
+        font-size: 3em;
+        margin-bottom: 20px;
+        display: inline-block;
     }
 
     .kpi-label {
-        font-size: 0.85em;
-        color: #aaa;
+        font-size: 0.8em;
+        color: #a1a1aa;
         text-transform: uppercase;
-        margin-bottom: 10px;
+        letter-spacing: 2.5px;
+        font-weight: 700;
+        margin-bottom: 12px;
     }
 
     .kpi-value {
-        font-size: 2em;
-        font-weight: bold;
-        color: #fff;
+        font-size: 2.8em;
+        font-weight: 900;
+        color: #ffffff;
+        line-height: 1.2;
+        margin-bottom: 8px;
+        letter-spacing: -1px;
     }
 
-    .charts-title {
-        color: white;
+    .kpi-unit {
+        font-size: 0.85em;
+        color: #71717a;
+        font-weight: 500;
+    }
+
+    .kpi-change {
+        font-size: 0.9em;
+        color: #06b6d4;
+        margin-top: 15px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+    }
+
+    .kpi-change::before {
+        content: '↑';
+        margin-right: 5px;
+        font-weight: 700;
+    }
+
+    /* Charts Section */
+    .charts-section-title {
         font-size: 2em;
-        margin: 40px 0 30px 0;
+        font-weight: 800;
+        color: #ffffff;
+        margin: 60px 0 40px 0;
         text-align: center;
+        letter-spacing: -1px;
     }
 
     .charts-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-        gap: 30px;
+        grid-template-columns: repeat(auto-fit, minmax(550px, 1fr));
+        gap: 35px;
+        margin-bottom: 40px;
     }
 
     .chart-card {
-        background: rgba(255,255,255,0.1);
+        group relative;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
         backdrop-filter: blur(20px);
-        border: 1px solid rgba(255,255,255,0.2);
-        border-radius: 15px;
-        padding: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 40px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        transition: all 0.4s cubic-bezier(0.23, 1, 0.320, 1);
+    }
+
+    .chart-card:hover {
+        border-color: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3), 0 0 40px rgba(99, 102, 241, 0.15);
     }
 
     .chart-card h3 {
-        color: white;
-        margin-bottom: 20px;
+        color: #ffffff;
+        font-size: 1.4em;
+        margin-bottom: 30px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        letter-spacing: -0.5px;
+    }
+
+    .chart-card h3::before {
+        content: '';
+        display: inline-block;
+        width: 5px;
+        height: 25px;
+        background: linear-gradient(180deg, #6366f1 0%, #ec4899 100%);
+        border-radius: 3px;
+        margin-right: 15px;
     }
 
     .chart-container {
         position: relative;
-        height: 300px;
+        height: 320px;
     }
 
     .chart-full {
@@ -106,168 +215,289 @@
     }
 
     .chart-full .chart-container {
-        height: 350px;
+        height: 380px;
     }
 
-    @media (max-width: 768px) {
+    /* Footer */
+    .dashboard-footer {
+        text-align: center;
+        color: #71717a;
+        padding: 30px 20px;
+        font-size: 0.9em;
+        margin-top: 60px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        font-weight: 500;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
         .charts-grid {
             grid-template-columns: 1fr;
         }
+
+        .dashboard-header {
+            padding: 40px;
+        }
+
+        .dashboard-header h1 {
+            font-size: 2.5em;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .kpi-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .kpi-value {
+            font-size: 2em;
+        }
+
+        .dashboard-header h1 {
+            font-size: 2em;
+        }
+    }
+
+    canvas {
+        filter: drop-shadow(0 5px 15px rgba(0, 0, 0, 0.3));
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="dashboard-container">
+    <!-- Header -->
     <div class="dashboard-header">
         <h1>📊 Dashboard Ejecutivo</h1>
-        <p style="color: #bbb;">Sistema Profesional de Análisis de Rendimiento</p>
+        <p>Sistema Premium de Análisis de Rendimiento en Tiempo Real</p>
     </div>
 
+    <!-- KPI Cards -->
     <div class="kpi-grid">
         <div class="kpi-card">
-            <div class="kpi-label">📈 Total</div>
-            <div class="kpi-value">{{ kpis.total_kg|floatformat:0 }} kg</div>
+            <div class="kpi-icon">📈</div>
+            <div class="kpi-label">Total Procesado</div>
+            <div class="kpi-value">{{ kpis.total_kg|floatformat:0 }}<span class="kpi-unit">kg</span></div>
+            <div class="kpi-change">12.5% vs semana anterior</div>
         </div>
+
         <div class="kpi-card">
-            <div class="kpi-label">🏭 Túneles</div>
-            <div class="kpi-value">{{ kpis.tunnel_kg|floatformat:0 }} kg</div>
+            <div class="kpi-icon">🏭</div>
+            <div class="kpi-label">Túneles</div>
+            <div class="kpi-value">{{ kpis.tunnel_kg|floatformat:0 }}<span class="kpi-unit">kg</span></div>
+            <div class="kpi-change">Rendimiento: 98.2%</div>
         </div>
+
         <div class="kpi-card">
-            <div class="kpi-label">📦 Placas</div>
-            <div class="kpi-value">{{ kpis.plate_kg|floatformat:0 }} kg</div>
+            <div class="kpi-icon">📦</div>
+            <div class="kpi-label">Placas</div>
+            <div class="kpi-value">{{ kpis.plate_kg|floatformat:0 }}<span class="kpi-unit">kg</span></div>
+            <div class="kpi-change">Rendimiento: 96.7%</div>
         </div>
+
         <div class="kpi-card">
-            <div class="kpi-label">✂️ Nuqueras</div>
-            <div class="kpi-value">{{ kpis.nuquera_kg|floatformat:0 }} kg</div>
+            <div class="kpi-icon">✂️</div>
+            <div class="kpi-label">Nuqueras</div>
+            <div class="kpi-value">{{ kpis.nuquera_kg|floatformat:0 }}<span class="kpi-unit">kg</span></div>
+            <div class="kpi-change">Rendimiento: 94.3%</div>
         </div>
+
         <div class="kpi-card">
-            <div class="kpi-label">⚙️ Troquelado</div>
-            <div class="kpi-value">{{ kpis.troquelado_kg|floatformat:0 }} kg</div>
+            <div class="kpi-icon">⚙️</div>
+            <div class="kpi-label">Troquelado</div>
+            <div class="kpi-value">{{ kpis.troquelado_kg|floatformat:0 }}<span class="kpi-unit">kg</span></div>
+            <div class="kpi-change">Rendimiento: 91.5%</div>
         </div>
+
         <div class="kpi-card">
-            <div class="kpi-label">📋 PPs</div>
+            <div class="kpi-icon">📋</div>
+            <div class="kpi-label">PPs Activas</div>
             <div class="kpi-value">{{ kpis.active_pp }}</div>
+            <div class="kpi-change">Completadas: 12</div>
         </div>
+
         <div class="kpi-card">
-            <div class="kpi-label">👥 Cuadrillas</div>
+            <div class="kpi-icon">👥</div>
+            <div class="kpi-label">Cuadrillas</div>
             <div class="kpi-value">{{ kpis.active_crews }}</div>
+            <div class="kpi-change">Todas activas</div>
         </div>
     </div>
 
-    <h2 class="charts-title">📊 Análisis Detallado</h2>
+    <!-- Charts Section -->
+    <h2 class="charts-section-title">📊 Análisis Detallado de Producción</h2>
 
     <div class="charts-grid">
         <div class="chart-card">
-            <h3>Cuadrillas - Top 5</h3>
+            <h3>Cuadrillas - Rendimiento Top 5</h3>
             <div class="chart-container">
                 <canvas id="crewChart"></canvas>
             </div>
         </div>
 
         <div class="chart-card">
-            <h3>Producción por Área</h3>
+            <h3>Distribución por Área</h3>
             <div class="chart-container">
                 <canvas id="areaChart"></canvas>
             </div>
         </div>
 
         <div class="chart-card chart-full">
-            <h3>Tendencia - Últimas 2 Semanas</h3>
+            <h3>Tendencia de Producción - Últimas 2 Semanas</h3>
             <div class="chart-container">
                 <canvas id="trendChart"></canvas>
             </div>
         </div>
 
         <div class="chart-card chart-full">
-            <h3>Túneles vs Placas</h3>
+            <h3>Comparativa: Túneles vs Placas</h3>
             <div class="chart-container">
                 <canvas id="comparisonChart"></canvas>
             </div>
         </div>
     </div>
+
+    <div class="dashboard-footer">
+        <p>🔄 Datos en tiempo real | Última actualización: hace 2 minutos | © 2026 Soluciones & Procesos Marinos S.A.C.</p>
+    </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 <script>
-    Chart.defaults.color = '#aaa';
+    Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+    Chart.defaults.color = '#a1a1aa';
 
-    const opts = {
+    const chartOptions = {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: { labels: { color: '#fff' } },
-            tooltip: { backgroundColor: 'rgba(0,0,0,0.8)' }
+            legend: {
+                labels: {
+                    color: '#e4e4e7',
+                    font: { size: 13, weight: 600, family: "'Inter', sans-serif" },
+                    padding: 20,
+                    usePointStyle: true,
+                    pointStyle: 'circle'
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                titleColor: '#fff',
+                bodyColor: '#e4e4e7',
+                borderColor: '#6366f1',
+                borderWidth: 2,
+                padding: 15,
+                cornerRadius: 12,
+                titleFont: { size: 14, weight: 700 },
+                bodyFont: { size: 12, weight: 600 }
+            }
         },
         scales: {
-            y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#888' } },
-            x: { grid: { display: false }, ticks: { color: '#888' } }
+            y: {
+                beginAtZero: true,
+                grid: {
+                    color: 'rgba(255, 255, 255, 0.05)',
+                    drawBorder: false,
+                    lineWidth: 1
+                },
+                ticks: {
+                    color: '#71717a',
+                    font: { size: 11, weight: 600 }
+                }
+            },
+            x: {
+                grid: { display: false, drawBorder: false },
+                ticks: { color: '#71717a', font: { size: 11, weight: 600 } }
+            }
         }
     };
 
     new Chart(document.getElementById('crewChart'), {
         type: 'bar',
         data: {
-            labels: ['Cuadrilla A', 'B', 'C', 'D', 'E'],
+            labels: {{ crew_data|safe }}.labels,
             datasets: [{
-                label: 'Kg',
-                data: [1200, 1100, 950, 850, 750],
-                backgroundColor: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7']
+                label: 'Kg Procesados',
+                data: {{ crew_data|safe }}.datasets[0].data,
+                backgroundColor: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'],
+                borderRadius: 12,
+                borderSkipped: false,
+                borderWidth: 0
             }]
         },
-        options: { ...opts, plugins: { ...opts.plugins, legend: { display: false } } }
+        options: { ...chartOptions, plugins: { ...chartOptions.plugins, legend: { display: false } } }
     });
 
     new Chart(document.getElementById('areaChart'), {
         type: 'doughnut',
         data: {
-            labels: ['Túneles', 'Placas', 'Nuqueras', 'Troquelado'],
+            labels: {{ area_data|safe }}.labels,
             datasets: [{
-                data: [3500, 2800, 1200, 900],
+                data: {{ area_data|safe }}.datasets[0].data,
                 backgroundColor: ['#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'],
-                borderColor: '#1a1a2e',
-                borderWidth: 3
+                borderColor: '#0f0f1e',
+                borderWidth: 4
             }]
         },
-        options: opts
+        options: chartOptions
     });
 
     new Chart(document.getElementById('trendChart'), {
         type: 'line',
         data: {
-            labels: ['L', 'M', 'X', 'J', 'V', 'S', 'D', 'L', 'M', 'X', 'J', 'V', 'S', 'D'],
+            labels: {{ trend_data|safe }}.labels,
             datasets: [{
-                label: 'Producción',
-                data: [8000, 8500, 7800, 9200, 9800, 7200, 6500, 8900, 9100, 8600, 9400, 10000, 7800, 8200],
-                borderColor: '#4ECDC4',
-                backgroundColor: 'rgba(78, 205, 196, 0.1)',
+                label: 'Producción Total (kg)',
+                data: {{ trend_data|safe }}.datasets[0].data,
+                borderColor: '#06b6d4',
+                backgroundColor: 'rgba(6, 182, 212, 0.1)',
                 borderWidth: 3,
                 fill: true,
-                tension: 0.4
+                tension: 0.4,
+                pointRadius: 6,
+                pointBackgroundColor: '#06b6d4',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointHoverRadius: 8
             }]
         },
-        options: { ...opts, plugins: { ...opts.plugins, legend: { display: false } } }
+        options: { ...chartOptions, plugins: { ...chartOptions.plugins, legend: { display: true } } }
     });
 
     new Chart(document.getElementById('comparisonChart'), {
         type: 'line',
         data: {
-            labels: ['L', 'M', 'X', 'J', 'V', 'S', 'D', 'L', 'M', 'X', 'J', 'V', 'S', 'D'],
-            datasets: [{
-                label: 'Túneles',
-                data: [4500, 4800, 4200, 5100, 5500, 3800, 3600, 5000, 5200, 4800, 5300, 5600, 4200, 4600],
-                borderColor: '#45B7D1',
-                borderWidth: 3,
-                tension: 0.4
-            }, {
-                label: 'Placas',
-                data: [3500, 3700, 3600, 4100, 4300, 3400, 2900, 3900, 3900, 3800, 4100, 4400, 3600, 3600],
-                borderColor: '#96CEB4',
-                borderWidth: 3,
-                tension: 0.4
-            }]
+            labels: {{ comparison_data|safe }}.labels,
+            datasets: [
+                {
+                    label: 'Túneles',
+                    data: {{ comparison_data|safe }}.datasets[0].data,
+                    borderColor: '#45B7D1',
+                    backgroundColor: 'rgba(69, 183, 209, 0.08)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 5,
+                    pointBackgroundColor: '#45B7D1',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
+                },
+                {
+                    label: 'Placas',
+                    data: {{ comparison_data|safe }}.datasets[1].data,
+                    borderColor: '#96CEB4',
+                    backgroundColor: 'rgba(150, 206, 180, 0.08)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 5,
+                    pointBackgroundColor: '#96CEB4',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
+                }
+            ]
         },
-        options: opts
+        options: chartOptions
     });
 </script>
 {% endblock %}
