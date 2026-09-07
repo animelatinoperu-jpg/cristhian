@@ -412,91 +412,31 @@
         }
     };
 
+    const crewData = {{ crew_data|safe }};
     new Chart(document.getElementById('crewChart'), {
         type: 'bar',
-        data: {
-            labels: {{ crew_data|safe }}.labels,
-            datasets: [{
-                label: 'Kg Procesados',
-                data: {{ crew_data|safe }}.datasets[0].data,
-                backgroundColor: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'],
-                borderRadius: 12,
-                borderSkipped: false,
-                borderWidth: 0
-            }]
-        },
+        data: crewData,
         options: { ...chartOptions, plugins: { ...chartOptions.plugins, legend: { display: false } } }
     });
 
+    const areaData = {{ area_data|safe }};
     new Chart(document.getElementById('areaChart'), {
         type: 'doughnut',
-        data: {
-            labels: {{ area_data|safe }}.labels,
-            datasets: [{
-                data: {{ area_data|safe }}.datasets[0].data,
-                backgroundColor: ['#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'],
-                borderColor: '#0f0f1e',
-                borderWidth: 4
-            }]
-        },
+        data: areaData,
         options: chartOptions
     });
 
+    const trendData = {{ trend_data|safe }};
     new Chart(document.getElementById('trendChart'), {
         type: 'line',
-        data: {
-            labels: {{ trend_data|safe }}.labels,
-            datasets: [{
-                label: 'Producción Total (kg)',
-                data: {{ trend_data|safe }}.datasets[0].data,
-                borderColor: '#06b6d4',
-                backgroundColor: 'rgba(6, 182, 212, 0.1)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 6,
-                pointBackgroundColor: '#06b6d4',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointHoverRadius: 8
-            }]
-        },
+        data: trendData,
         options: { ...chartOptions, plugins: { ...chartOptions.plugins, legend: { display: true } } }
     });
 
+    const comparisonData = {{ comparison_data|safe }};
     new Chart(document.getElementById('comparisonChart'), {
         type: 'line',
-        data: {
-            labels: {{ comparison_data|safe }}.labels,
-            datasets: [
-                {
-                    label: 'Túneles',
-                    data: {{ comparison_data|safe }}.datasets[0].data,
-                    borderColor: '#45B7D1',
-                    backgroundColor: 'rgba(69, 183, 209, 0.08)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 5,
-                    pointBackgroundColor: '#45B7D1',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2
-                },
-                {
-                    label: 'Placas',
-                    data: {{ comparison_data|safe }}.datasets[1].data,
-                    borderColor: '#96CEB4',
-                    backgroundColor: 'rgba(150, 206, 180, 0.08)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 5,
-                    pointBackgroundColor: '#96CEB4',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2
-                }
-            ]
-        },
+        data: comparisonData,
         options: chartOptions
     });
 </script>
