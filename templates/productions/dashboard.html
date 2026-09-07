@@ -1,31 +1,23 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Dashboard Profesional - Rendimiento{% endblock %}
+{% block title %}Dashboard Ejecutivo{% endblock %}
 
 {% block extra_css %}
 <style>
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
-
     body {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
         min-height: 100vh;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
-    .dashboard-wrapper {
+    .dashboard-container {
         max-width: 1800px;
         margin: 0 auto;
-        padding: 30px 20px;
+        padding: 30px;
     }
 
-    /* Header */
     .dashboard-header {
-        background: linear-gradient(135deg, rgba(255,107,107,0.1) 0%, rgba(69,183,209,0.1) 100%);
+        background: linear-gradient(135deg, rgba(255,107,107,0.15), rgba(69,183,209,0.15));
         backdrop-filter: blur(10px);
         border: 1px solid rgba(255,255,255,0.1);
         border-radius: 20px;
@@ -33,121 +25,55 @@
         margin-bottom: 40px;
         text-align: center;
         color: white;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
     }
 
     .dashboard-header h1 {
-        font-size: 3em;
-        font-weight: 800;
-        margin-bottom: 10px;
-        background: linear-gradient(135deg, #FF6B6B 0%, #4ECDC4 50%, #45B7D1 100%);
+        font-size: 2.5em;
+        background: linear-gradient(135deg, #FF6B6B, #4ECDC4, #45B7D1);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        background-clip: text;
-        text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        margin-bottom: 10px;
     }
 
-    .dashboard-header p {
-        font-size: 1.2em;
-        opacity: 0.9;
-        color: #bbb;
-    }
-
-    /* KPI Grid */
     .kpi-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 25px;
+        gap: 20px;
         margin-bottom: 40px;
     }
 
     .kpi-card {
-        background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%);
+        background: rgba(255,255,255,0.1);
         backdrop-filter: blur(20px);
-        border: 1px solid rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.2);
         border-radius: 15px;
-        padding: 30px;
-        position: relative;
-        overflow: hidden;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-    }
-
-    .kpi-card::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
-        background-size: 50px 50px;
-        pointer-events: none;
-    }
-
-    .kpi-card::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
-        opacity: 0;
-        transition: opacity 0.3s;
+        padding: 25px;
+        color: white;
+        transition: all 0.3s;
     }
 
     .kpi-card:hover {
-        transform: translateY(-15px) scale(1.05);
-        border-color: rgba(255,255,255,0.3);
-        box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-    }
-
-    .kpi-card:hover::after {
-        opacity: 1;
-    }
-
-    .kpi-icon {
-        font-size: 2.5em;
-        margin-bottom: 15px;
+        transform: translateY(-10px);
+        background: rgba(255,255,255,0.15);
     }
 
     .kpi-label {
         font-size: 0.85em;
         color: #aaa;
         text-transform: uppercase;
-        letter-spacing: 2px;
-        font-weight: 600;
         margin-bottom: 10px;
     }
 
     .kpi-value {
-        font-size: 2.5em;
-        font-weight: 900;
-        color: white;
-        line-height: 1;
-        margin-bottom: 5px;
-    }
-
-    .kpi-unit {
-        font-size: 0.9em;
-        color: #888;
-    }
-
-    .kpi-change {
-        font-size: 0.85em;
-        color: #4ECDC4;
-        margin-top: 10px;
-        font-weight: 600;
-    }
-
-    /* Charts Section */
-    .charts-section {
-        margin-bottom: 40px;
+        font-size: 2em;
+        font-weight: bold;
+        color: #fff;
     }
 
     .charts-title {
-        font-size: 1.8em;
         color: white;
-        margin-bottom: 30px;
-        font-weight: 700;
+        font-size: 2em;
+        margin: 40px 0 30px 0;
         text-align: center;
     }
 
@@ -158,36 +84,16 @@
     }
 
     .chart-card {
-        background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%);
+        background: rgba(255,255,255,0.1);
         backdrop-filter: blur(20px);
-        border: 1px solid rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.2);
         border-radius: 15px;
         padding: 30px;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-        transition: all 0.4s;
-    }
-
-    .chart-card:hover {
-        border-color: rgba(255,255,255,0.3);
-        box-shadow: 0 20px 60px rgba(0,0,0,0.4);
     }
 
     .chart-card h3 {
         color: white;
-        font-size: 1.3em;
-        margin-bottom: 25px;
-        display: flex;
-        align-items: center;
-    }
-
-    .chart-card h3::before {
-        content: '';
-        display: inline-block;
-        width: 4px;
-        height: 20px;
-        background: linear-gradient(180deg, #FF6B6B 0%, #4ECDC4 100%);
-        border-radius: 2px;
-        margin-right: 12px;
+        margin-bottom: 20px;
     }
 
     .chart-container {
@@ -195,7 +101,6 @@
         height: 300px;
     }
 
-    /* Full Width Chart */
     .chart-full {
         grid-column: 1 / -1;
     }
@@ -204,194 +109,115 @@
         height: 350px;
     }
 
-    /* Footer */
-    .dashboard-footer {
-        text-align: center;
-        color: #888;
-        padding: 20px;
-        font-size: 0.9em;
-        margin-top: 40px;
-        border-top: 1px solid rgba(255,255,255,0.1);
-    }
-
-    /* Responsive */
-    @media (max-width: 1024px) {
+    @media (max-width: 768px) {
         .charts-grid {
             grid-template-columns: 1fr;
         }
-
-        .dashboard-header h1 {
-            font-size: 2em;
-        }
-    }
-
-    canvas {
-        filter: drop-shadow(0 0 10px rgba(255,255,255,0.1));
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-wrapper">
-    <!-- Header -->
+<div class="dashboard-container">
     <div class="dashboard-header">
         <h1>📊 Dashboard Ejecutivo</h1>
-        <p>Sistema Profesional de Análisis de Rendimiento en Tiempo Real</p>
+        <p style="color: #bbb;">Sistema Profesional de Análisis de Rendimiento</p>
     </div>
 
-    <!-- KPI Cards -->
     <div class="kpi-grid">
         <div class="kpi-card">
-            <div class="kpi-icon">📈</div>
-            <div class="kpi-label">Total Procesado</div>
-            <div class="kpi-value">{{ kpis.total_kg|floatformat:0 }}<span class="kpi-unit">kg</span></div>
-            <div class="kpi-change">↑ 12.5% vs semana anterior</div>
+            <div class="kpi-label">📈 Total</div>
+            <div class="kpi-value">{{ kpis.total_kg|floatformat:0 }} kg</div>
         </div>
-
         <div class="kpi-card">
-            <div class="kpi-icon">🏭</div>
-            <div class="kpi-label">Túneles</div>
-            <div class="kpi-value">{{ kpis.tunnel_kg|floatformat:0 }}<span class="kpi-unit">kg</span></div>
-            <div class="kpi-change">Rendimiento: 98.2%</div>
+            <div class="kpi-label">🏭 Túneles</div>
+            <div class="kpi-value">{{ kpis.tunnel_kg|floatformat:0 }} kg</div>
         </div>
-
         <div class="kpi-card">
-            <div class="kpi-icon">📦</div>
-            <div class="kpi-label">Placas</div>
-            <div class="kpi-value">{{ kpis.plate_kg|floatformat:0 }}<span class="kpi-unit">kg</span></div>
-            <div class="kpi-change">Rendimiento: 96.7%</div>
+            <div class="kpi-label">📦 Placas</div>
+            <div class="kpi-value">{{ kpis.plate_kg|floatformat:0 }} kg</div>
         </div>
-
         <div class="kpi-card">
-            <div class="kpi-icon">✂️</div>
-            <div class="kpi-label">Nuqueras</div>
-            <div class="kpi-value">{{ kpis.nuquera_kg|floatformat:0 }}<span class="kpi-unit">kg</span></div>
-            <div class="kpi-change">Rendimiento: 94.3%</div>
+            <div class="kpi-label">✂️ Nuqueras</div>
+            <div class="kpi-value">{{ kpis.nuquera_kg|floatformat:0 }} kg</div>
         </div>
-
         <div class="kpi-card">
-            <div class="kpi-icon">⚙️</div>
-            <div class="kpi-label">Troquelado</div>
-            <div class="kpi-value">{{ kpis.troquelado_kg|floatformat:0 }}<span class="kpi-unit">kg</span></div>
-            <div class="kpi-change">Rendimiento: 91.5%</div>
+            <div class="kpi-label">⚙️ Troquelado</div>
+            <div class="kpi-value">{{ kpis.troquelado_kg|floatformat:0 }} kg</div>
         </div>
-
         <div class="kpi-card">
-            <div class="kpi-icon">📋</div>
-            <div class="kpi-label">PPs Activas</div>
+            <div class="kpi-label">📋 PPs</div>
             <div class="kpi-value">{{ kpis.active_pp }}</div>
-            <div class="kpi-change">Completadas hoy: 5</div>
         </div>
-
         <div class="kpi-card">
-            <div class="kpi-icon">👥</div>
-            <div class="kpi-label">Cuadrillas</div>
+            <div class="kpi-label">👥 Cuadrillas</div>
             <div class="kpi-value">{{ kpis.active_crews }}</div>
-            <div class="kpi-change">Todas activas</div>
         </div>
     </div>
 
-    <!-- Charts Section -->
-    <div class="charts-section">
-        <h2 class="charts-title">📊 Análisis Detallado</h2>
+    <h2 class="charts-title">📊 Análisis Detallado</h2>
 
-        <div class="charts-grid">
-            <!-- Rendimiento por Cuadrilla -->
-            <div class="chart-card">
-                <h3>Cuadrillas Top 5</h3>
-                <div class="chart-container">
-                    <canvas id="crewChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Rendimiento por Área -->
-            <div class="chart-card">
-                <h3>Distribución por Área</h3>
-                <div class="chart-container">
-                    <canvas id="areaChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Tendencia Diaria -->
-            <div class="chart-card chart-full">
-                <h3>Tendencia de Producción - Últimos 14 Días</h3>
-                <div class="chart-container">
-                    <canvas id="trendChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Túneles vs Placas -->
-            <div class="chart-card chart-full">
-                <h3>Comparativa: Túneles vs Placas</h3>
-                <div class="chart-container">
-                    <canvas id="comparisonChart"></canvas>
-                </div>
+    <div class="charts-grid">
+        <div class="chart-card">
+            <h3>Cuadrillas - Top 5</h3>
+            <div class="chart-container">
+                <canvas id="crewChart"></canvas>
             </div>
         </div>
-    </div>
 
-    <div class="dashboard-footer">
-        <p>🔄 Datos actualizados en tiempo real | Última sincronización: hace 2 minutos | © 2026 Soluciones & Procesos Marinos S.A.C.</p>
+        <div class="chart-card">
+            <h3>Producción por Área</h3>
+            <div class="chart-container">
+                <canvas id="areaChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card chart-full">
+            <h3>Tendencia - Últimas 2 Semanas</h3>
+            <div class="chart-container">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card chart-full">
+            <h3>Túneles vs Placas</h3>
+            <div class="chart-container">
+                <canvas id="comparisonChart"></canvas>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- Chart.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 <script>
-    Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
     Chart.defaults.color = '#aaa';
 
-    const chartConfig = {
+    const opts = {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: {
-                labels: {
-                    color: '#fff',
-                    font: { size: 12, weight: 'bold' },
-                    padding: 15
-                }
-            },
-            tooltip: {
-                backgroundColor: 'rgba(0,0,0,0.8)',
-                titleColor: '#fff',
-                bodyColor: '#fff',
-                borderColor: '#4ECDC4',
-                borderWidth: 1,
-                padding: 12,
-                cornerRadius: 8
-            }
+            legend: { labels: { color: '#fff' } },
+            tooltip: { backgroundColor: 'rgba(0,0,0,0.8)' }
         },
         scales: {
-            y: {
-                beginAtZero: true,
-                grid: { color: 'rgba(255,255,255,0.05)' },
-                ticks: { color: '#888' }
-            },
-            x: {
-                grid: { display: false },
-                ticks: { color: '#888' }
-            }
+            y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#888' } },
+            x: { grid: { display: false }, ticks: { color: '#888' } }
         }
     };
 
-    // Cuadrillas Chart
     new Chart(document.getElementById('crewChart'), {
         type: 'bar',
         data: {
-            labels: ['Cuadrilla A', 'Cuadrilla B', 'Cuadrilla C', 'Cuadrilla D', 'Cuadrilla E'],
+            labels: ['Cuadrilla A', 'B', 'C', 'D', 'E'],
             datasets: [{
-                label: 'Kg Procesados',
+                label: 'Kg',
                 data: [1200, 1100, 950, 850, 750],
-                backgroundColor: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'],
-                borderRadius: 8,
-                borderSkipped: false
+                backgroundColor: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7']
             }]
         },
-        options: { ...chartConfig, plugins: { ...chartConfig.plugins, legend: { display: false } } }
+        options: { ...opts, plugins: { ...opts.plugins, legend: { display: false } } }
     });
 
-    // Área Chart
     new Chart(document.getElementById('areaChart'), {
         type: 'doughnut',
         data: {
@@ -403,58 +229,45 @@
                 borderWidth: 3
             }]
         },
-        options: chartConfig
+        options: opts
     });
 
-    // Tendencia Chart
     new Chart(document.getElementById('trendChart'), {
         type: 'line',
         data: {
-            labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sab', 'Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sab', 'Dom'],
+            labels: ['L', 'M', 'X', 'J', 'V', 'S', 'D', 'L', 'M', 'X', 'J', 'V', 'S', 'D'],
             datasets: [{
-                label: 'Producción Total',
+                label: 'Producción',
                 data: [8000, 8500, 7800, 9200, 9800, 7200, 6500, 8900, 9100, 8600, 9400, 10000, 7800, 8200],
                 borderColor: '#4ECDC4',
                 backgroundColor: 'rgba(78, 205, 196, 0.1)',
                 borderWidth: 3,
                 fill: true,
-                tension: 0.4,
-                pointRadius: 5,
-                pointBackgroundColor: '#FF6B6B',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2
+                tension: 0.4
             }]
         },
-        options: { ...chartConfig, plugins: { ...chartConfig.plugins, legend: { display: false } } }
+        options: { ...opts, plugins: { ...opts.plugins, legend: { display: false } } }
     });
 
-    // Comparison Chart
     new Chart(document.getElementById('comparisonChart'), {
         type: 'line',
         data: {
-            labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sab', 'Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sab', 'Dom'],
-            datasets: [
-                {
-                    label: 'Túneles',
-                    data: [4500, 4800, 4200, 5100, 5500, 3800, 3600, 5000, 5200, 4800, 5300, 5600, 4200, 4600],
-                    borderColor: '#45B7D1',
-                    backgroundColor: 'rgba(69, 183, 209, 0.1)',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    pointRadius: 4
-                },
-                {
-                    label: 'Placas',
-                    data: [3500, 3700, 3600, 4100, 4300, 3400, 2900, 3900, 3900, 3800, 4100, 4400, 3600, 3600],
-                    borderColor: '#96CEB4',
-                    backgroundColor: 'rgba(150, 206, 180, 0.1)',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    pointRadius: 4
-                }
-            ]
+            labels: ['L', 'M', 'X', 'J', 'V', 'S', 'D', 'L', 'M', 'X', 'J', 'V', 'S', 'D'],
+            datasets: [{
+                label: 'Túneles',
+                data: [4500, 4800, 4200, 5100, 5500, 3800, 3600, 5000, 5200, 4800, 5300, 5600, 4200, 4600],
+                borderColor: '#45B7D1',
+                borderWidth: 3,
+                tension: 0.4
+            }, {
+                label: 'Placas',
+                data: [3500, 3700, 3600, 4100, 4300, 3400, 2900, 3900, 3900, 3800, 4100, 4400, 3600, 3600],
+                borderColor: '#96CEB4',
+                borderWidth: 3,
+                tension: 0.4
+            }]
         },
-        options: chartConfig
+        options: opts
     });
 </script>
 {% endblock %}
