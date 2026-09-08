@@ -24,6 +24,7 @@
       {% if user.is_authenticated %}
       <div class="d-flex align-items-center gap-2 gap-md-3 text-white header-actions">
         {% if can_manage_catalogs %}<a class="btn btn-sm btn-outline-light" href="{% url 'productions:catalogs' %}">Catálogos</a>{% endif %}
+        <a class="btn btn-sm btn-outline-light" href="{% url 'productions:dashboard' %}">Dashboard</a>
         {% if can_manage_users %}<a class="btn btn-sm btn-outline-light" href="{% url 'productions:user_list' %}">Usuarios{% if pending_user_count %} <span class="badge text-bg-warning">{{ pending_user_count }}</span>{% endif %}</a>{% endif %}
         <span class="d-none d-sm-inline">{{ user.get_full_name|default:user.username }}</span>
         <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-light">Salir</button></form>

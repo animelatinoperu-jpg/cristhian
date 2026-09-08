@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Profesional</title>
+    <title>Dashboard Ejecutivo · Soluciones & Procesos Marinos</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -13,7 +13,27 @@
             color: #f1f5f9;
         }
 
-        .container { max-width: 1600px; margin: 0 auto; padding: 40px 20px; }
+        .container { max-width: 1600px; margin: 0 auto; padding: 24px 20px 60px; }
+
+        .topnav {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 12px; flex-wrap: wrap; margin-bottom: 24px;
+        }
+        .topnav a.back {
+            color: #e2e8f0; text-decoration: none; font-weight: 600;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: 10px 18px; border-radius: 10px; transition: all 0.2s ease;
+        }
+        .topnav a.back:hover { background: rgba(255, 255, 255, 0.12); }
+        .live-badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: rgba(34, 197, 94, 0.15); color: #86efac;
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            padding: 8px 16px; border-radius: 999px; font-size: 0.85em; font-weight: 700;
+        }
+        .live-badge .dot { width: 9px; height: 9px; border-radius: 50%; background: #22c55e; animation: pulse 1.6s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
         .header {
             background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(236, 72, 153, 0.15) 100%);
@@ -62,25 +82,65 @@
         .chart-card.small .chart-container { height: 300px; }
 
         .chart-card h3 { color: #f1f5f9; margin-bottom: 20px; font-size: 1.3em; }
+        .empty-note { color: #94a3b8; text-align: center; padding: 40px 10px; font-size: 1.05em; }
+
+        .pp-table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
+        .pp-table th {
+            text-align: left; color: #94a3b8; text-transform: uppercase;
+            font-size: 0.75em; letter-spacing: 1px; padding: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .pp-table td { padding: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+        .pp-table tr:last-child td { border-bottom: none; }
+        .pp-table tbody tr { transition: background 0.2s ease; }
+        .pp-table tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
+        .pp-table a { color: #a5b4fc; text-decoration: none; font-weight: 700; }
+        .pp-table a:hover { text-decoration: underline; }
+        .status-badge {
+            display: inline-block; padding: 4px 12px; border-radius: 999px;
+            font-size: 0.8em; font-weight: 700; white-space: nowrap;
+        }
+        .st-OPEN { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+        .st-IN_PROGRESS { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+        .st-REVIEW { background: rgba(234, 179, 8, 0.2); color: #fde047; }
+        .st-OBSERVED { background: rgba(249, 115, 22, 0.2); color: #fdba74; }
+        .st-APPROVED { background: rgba(34, 197, 94, 0.25); color: #86efac; }
+        .st-CLOSED { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+        .st-DRAFT { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
+        .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+        .footer-note { text-align: center; color: #64748b; margin-top: 50px; font-size: 0.9em; }
 
         @media (max-width: 768px) {
             .charts-grid { grid-template-columns: 1fr; }
             .chart-card { grid-column: auto; }
             .header h1 { font-size: 2em; }
+            .pp-table th:nth-child(3), .pp-table td:nth-child(3) { display: none; }
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <div class="topnav">
+            <a class="back" href="{% url 'productions:list' %}">← Partes de Producción</a>
+            <span class="live-badge"><span class="dot"></span>Datos en tiempo real</span>
+        </div>
+
         <div class="header">
             <h1>📊 Dashboard Ejecutivo</h1>
             <p>Sistema Profesional de Análisis de Rendimiento</p>
         </div>
 
+        {% if not has_data %}
+        <div class="card">
+            <p class="empty-note">Aún no hay movimientos registrados. Cuando se capture recepción, túneles, placas, nuqueras o troquelado, los indicadores aparecerán aquí automáticamente.</p>
+        </div>
+        {% endif %}
+
         <div class="grid-2">
             <div class="card">
                 <div class="kpi-icon">📈</div>
-                <div class="kpi-label">Total</div>
+                <div class="kpi-label">Total recepción</div>
                 <div class="kpi-value">{{ kpis.total_kg|floatformat:0 }}<span class="kpi-unit">kg</span></div>
             </div>
             <div class="card">
@@ -119,7 +179,7 @@
 
         <div class="charts-grid">
             <div class="card small">
-                <h3>Rendimiento por Cuadrilla</h3>
+                <h3>Rendimiento por Cuadrilla (Top {{ top_crew_count }})</h3>
                 <div class="chart-container">
                     <canvas id="crewChart"></canvas>
                 </div>
@@ -133,19 +193,54 @@
             </div>
 
             <div class="card">
-                <h3>Tendencia - Últimas 2 Semanas</h3>
+                <h3>Recepción diaria · Últimos {{ trend_days }} días (kg)</h3>
                 <div class="chart-container">
                     <canvas id="trendChart"></canvas>
                 </div>
             </div>
 
             <div class="card">
-                <h3>Comparativa: Túneles vs Placas</h3>
+                <h3>Comparativa diaria: Túneles vs Placas (kg)</h3>
                 <div class="chart-container">
                     <canvas id="comparisonChart"></canvas>
                 </div>
             </div>
         </div>
+
+        <h2 class="section-title">🧾 Partes de Producción recientes</h2>
+
+        <div class="card">
+            {% if recent_pp %}
+            <div style="overflow-x: auto;">
+                <table class="pp-table">
+                    <thead>
+                        <tr>
+                            <th>PP</th>
+                            <th>Cliente / Lote</th>
+                            <th>Fecha prod.</th>
+                            <th>Estado</th>
+                            <th class="num">Recepción (kg)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pp in recent_pp %}
+                        <tr>
+                            <td><a href="{% url 'productions:detail' pp.pk %}">PP {{ pp.number }}</a></td>
+                            <td>{{ pp.customer.name }} · {{ pp.plant_lot }}</td>
+                            <td>{{ pp.production_date|date:"d/m/Y" }}</td>
+                            <td><span class="status-badge st-{{ pp.status }}">{{ pp.get_status_display }}</span></td>
+                            <td class="num">{{ pp.reception_total|default_if_none:0|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="empty-note">No hay partes de producción registrados.</p>
+            {% endif %}
+        </div>
+
+        <p class="footer-note">Indicadores calculados con los registros activos (se excluyen partes anulados y registros eliminados).</p>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
