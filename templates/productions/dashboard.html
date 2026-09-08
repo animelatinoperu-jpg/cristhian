@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Ejecutivo · Soluciones & Procesos Marinos</title>
+    <meta http-equiv="refresh" content="300">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -111,6 +112,32 @@
 
         .footer-note { text-align: center; color: #64748b; margin-top: 50px; font-size: 0.9em; }
 
+        .filter-bar {
+            display: flex; align-items: center; justify-content: center;
+            gap: 12px; flex-wrap: wrap; margin-bottom: 30px;
+        }
+        .filter-bar label { color: #94a3b8; font-weight: 600; font-size: 0.95em; }
+        .filter-bar select {
+            background: rgba(255, 255, 255, 0.06); color: #f1f5f9;
+            border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px;
+            padding: 10px 14px; font-size: 0.95em; max-width: 100%;
+        }
+        .filter-bar select option { color: #0f172a; }
+        .filter-chip {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: rgba(99, 102, 241, 0.2); color: #c7d2fe;
+            border: 1px solid rgba(99, 102, 241, 0.5);
+            padding: 8px 8px 8px 16px; border-radius: 999px;
+            font-size: 0.9em; font-weight: 700;
+        }
+        .filter-chip a {
+            color: #c7d2fe; text-decoration: none; font-weight: 800;
+            background: rgba(255, 255, 255, 0.12); border-radius: 50%;
+            width: 24px; height: 24px; display: inline-flex;
+            align-items: center; justify-content: center;
+        }
+        .updated-at { text-align: center; color: #64748b; font-size: 0.85em; margin-top: -20px; margin-bottom: 30px; }
+
         @media (max-width: 768px) {
             .charts-grid { grid-template-columns: 1fr; }
             .chart-card { grid-column: auto; }
@@ -131,6 +158,20 @@
             <p>Sistema Profesional de Análisis de Rendimiento</p>
         </div>
 
+        <form class="filter-bar" method="get" action="{% url 'productions:dashboard' %}">
+            <label for="pp-select">Filtrar por parte:</label>
+            <select id="pp-select" name="pp" onchange="this.form.submit()">
+                <option value="">Todas las producciones</option>
+                {% for option in pp_options %}
+                <option value="{{ option.id }}"{% if selected_pp and option.id == selected_pp.pk %} selected{% endif %}>PP {{ option.number }} · {{ option.customer__name }} · {{ option.production_date|date:"d/m/Y" }}</option>
+                {% endfor %}
+            </select>
+            {% if selected_pp %}
+            <span class="filter-chip">PP {{ selected_pp.number }}<a href="{% url 'productions:dashboard' %}" title="Quitar filtro">✕</a></span>
+            {% endif %}
+        </form>
+        <p class="updated-at">Actualizado: {{ updated_at }} · Se recarga solo cada 5 minutos</p>
+
         {% if not has_data %}
         <div class="card">
             <p class="empty-note">Aún no hay movimientos registrados. Cuando se capture recepción, túneles, placas, nuqueras o troquelado, los indicadores aparecerán aquí automáticamente.</p>
@@ -149,7 +190,7 @@
                 <div class="kpi-value">{{ kpis.tunnel_kg|floatformat:0 }}<span class="kpi-unit">kg</span></div>
             </div>
             <div class="card">
-                <div class="kpi-icon">📦</div>
+                <div class="kpi-icon">🧊</div>
                 <div class="kpi-label">Placas</div>
                 <div class="kpi-value">{{ kpis.plate_kg|floatformat:0 }}<span class="kpi-unit">kg</span></div>
             </div>
@@ -164,13 +205,23 @@
                 <div class="kpi-value">{{ kpis.troquelado_kg|floatformat:0 }}<span class="kpi-unit">kg</span></div>
             </div>
             <div class="card">
+                <div class="kpi-icon">📦</div>
+                <div class="kpi-label">Empaque</div>
+                <div class="kpi-value">{{ kpis.pack_kg|floatformat:0 }}<span class="kpi-unit">kg</span></div>
+            </div>
+            <div class="card">
+                <div class="kpi-icon">💰</div>
+                <div class="kpi-label">Costos</div>
+                <div class="kpi-value"><span class="kpi-unit">S/ </span>{{ kpis.cost_total|floatformat:2 }}</div>
+            </div>
+            <div class="card">
                 <div class="kpi-icon">📋</div>
                 <div class="kpi-label">PPs Activas</div>
                 <div class="kpi-value">{{ kpis.active_pp }}</div>
             </div>
             <div class="card">
                 <div class="kpi-icon">👥</div>
-                <div class="kpi-label">Cuadrillas</div>
+                <div class="kpi-label">{{ crews_label }}</div>
                 <div class="kpi-value">{{ kpis.active_crews }}</div>
             </div>
         </div>

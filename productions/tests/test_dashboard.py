@@ -8,11 +8,13 @@ from django.urls import reverse
 from django.utils import timezone
 
 from productions.models import (
+    CostEntry,
     Crew,
     Customer,
     NuqueraEntry,
     PlateCrewEntry,
     PlateEntry,
+    PlatePackagingEntry,
     PlatePosition,
     Product,
     ProductionOrder,
@@ -24,6 +26,7 @@ from productions.models import (
     TunnelCrewEntry,
     TunnelEntry,
     TunnelFill,
+    TunnelPackagingEntry,
     TunnelRack,
     User,
     Vehicle,
@@ -159,6 +162,26 @@ class DashboardViewTests(TestCase):
             start_time=dt.time(8, 0),
             end_time=dt.time(9, 0),
         )
+        TunnelPackagingEntry.objects.create(
+            **common,
+            date=self.today,
+            pallet_number=1,
+            product=self.product,
+            package_count=5,
+        )
+        PlatePackagingEntry.objects.create(
+            **common,
+            date=self.today,
+            pallet_number=1,
+            product=self.product,
+            package_count=3,
+        )
+        CostEntry.objects.create(
+            **common,
+            concept="Mano de obra",
+            quantity=Decimal("10.000"),
+            unit_cost=Decimal("2.5000"),
+        )
 
     def test_requires_login(self):
         response = self.client.get(reverse("productions:dashboard"))
@@ -176,6 +199,8 @@ class DashboardViewTests(TestCase):
         self.assertEqual(kpis["plate_kg"], 120.0)  # 12 bandejas x 10 kg
         self.assertEqual(kpis["nuquera_kg"], 25.0)
         self.assertEqual(kpis["troquelado_kg"], 200.0)
+        self.assertEqual(kpis["pack_kg"], 160.0)  # (5 + 3) bultos x 20 kg
+        self.assertEqual(kpis["cost_total"], 25.0)  # 10 x 2.50
         self.assertEqual(kpis["active_pp"], 1)
         self.assertEqual(kpis["active_crews"], 1)
 
@@ -216,3 +241,64 @@ class DashboardViewTests(TestCase):
         self.assertEqual(kpis["troquelado_kg"], 0.0)
         self.assertEqual(kpis["active_pp"], 0)
         self.assertFalse(response.context["has_data"])
+
+    def _create_second_production(self):
+        second = ProductionOrder.objects.create(
+            number=902,
+            plant_lot="LOTE-902",
+            customer=self.production.customer,
+            process="Pota",
+            main_product=self.production.main_product,
+            reception_date=self.today,
+            production_date=self.today,
+            shift=ProductionOrder.Shift.DAY,
+            template_version=self.template,
+            status=ProductionOrder.Status.OPEN,
+            created_by=self.user,
+        )
+        ReceptionEntry.objects.create(
+            production=second,
+            responsible=self.user,
+            observation="",
+            date=self.today,
+            vehicle=self.vehicle,
+            car_number="2",
+            product=self.raw_product,
+            crew=self.crew,
+            container="8",
+            weight_kg=Decimal("50.00"),
+        )
+        return second
+
+    def test_filter_by_single_production(self):
+        second = self._create_second_production()
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("productions:dashboard"), {"pp": str(self.production.pk)}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["selected_pp"].pk, self.production.pk)
+        self.assertEqual(response.context["kpis"]["total_kg"], 100.0)
+
+        response = self.client.get(
+            reverse("productions:dashboard"), {"pp": str(second.pk)}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["selected_pp"].pk, second.pk)
+        kpis = response.context["kpis"]
+        self.assertEqual(kpis["total_kg"], 50.0)
+        self.assertEqual(kpis["tunnel_kg"], 0.0)
+        # La tabla de recientes sigue mostrando ambos partes.
+        self.assertEqual(len(list(response.context["recent_pp"])), 2)
+
+    def test_invalid_pp_param_shows_global_dashboard(self):
+        self._create_second_production()
+        self.client.force_login(self.user)
+        for bad_value in ("999999", "abc", ""):
+            response = self.client.get(
+                reverse("productions:dashboard"), {"pp": bad_value}
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertIsNone(response.context["selected_pp"])
+            self.assertEqual(response.context["kpis"]["total_kg"], 150.0)
