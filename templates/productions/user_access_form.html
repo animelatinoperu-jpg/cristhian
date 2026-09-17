@@ -51,10 +51,10 @@
       </div>
       <div class="col-12"><div class="alert alert-info mb-0">La autorización se asigna únicamente por áreas. Los accesos generales no forman parte de este panel.</div></div>
       <div class="col-12 col-lg-6">
-        <section class="access-panel"><h2 class="h5">3. Partes de producción permitidos</h2><p class="small text-secondary">Seleccione los PP que podrá abrir.</p>{{ form.productions }}{% for error in form.productions.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}</section>
+        <section class="access-panel"><h2 class="h5">2. Partes de producción</h2><p class="small text-secondary">Todos los partes de producción vigentes quedan permitidos automáticamente.</p>{{ form.productions }}{% for error in form.productions.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}</section>
       </div>
       <div class="col-12 col-lg-6">
-        <section class="access-panel"><h2 class="h5">4. Túneles permitidos</h2><p class="small text-secondary">Necesario para el registro de llenado y supervisión de túneles.</p>{{ form.tunnels }}{% for error in form.tunnels.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}</section>
+        <section class="access-panel"><h2 class="h5">3. Túneles permitidos</h2><p class="small text-secondary">Necesario para el registro de llenado y supervisión de túneles.</p>{{ form.tunnels }}{% for error in form.tunnels.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}</section>
       </div>
     </div>
     <div class="alert alert-warning mt-4 mb-0"><strong>Importante:</strong> la persona solo podrá ingresar cuando el estado sea <strong>Activa</strong>.</div>

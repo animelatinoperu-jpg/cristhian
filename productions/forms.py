@@ -460,8 +460,10 @@ class UserAccessForm(forms.ModelForm):
             field.widget.attrs["class"] = "form-select" if isinstance(field.widget, forms.Select) else "form-control"
 
         if self.instance.pk:
+            # Los usuarios autorizados trabajan sobre todos los PP vigentes;
+            # el administrador ya no debe marcarlos uno por uno.
+            self.fields["productions"].initial = self.fields["productions"].queryset.values_list("pk", flat=True)
             active_assignments = self.instance.area_assignments.filter(active=True)
-            self.fields["productions"].initial = active_assignments.values_list("production_id", flat=True).distinct()
             self.fields["tunnels"].initial = active_assignments.filter(tunnel__isnull=False).values_list("tunnel_id", flat=True).distinct()
 
     def clean(self):
