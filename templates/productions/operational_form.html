@@ -1645,7 +1645,7 @@
         <div class="operational-record-list">
           {% for card in record_cards %}
           <article class="operational-record {% if editing and card.entry.pk == object.pk %}operational-record-editing{% endif %}">
-            <div><strong class="d-block">{{ card.title }}</strong>{% if card.detail %}<span class="small text-secondary">{{ card.detail }}</span>{% endif %}</div>
+            <div><strong class="d-block">{{ card.title }}</strong>{% if card.detail %}<span class="small text-secondary">{{ card.detail }}</span>{% endif %}<small class="d-block text-secondary mt-1">Registrado por: <strong>{{ card.responsible.get_full_name|default:card.responsible.username }}</strong> · {{ card.entry.created_at|date:"d/m/Y H:i" }}</small></div>
             {% if not operational_read_only %}<div class="d-flex flex-wrap gap-2 mt-2">
               <a class="btn btn-sm btn-outline-primary" href="{% url 'productions:operational_entry_update' production.pk module_key card.entry.pk %}">Corregir</a>
               <form method="post" action="{% url 'productions:operational_entry_delete' production.pk module_key card.entry.pk %}" data-prevent-double-submit data-confirm-message="¿Eliminar este registro: {{ card.title }}?">

@@ -2383,11 +2383,16 @@ def _operational_record_cards(config, production):
     )
     queryset = config["model"].objects.filter(
         **ownership_filter, is_active=True
-    ).select_related().order_by("-created_at", "-pk")
+    ).select_related("responsible").order_by("-created_at", "-pk")
     cards = []
     for entry in queryset:
         title, detail = _operational_record_text(entry)
-        cards.append({"entry": entry, "title": title, "detail": detail})
+        cards.append({
+            "entry": entry,
+            "title": title,
+            "detail": detail,
+            "responsible": entry.responsible,
+        })
     return cards
 
 
