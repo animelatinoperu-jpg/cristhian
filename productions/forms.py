@@ -357,6 +357,14 @@ OPERATIONAL_ACCESS_ROLE_LABELS = {
     Role.Codes.TROQUELADO: "Troquelado",
 }
 
+AREA_ROLE_GROUPS = [
+    ("Recepción", [Role.Codes.RECEPTION]),
+    ("Nuqueras / perfilado", [Role.Codes.NUQUERAS]),
+    ("Túneles", [Role.Codes.TUNNEL, Role.Codes.TUNNEL_CREW, Role.Codes.TUNNEL_PACK]),
+    ("Envasado en placas", [Role.Codes.PLATES, Role.Codes.PLATE_CREW, Role.Codes.PLATE_PACK]),
+    ("Soporte operativo", [Role.Codes.MATERIALS, Role.Codes.COSTS, Role.Codes.TROQUELADO]),
+]
+
 
 class UserAccessForm(forms.ModelForm):
     productions = forms.ModelMultipleChoiceField(
@@ -428,6 +436,19 @@ class UserAccessForm(forms.ModelForm):
 
         self.operational_role_options = grouped_options(OPERATIONAL_ACCESS_ROLE_LABELS)
         self.general_role_options = grouped_options(GENERAL_ACCESS_ROLE_LABELS)
+        self.area_role_options = []
+        for area_label, codes in AREA_ROLE_GROUPS:
+            options = [
+                {
+                    "role": available_roles[code],
+                    "label": OPERATIONAL_ACCESS_ROLE_LABELS[code],
+                    "selected": str(available_roles[code].pk) in selected_role_ids,
+                }
+                for code in codes
+                if code in available_roles
+            ]
+            if options:
+                self.area_role_options.append({"label": area_label, "options": options})
         self.fields["productions"].queryset = ProductionOrder.objects.exclude(
             status=ProductionOrder.Status.VOID
         ).order_by("-production_date", "-number")

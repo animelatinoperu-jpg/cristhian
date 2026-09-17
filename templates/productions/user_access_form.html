@@ -26,18 +26,23 @@
     <div class="row g-4">
       <div class="col-12 col-xl-8">
         <section class="access-panel">
-          <h2 class="h5">1. Registros operativos permitidos</h2>
-          <p class="small text-secondary">Seleccione cada registro que esta persona podrá abrir y llenar.</p>
-          <div class="access-option-grid">
-            {% for option in form.operational_role_options %}
-            <label class="access-option" for="role-{{ option.role.pk }}">
-              <input type="checkbox" name="{{ form.roles.html_name }}" value="{{ option.role.pk }}" id="role-{{ option.role.pk }}"{% if option.selected %} checked{% endif %}>
-              <span><strong>{{ option.label }}</strong><small>Permitir este registro operativo</small></span>
-            </label>
-            {% empty %}
-            <p class="text-secondary mb-0">No hay registros operativos configurados.</p>
-            {% endfor %}
+          <h2 class="h5">1. Áreas y roles operativos</h2>
+          <p class="small text-secondary">Marque las funciones exactas que podrá utilizar esta persona.</p>
+          {% for area in form.area_role_options %}
+          <div class="mb-3">
+            <h3 class="h6 mb-2">{{ area.label }}</h3>
+            <div class="access-option-grid">
+              {% for option in area.options %}
+              <label class="access-option" for="role-{{ option.role.pk }}">
+                <input type="checkbox" name="{{ form.roles.html_name }}" value="{{ option.role.pk }}" id="role-{{ option.role.pk }}"{% if option.selected %} checked{% endif %}>
+                <span><strong>{{ option.label }}</strong><small>Permitir esta función</small></span>
+              </label>
+              {% endfor %}
+            </div>
           </div>
+          {% empty %}
+          <p class="text-secondary mb-0">No hay roles configurados. Se crearán automáticamente en el próximo despliegue.</p>
+          {% endfor %}
           {% for error in form.roles.errors %}<div class="text-danger small mt-2">{{ error }}</div>{% endfor %}
         </section>
       </div>
