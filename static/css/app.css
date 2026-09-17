@@ -2698,3 +2698,4 @@ body:not(.production-list-page):not(.production-detail-page):not(.login-page) h2
   box-shadow:0 0 0 1000px #0f2e37 inset !important;
   transition:background-color 9999s ease-out;
 }
+.access-area-card{overflow:hidden;border:1px solid #d5dfdb;border-radius:1rem;background:#fff;box-shadow:0 3px 18px rgba(18,45,37,.06)}.access-area-card>img{display:block;width:100%;height:120px;object-fit:cover}.access-area-card__body{padding:1rem}.access-area-card__body h3{color:var(--forest)}

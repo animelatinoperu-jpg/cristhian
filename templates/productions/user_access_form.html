@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Acceso de usuario · Partes de Producción{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -26,10 +27,12 @@
     <div class="row g-4">
       <div class="col-12 col-xl-8">
         <section class="access-panel">
-          <h2 class="h5">1. Áreas y roles operativos</h2>
-          <p class="small text-secondary">Marque las funciones exactas que podrá utilizar esta persona.</p>
+          <h2 class="h5">1. Áreas autorizadas</h2>
+          <p class="small text-secondary">Seleccione las áreas donde esta persona podrá trabajar.</p>
           {% for area in form.area_role_options %}
-          <div class="mb-3">
+          <div class="access-area-card mb-3">
+            <img src="{% static area.image %}" alt="" loading="lazy">
+            <div class="access-area-card__body">
             <h3 class="h6 mb-2">{{ area.label }}</h3>
             <div class="access-option-grid">
               {% for option in area.options %}
@@ -38,7 +41,7 @@
                 <span><strong>{{ option.label }}</strong><small>Permitir esta función</small></span>
               </label>
               {% endfor %}
-            </div>
+            </div></div>
           </div>
           {% empty %}
           <p class="text-secondary mb-0">No hay roles configurados. Se crearán automáticamente en el próximo despliegue.</p>
@@ -46,22 +49,7 @@
           {% for error in form.roles.errors %}<div class="text-danger small mt-2">{{ error }}</div>{% endfor %}
         </section>
       </div>
-      <div class="col-12 col-xl-4">
-        <section class="access-panel">
-          <h2 class="h5">2. Accesos generales</h2>
-          <p class="small text-secondary">Opciones administrativas o de consulta.</p>
-          <div class="access-general-list">
-            {% for option in form.general_role_options %}
-            <label class="access-option" for="role-{{ option.role.pk }}">
-              <input type="checkbox" name="{{ form.roles.html_name }}" value="{{ option.role.pk }}" id="role-{{ option.role.pk }}"{% if option.selected %} checked{% endif %}>
-              <span><strong>{{ option.label }}</strong></span>
-            </label>
-            {% empty %}
-            <p class="text-secondary mb-0">Sin accesos generales disponibles.</p>
-            {% endfor %}
-          </div>
-        </section>
-      </div>
+      <div class="col-12"><div class="alert alert-info mb-0">La autorización se asigna únicamente por áreas. Los accesos generales no forman parte de este panel.</div></div>
       <div class="col-12 col-lg-6">
         <section class="access-panel"><h2 class="h5">3. Partes de producción permitidos</h2><p class="small text-secondary">Seleccione los PP que podrá abrir.</p>{{ form.productions }}{% for error in form.productions.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}</section>
       </div>

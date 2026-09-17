@@ -358,11 +358,11 @@ OPERATIONAL_ACCESS_ROLE_LABELS = {
 }
 
 AREA_ROLE_GROUPS = [
-    ("Recepción", [Role.Codes.RECEPTION]),
-    ("Nuqueras / perfilado", [Role.Codes.NUQUERAS]),
-    ("Túneles", [Role.Codes.TUNNEL, Role.Codes.TUNNEL_CREW, Role.Codes.TUNNEL_PACK]),
-    ("Envasado en placas", [Role.Codes.PLATES, Role.Codes.PLATE_CREW, Role.Codes.PLATE_PACK]),
-    ("Soporte operativo", [Role.Codes.MATERIALS, Role.Codes.COSTS, Role.Codes.TROQUELADO]),
+    ("Recepción", "img/stage-recepcion.jpg", [Role.Codes.RECEPTION]),
+    ("Nuqueras / perfilado", "img/stage-nuqueras.jpg", [Role.Codes.NUQUERAS]),
+    ("Túneles", "img/stage-tuneles.jpg", [Role.Codes.TUNNEL, Role.Codes.TUNNEL_CREW, Role.Codes.TUNNEL_PACK]),
+    ("Envasado en placas", "img/stage-env-pla.jpg", [Role.Codes.PLATES, Role.Codes.PLATE_CREW, Role.Codes.PLATE_PACK]),
+    ("Soporte operativo", "img/stage-materiales.jpg", [Role.Codes.MATERIALS, Role.Codes.COSTS, Role.Codes.TROQUELADO]),
 ]
 
 
@@ -437,7 +437,7 @@ class UserAccessForm(forms.ModelForm):
         self.operational_role_options = grouped_options(OPERATIONAL_ACCESS_ROLE_LABELS)
         self.general_role_options = grouped_options(GENERAL_ACCESS_ROLE_LABELS)
         self.area_role_options = []
-        for area_label, codes in AREA_ROLE_GROUPS:
+        for area_label, image, codes in AREA_ROLE_GROUPS:
             options = [
                 {
                     "role": available_roles[code],
@@ -448,7 +448,7 @@ class UserAccessForm(forms.ModelForm):
                 if code in available_roles
             ]
             if options:
-                self.area_role_options.append({"label": area_label, "options": options})
+                self.area_role_options.append({"label": area_label, "image": image, "options": options})
         self.fields["productions"].queryset = ProductionOrder.objects.exclude(
             status=ProductionOrder.Status.VOID
         ).order_by("-production_date", "-number")
