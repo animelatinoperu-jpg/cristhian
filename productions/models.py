@@ -1531,10 +1531,28 @@ class Rate(TimestampedModel):
 
 
 class CostEntry(OperationalRecord):
+    class TareoArea(models.TextChoices):
+        GENERAL = "GENERAL", "Cuadrilla general"
+        RECEPCION = "RECEPCION", "Recepción"
+        NUQUERAS = "NUQUERAS", "Nuqueras"
+        TUNEL = "TUNEL", "Túnel"
+        PLACAS = "PLACAS", "Placas"
+        EMPAQUE_TUNEL = "EMPAQUE_TUNEL", "Empaque de túnel"
+        EMPAQUE_PLACAS = "EMPAQUE_PLACAS", "Empaque de placas"
+        TROQUELADO = "TROQUELADO", "Troquelado"
+
     concept = models.CharField(max_length=160)
     quantity = models.DecimalField(max_digits=12, decimal_places=3, validators=[MinValueValidator(0)])
     unit_cost = models.DecimalField(max_digits=12, decimal_places=4, validators=[MinValueValidator(0)])
     rate = models.ForeignKey(Rate, null=True, blank=True, on_delete=models.PROTECT)
+    tareo_area = models.CharField(max_length=30, choices=TareoArea.choices, default=TareoArea.GENERAL)
+    tareo_reference = models.CharField(
+        max_length=160,
+        blank=True,
+        help_text="Cuadrilla, trabajador, turno o identificador del tareo al que pertenece el costo.",
+    )
+    crew = models.ForeignKey(Crew, null=True, blank=True, on_delete=models.PROTECT, related_name="cost_entries")
+    worker = models.ForeignKey(Worker, null=True, blank=True, on_delete=models.PROTECT, related_name="cost_entries")
 
     @property
     def total(self):

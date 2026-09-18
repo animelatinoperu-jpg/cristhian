@@ -1430,7 +1430,26 @@ class MaterialUsageForm(StyledModelForm):
 class CostEntryForm(StyledModelForm):
     class Meta:
         model = CostEntry
-        fields = ["concept", "quantity", "unit_cost", "rate", "observation"]
+        fields = [
+            "tareo_area",
+            "tareo_reference",
+            "crew",
+            "worker",
+            "concept",
+            "quantity",
+            "unit_cost",
+            "rate",
+            "observation",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["crew"].queryset = Crew.objects.filter(active=True).order_by("name")
+        self.fields["worker"].queryset = Worker.objects.filter(active=True).order_by("full_name")
+        self.fields["tareo_area"].label = "Área del tareo"
+        self.fields["tareo_reference"].label = "Referencia del tareo"
+        self.fields["crew"].label = "Cuadrilla"
+        self.fields["worker"].label = "Trabajador"
 
 
 class TroqueladoEntryForm(StyledModelForm):
